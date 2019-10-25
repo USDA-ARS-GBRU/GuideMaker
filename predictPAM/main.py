@@ -68,7 +68,6 @@ def _logger_setup(logfile):
 
 
 ############### MAPPING ###########################################
-
 def map_pam(tempdir, pamseq, threads=1):
     """Runs seqkit locate to find the pam in given genome (FASTA)
     
@@ -204,14 +203,14 @@ def merge_cds_gene(cdslist, genelist, tempdir):
 
 def pybed_downstream(tempdir, mapfile_from_pam):
     featurefile = os.path.join(tempdir, "features.txt")
-    mapbed = BedTool(mapfile_from_pam)
+    mapbed = BedTool(mapfile_from_pam.splitlines())
     downstream = mapbed .closest(featurefile , d=True, fd=True, D="a", t="first")
     return downstream
     
     
 def pybed_upstream(tempdir,mapfile_from_pam):
     featurefile = os.path.join(tempdir, "features.txt")
-    mapbed = BedTool(mapfile_from_pam)
+    mapbed = BedTool(mapfile_from_pam.splitlines())
     upstream = mapbed.closest(featurefile , d=True, id=True, D="a", t="first")
     return upstream
     
@@ -219,15 +218,15 @@ def pybed_upstream(tempdir,mapfile_from_pam):
 def merge_downstream_upstream(downsfile,upsfile,tempdir):
     n = downsfile.to_dataframe().shape[1]
     rownames = list(string.ascii_uppercase[0:n])
-    downstream_df = downsfile.to_dataframe(names=rownames)
-    upstream_df = upsfile.to_dataframe(names=rownames)
+    downstream_df = downsfile.to_dataframe(names=rownames,low_memory=False)
+    upstream_df = upsfile.to_dataframe(names=rownames,low_memory=False)
     all_df = pd.merge(downstream_df, upstream_df,
                       right_on=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                       left_on=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
                       how='outer')
     all_df.to_csv(os.path.join(tempdir, "all.txt"), sep='\t', header=True, index=False)
-    
-# map = BedTool("mapping.txt")
+
+    # map = BedTool("mapping.txt")
 # map.head()
 #
 # # downstream of target sequence
@@ -285,15 +284,19 @@ def main(args=None):
         SeqIO.write(SeqIO.parse(args.gbkfile, "genbank"), os.path.join(tempdir, "out.fasta"), "fasta")
         print(tempdir)
         # mapping
+        logging.info("Mapping pam to the genome")
         mapfile = map_pam(tempdir=tempdir, pamseq=args.pamseq, threads=args.threads)
         
         #Retrieving target sequence
+        logging.info("Retrieving target sequence for matching PAM : %s", tempdir)
         targetlist = get_target(tempdir=tempdir, mappingfile=mapfile)
         
         # get cds list
+        logging.info("Retrieving CDS information")
         cdslist = get_cds(SeqIO.parse(args.gbkfile, "genbank"))
         
         # get gene list
+        logging.info("Retrieving Gene information")
         genelist = get_gene(SeqIO.parse(args.gbkfile, "genbank"))
         
         # merge cds and genelist
@@ -301,11 +304,15 @@ def main(args=None):
         merge_cds_gene(cdslist=cdslist,genelist=genelist, tempdir=tempdir)
         
         # pybedtools
+        logging.info("Mapping features downstream of target sequence")
         find_downstream = pybed_downstream(tempdir,mapfile_from_pam=mapfile)
+        
+        logging.info("Mapping features upstream of target sequence")
         find_upstream = pybed_upstream(tempdir,mapfile_from_pam=mapfile)
         
         # merge upstream and downstream output
-        merge_downstream_upstream(downsfile,upsfile,tempdir)
+        logging.info("Writing features file : %s", tempdir)
+        merge_downstream_upstream(find_downstream,find_upstream,tempdir)
         
     except Exception as e:
         logging.error("predictPAM terminated with errors. See the log file for details.")
