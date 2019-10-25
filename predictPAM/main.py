@@ -226,38 +226,6 @@ def merge_downstream_upstream(downsfile,upsfile,tempdir):
                       how='outer')
     all_df.to_csv(os.path.join(tempdir, "all.txt"), sep='\t', header=True, index=False)
 
-    # map = BedTool("mapping.txt")
-# map.head()
-#
-# # downstream of target sequence
-# downstream = map.closest('features.txt', d=True, fd=True, D="a", t="first")
-# downstream.head()
-#
-# # upstream of target sequence
-# upstream = map.closest('features.txt', d=True, id=True, D="a", t="first")
-# upstream.head()
-#
-# # add row names to the dataframe
-# n = downstream.to_dataframe().shape[1]
-# import string
-# rownames = list(string.ascii_uppercase[0:n])
-#
-# # convert bed file to dataframe
-# downstream_df = downstream.to_dataframe(names=rownames)
-# downstream_df.to_csv('downstream.txt', sep='\t', index=False, header=True)
-#
-# upstream_df = upstream.to_dataframe(names=rownames)
-# upstream_df.to_csv('upstream.txt', sep='\t', index=False, header=True)
-#
-# # merge downstream and upstream information and export as csv
-# all_df = pd.merge(downstream_df, upstream_df,
-#                   right_on=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
-#                   left_on=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
-#                   how='outer')
-#
-# all_df.to_csv('all.txt', sep='\t', index=False, header=True)
-
-
 ################
 def main(args=None):
     """Run Complete predictPAM workflow.
