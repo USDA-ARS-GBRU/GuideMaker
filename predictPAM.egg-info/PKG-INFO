@@ -1,0 +1,18 @@
+Metadata-Version: 1.2
+Name: predictPAM
+Version: 0.1
+Summary: Python program to predict target sequence for CRISPR-Cas
+Home-page: http://example.com
+Author: Ravin Poudel
+Author-email: ravin.poudel@usda.gov
+License: GPL
+Description: predictPAM: A python module to predict custom PAM sites in any small genome
+        ==================================================================================================
+        
+Keywords: CRISPR-Cas
+Platform: UNKNOWN
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Development Status :: 3 - Alpha
+Requires-Python: >3.7
