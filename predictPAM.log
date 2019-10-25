@@ -1,7 +1,7 @@
-10-25 08:47 root         INFO     Temp directory is: /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_yrlo_vxx
-10-25 08:47 root         INFO     Merge cda and gene file : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_yrlo_vxx
-10-25 08:47 root         ERROR    predictPAM terminated with errors. See the log file for details.
-10-25 08:47 root         ERROR    File "NC_002516	27	31	ATCG	0	+
+10-25 08:53 root         INFO     Temp directory is: /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_na6zdekk
+10-25 08:53 root         INFO     Merge cda and gene file : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_na6zdekk
+10-25 08:53 root         ERROR    predictPAM terminated with errors. See the log file for details.
+10-25 08:53 root         ERROR    File "NC_002516	27	31	ATCG	0	+
 NC_002516	397	401	ATCG	0	+
 NC_002516	749	753	ATCG	0	+
 NC_002516	757	761	ATCG	0	+

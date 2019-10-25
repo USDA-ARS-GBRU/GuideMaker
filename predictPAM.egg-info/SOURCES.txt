@@ -1,4 +1,4 @@
-README.rst
+README.md
 setup.py
 predictPAM/__init__.py
 predictPAM/main.py

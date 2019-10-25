@@ -11,7 +11,7 @@ setup(
     packages=['predictPAM'],
     license='GPL',
     description='Python program to predict target sequence for CRISPR-Cas',
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     classifiers=['Topic :: Scientific/Engineering :: Bio-Informatics',
                  'Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.5',
