@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-'''
+"""
+predictPAM: A python module to predict custom PAM sites in any small genome
 
-'''
+"""
 # Author: Ravin Poudel
 
 import sys
@@ -28,22 +29,26 @@ def myparser():
     parser = argparse.ArgumentParser(description='predictPAM: A python module to predict custom PAM sites in any small genome')
     parser.add_argument('--gbkfile', '-i', type=str, required=True,
                         help='A genbank .gbk file')
-    parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet')
+    parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet'),
+    parsr.add_argument('--targetsize', '-s', type=int, default=22, help='Length of the target sequence'),
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
     parser.add_argument('--log' ,help="Log file", default="predictPAM.log")
     parser.add_argument('--threads' ,help="Number of processor threads to use.", type=int, default=1)
     return parser
-    
+
+# GLOBAL parsing variables
+
+
 
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
-    
+
     Args:
         fastq (str): The path to a fastq or fastq.gz file
         fastq2 (str): The path to a fastq or fastq.gz file for the reverse sequences
-        
+
     """
     try:
         logging.basicConfig(level=logging.DEBUG,
@@ -70,10 +75,13 @@ def _logger_setup(logfile):
 ############### MAPPING ###########################################
 def map_pam(tempdir, pamseq, threads=1):
     """Runs seqkit locate to find the pam in given genome (FASTA)
-    
+
     Args:
         threads (int or str):the number of processor threads to use
-        
+
+    Returns:
+        (str): Bedfile format with matches
+
     """
     try:
         infasta = os.path.join(tempdir, "out.fasta")
@@ -91,26 +99,35 @@ def map_pam(tempdir, pamseq, threads=1):
         raise e
     except FileNotFoundError as f:
         raise f
-        
-        
+
+
 ######## Retrieving target sequence ################################
-def get_target(tempdir,mappingfile):
+def get_target(tempdir, mappingdata, pamlength, targetsize):
+"""Given bedfile of PAM locations, function goes up or down and finds target
+
+Args:
+    tempdir (str): Temporary directory
+    mappingdata (str): Bedfile output from map_pam
+
+Returns:
+    (str): Bedfile format with matches
+
+"""
     mapping_list = []
     infasta = SeqIO.read(os.path.join(tempdir, "out.fasta"), "fasta")
-    bylines = mappingfile.splitlines()
+    bylines = mappingdata.splitlines()
     for entry in bylines:
         tline = entry.split()
         start_ps = int(tline[1])
         pam_start = start_ps-1
-        cut_ps = start_ps - 5
-        target_sp = start_ps - 22
+        cut_ps = start_ps - pamlength
+        target_sp = start_ps - targetsize
         target_ep = start_ps-2
         target_seq = str(infasta.seq)[target_sp:target_ep]
-        strand = "+"
         accession = infasta.id
         pamseq = tline[3]
         #if PAM match at the beginning or the end then  target seq might be smaller or none
-        if len(target_seq) == 20:
+        if len(target_seq) == targetsize: # look into why 20 vs 22
             mapping_list.append({"accession": accession, "target_sp": target_sp,
             "target_ep": target_ep, "target_seq": target_seq, "pam_seq": pamseq,
             "cut-pos": cut_ps, "pam-pos": pam_start, "strand": "+"})
@@ -118,6 +135,15 @@ def get_target(tempdir,mappingfile):
 
 #############
 def get_cds(genebank_record):
+"""Return a list of CDS's for a genbank file
+
+Args:
+    genbank_record (obj): Biopython genbank object
+
+
+Returns:
+    (list): List of CDS
+"""
     cds_list = []
     for cds_record in genebank_record:
         for cds_feature in cds_record.features:
@@ -155,8 +181,8 @@ def get_cds(genebank_record):
                                  "strand": strand, "locus_tag": locus_tag, "type": type,
                                  "geneID": geneID, "product": product})
     return cds_list
-    
-    
+
+
 
 def get_gene(genebank_record):
     gene_list = []
@@ -206,15 +232,15 @@ def pybed_downstream(tempdir, mapfile_from_pam):
     mapbed = BedTool(mapfile_from_pam.splitlines())
     downstream = mapbed .closest(featurefile , d=True, fd=True, D="a", t="first")
     return downstream
-    
-    
+
+
 def pybed_upstream(tempdir,mapfile_from_pam):
     featurefile = os.path.join(tempdir, "features.txt")
     mapbed = BedTool(mapfile_from_pam.splitlines())
     upstream = mapbed.closest(featurefile , d=True, id=True, D="a", t="first")
     return upstream
-    
-    
+
+
 def merge_downstream_upstream(downsfile,upsfile,tempdir):
     n = downsfile.to_dataframe().shape[1]
     rownames = list(string.ascii_uppercase[0:n])
@@ -234,13 +260,13 @@ def main(args=None):
     parser = myparser()
     if not args:
         args = parser.parse_args()
-        
+
     _logger_setup(args.log)
     try:
         pamseq = Seq(args.pamseq, IUPAC.unambiguous_dna)
         #parse genbank file: todo allow multiple Genbank files
         #record = SeqIO.parse(args.gbkfile, "genbank")
-        
+
         if args.tempdir:
             if not os.path.exists(args.tempdir):
                 logging.warning("Specified location for tempfile ({}) does not exist, using default location.".format(tempdir))
@@ -254,34 +280,34 @@ def main(args=None):
         # mapping
         logging.info("Mapping pam to the genome")
         mapfile = map_pam(tempdir=tempdir, pamseq=args.pamseq, threads=args.threads)
-        
+
         #Retrieving target sequence
         logging.info("Retrieving target sequence for matching PAM : %s", tempdir)
-        targetlist = get_target(tempdir=tempdir, mappingfile=mapfile)
-        
+        targetlist = get_target(tempdir=tempdir, mappingfile=mapfile, pamlength=len(args.pamseq), targetsize=args.targetsize)
+
         # get cds list
         logging.info("Retrieving CDS information")
         cdslist = get_cds(SeqIO.parse(args.gbkfile, "genbank"))
-        
+
         # get gene list
         logging.info("Retrieving Gene information")
         genelist = get_gene(SeqIO.parse(args.gbkfile, "genbank"))
-        
+
         # merge cds and genelist
         logging.info("Merge cda and gene file : %s", tempdir)
         merge_cds_gene(cdslist=cdslist,genelist=genelist, tempdir=tempdir)
-        
+
         # pybedtools
         logging.info("Mapping features downstream of target sequence")
         find_downstream = pybed_downstream(tempdir,mapfile_from_pam=mapfile)
-        
+
         logging.info("Mapping features upstream of target sequence")
         find_upstream = pybed_upstream(tempdir,mapfile_from_pam=mapfile)
-        
+
         # merge upstream and downstream output
         logging.info("Writing features file : %s", tempdir)
         merge_downstream_upstream(find_downstream,find_upstream,tempdir)
-        
+
     except Exception as e:
         logging.error("predictPAM terminated with errors. See the log file for details.")
         logging.error(e)
