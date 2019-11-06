@@ -1,0 +1,10 @@
+11-06 16:47 root         INFO     Temp directory is: /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_5ii1no_x
+11-06 16:47 root         INFO     Retriving fastas- forward and reverse from a genbanke file
+11-06 16:47 root         INFO     Mapping pam to the genome
+11-06 16:47 root         INFO     Retrieving target sequence for matching PAM : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_5ii1no_x
+11-06 16:47 root         INFO     Retrieving CDS information
+11-06 16:47 root         INFO     Retrieving Gene information
+11-06 16:47 root         INFO     Merge cda and gene file- features.txt located at : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_5ii1no_x
+11-06 16:47 root         INFO     Mapping features downstream of target sequence
+11-06 16:47 root         INFO     Mapping features upstream of target sequence
+11-06 16:47 root         INFO     Writing features file all.txt - : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_5ii1no_x

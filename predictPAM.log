@@ -1,9 +1,9 @@
-10-25 10:03 root         INFO     Temp directory is: /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_kxff3kz0
-10-25 10:03 root         INFO     Mapping pam to the genome
-10-25 10:03 root         INFO     Retrieving target sequence for matching PAM : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_kxff3kz0
-10-25 10:03 root         INFO     Retrieving CDS information
-10-25 10:03 root         INFO     Retrieving Gene information
-10-25 10:03 root         INFO     Merge cda and gene file : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_kxff3kz0
-10-25 10:03 root         INFO     Mapping features downstream of target sequence
-10-25 10:03 root         INFO     Mapping features upstream of target sequence
-10-25 10:03 root         INFO     Writing features file : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_kxff3kz0
+11-06 11:15 root         INFO     Temp directory is: /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_swyb9en9
+11-06 11:15 root         INFO     Mapping pam to the genome
+11-06 11:15 root         INFO     Retrieving target sequence for matching PAM : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_swyb9en9
+11-06 11:15 root         INFO     Retrieving CDS information
+11-06 11:15 root         INFO     Retrieving Gene information
+11-06 11:16 root         INFO     Merge cda and gene file : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_swyb9en9
+11-06 11:16 root         INFO     Mapping features downstream of target sequence
+11-06 11:16 root         INFO     Mapping features upstream of target sequence
+11-06 11:16 root         INFO     Writing features file : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_swyb9en9
