@@ -17,6 +17,9 @@ import numpy
 import tempfile
 import argparse
 import string
+import pickle
+import nmslib
+import numpy as np
 import pandas as pd
 from Bio import SeqIO
 from Bio.Alphabet import IUPAC
@@ -31,7 +34,7 @@ def myparser():
                         help='A genbank .gbk file')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet'),
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence'),
-    parser.add_argument('--strand', '-s', type=str, default="+", help='Strand to DNA'),
+    parser.add_argument('--strand', '-s', type=str, default="+", help='Strand of DNA'),
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
@@ -149,7 +152,7 @@ def map_pam(tempdir, pamseq,threads,strand):
     except FileNotFoundError as f:
         raise f
 
-
+tempdir='/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_9z8641gp'
 ######## Retrieving target sequence ################################
 def get_target(tempdir, mappingdata, targetlength, strand):
     """Given bedfile of PAM locations, function goes up or down and finds target
@@ -162,7 +165,7 @@ def get_target(tempdir, mappingdata, targetlength, strand):
         (str): Bedfile format with matches
     
     """
-    mapping_list = []
+    target_dict = {}
     infasta = SeqIO.read(os.path.join(tempdir, "out.fasta"), "fasta")
     infasta_complement = SeqIO.read(os.path.join(tempdir, "out_complement.fasta"), "fasta")
     bylines = mappingdata.splitlines()
@@ -177,9 +180,9 @@ def get_target(tempdir, mappingdata, targetlength, strand):
             seqid = infasta.id
             #if PAM match at the beginning or the end then  target seq might be smaller or none
             if len(target_seq) == targetlength:
-                mapping_list.append({"seqid ": seqid, "target_sp": target_sp,
-                "target_ep": pam_start_ps, "target_seq": target_seq, "pam_seq": pam_seq,
-                "pam_start_ps": pam_start_ps, "strand": "+"})
+                target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
+                "target_ep": pam_start_ps, "pam_seq": pam_seq,
+                "pam_start_ps": pam_start_ps, "strand": strand}
     if strand == "-":
         for entry in bylines:
             tline = entry.split()
@@ -191,14 +194,96 @@ def get_target(tempdir, mappingdata, targetlength, strand):
             seqid = infasta.id
             #if PAM match at the beginning or the end then  target seq might be smaller or none
             if len(target_seq) == targetlength:
-                mapping_list.append({"seqid ": seqid, "target_sp": pam_end_ps,
-                "target_ep": target_ep, "target_seq": target_seq, "pam_seq": pam_seq,
-                "pam_start_ps": pam_start_ps, "strand": "-"})
-    return mapping_list
+                target_dict[target_seq]={"seqid": seqid, "target_sp": pam_end_ps,
+                "target_ep": target_ep, "pam_seq": pam_seq,
+                "pam_start_ps": pam_start_ps, "strand": strand}
+    return target_dict
 ############### Means to filter target sequences ############
-# tempdir='/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_5ii1no_x'
-# test1 = get_target(tempdir, map_data, targetlength=20, strand="+")
+# parse key then create 12 bp and remanining part, also take care of strand specifictity
+def parse_target(targetdict,strand):
+    """Given a dictionary of target sequence, parse target sequence into two parts:
+    close12 and remainingseq, then create a new dictionary with unique close12 sequences as keys
 
+        Args:
+            targetdict (dict): Dictionary of target sequences obtained after running get_target
+
+        Returns:
+            parse_target_dict(dict): Dictionary with unique close12 sequences as keys
+        
+    """
+    parse_target_dict={}
+    for items in targetdict.items():
+        if items[1]['strand']=="+":
+            close12 = items[0][-12:]
+            remainingseq = items[0][:-12]
+            items[1]['target'] = items[0] # move target sequence as value
+            items[1]['remainingseq'] = remainingseq
+            parse_target_dict[close12] = items[1] ## will retain only target with unique close12 bp
+        if strand == "-":
+            close12 = target_key[:12]
+            remainingseq = target_key[12:]
+            items[1]['target'] = items[0]
+            items[1]['remainingseq'] = remainingseq
+            parse_target_dict[close12] = items[1]
+    return parse_target_dict
+
+#nms lib - create a index with remainingseq
+def create_index(strings):
+    """Initializes and returns a NMSLIB index
+    Args:
+        strings (str): Strings to calculate distance
+        
+    Returns:
+        index(index): Returns a NMSLIB index
+    """
+    index = nmslib.init(space='leven',
+                        dtype=nmslib.DistType.INT,
+                        data_type=nmslib.DataType.OBJECT_AS_STRING,
+                        method='small_world_rand')
+    index.addDataPointBatch(strings)
+    index.createIndex(print_progress=True)
+    return index
+
+## Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
+def filter_parse_target(parse_dict):
+    """Returns a filter target sequences based on Leven distance (greater than 2) on sequences 12 bp away from the PAM motif
+    Args:
+        parse_dict(dict): A dictionary with parse target sequence
+        
+    Returns:
+        filter_pasrse_dict(dict): A dictionary whose target sequences that are 12 bp away from PAM sequences are at the Levenshtein distance greater than 2.
+    """
+    filter_parse_dict={}
+    # initialize a new index
+    ref_index = create_index(list(parse_dict.keys()))
+    for keys, value in parse_dict.items():
+        ids, distances = ref_index.knnQuery(keys, k=100) ## k =number of k nearest neighbours (knn)
+        check_values=[0,1,2] ## Levenshtein Distance greater than 2 is selected, less than 2 is considered as too similar -- maximizing specificity of target
+        check = np.isin(distances, value) # if any element of value in the array, then True else False
+        sum_check = np.sum(check) # If non present, all are false, hence sum == zero, else sum >=1
+        if sum_check == 0 :
+            filter_parse_dict[keys] = value
+    return filter_parse_dict
+
+def reformat_parse_target_for_pybed(filterpasrsedict):
+    """Converts dictionary to tab separated format as need for pybed tools.
+    Args:
+        filterpasrsedict(dict): A dictionary with filter parse target sequence
+        
+    Returns:
+        tab(file): Tab separated file
+    """
+    dict_to_pd = pd.DataFrame.from_dict(filterpasrsedict,orient='index')
+    dict_to_pd.reset_index(inplace=True) # reindex
+    dict_to_pd_reorder=dict_to_pd[['seqid', 'target_sp', 'target_ep', 'pam_seq', 'pam_start_ps','strand', 'target', 'remainingseq','index']] ## pybed need first column to be seqid/chromosome, next column start and thired column as end position
+    dict_to_pd_reorder.columns = ['seqid', 'target_sp', 'target_ep', 'pam_seq', 'pam_start_ps',
+    'strand', 'target', 'remainingseq','close12'] # rename index to close12
+    dict_to_pd_reorder_tab = dict_to_pd_reorder.to_csv(index=False,sep='\t',header=False)
+    return dict_to_pd_reorder_tab
+
+
+###################
+# filter_parse_dict need to convert to list with appropriate order then can be passed for pybed tools
 
 #############
 def get_cds(genebank_record):
@@ -351,7 +436,19 @@ def main(args=None):
 
         #Retrieving target sequence
         logging.info("Retrieving target sequence for matching PAM : %s", tempdir)
-        targetlist = get_target(tempdir=tempdir, mappingdata=mapfile, targetlength=args.targetlength, strand=args.strand)
+        targetdict = get_target(tempdir=tempdir, mappingdata=mapfile, targetlength=args.targetlength, strand=args.strand)
+        
+        # Parsing target sequence into two: 1)close12 and 2) remainingseq
+        logging.info("Parsing target sequence into two: 1)close12 and 2) remainingseq")
+        parsetargetdict = parse_target(targetdict, strand=args.strand)
+        
+        # Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
+        logging.info("Filtering parse target sequence based on Levenshtein distance using NMSLIB index, with knn=100")
+        filterparsetargetdict = filter_parse_target(parsetargetdict)
+        
+        ## Formatiing filter parse target sequnece as needed for pybed tools
+        logging.info("Formatiing filter parse target sequnece as needed for pybed tools")
+        tabfile_for_pybed= reformat_parse_target_for_pybed(filterparsetargetdict)
 
 
         # get cds list
@@ -368,10 +465,10 @@ def main(args=None):
         
         # pybedtools
         logging.info("Mapping features downstream of target sequence")
-        find_downstream = pybed_downstream(tempdir,mapfile_from_pam=mapfile)
+        find_downstream = pybed_downstream(tempdir,mapfile_from_pam=tabfile_for_pybed)
         
         logging.info("Mapping features upstream of target sequence")
-        find_upstream = pybed_upstream(tempdir,mapfile_from_pam=mapfile)
+        find_upstream = pybed_upstream(tempdir,mapfile_from_pam=tabfile_for_pybed)
         
         # merge upstream and downstream output
         logging.info("Writing features file all.txt - : %s", tempdir)
