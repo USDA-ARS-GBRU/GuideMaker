@@ -35,7 +35,7 @@ def myparser():
                         help='A genbank .gbk file')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet'),
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence'),
-    parser.add_argument('--strand', '-s', type=str, default="+", help='Strand of DNA'),
+    parser.add_argument('--strand', '-s', default="+", help='Strand of DNA'), # use choices array,  use 'plus' and 'minus"
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
@@ -44,9 +44,9 @@ def myparser():
     return parser
 
 # GLOBAL parsing variables
-ALLOWED_FILE_EXTENSIONS = set(['gbk'])
-CLOSE12 = 12 # Number of base pair close to PAM
-EDIT_DISTANCE = 2
+ALLOWED_FILE_EXTENSIONS = set(['gbk']) # See if there is a built in validation in biopython
+CLOSE12 = 12 # Number of base pair close to PAM  #don't put value in variable name
+EDIT_DISTANCE = 2 # Should we let users set it to 1-3?
 
 
 def _logger_setup(logfile):
@@ -79,27 +79,27 @@ def _logger_setup(logfile):
 
 def allowed_file(filename):
     """ Check for the correct file type
-    
+
     Args:
         filename(file): File to process
-    
+
     Returns:
         Booleans(): True or False
-    
+
     """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_FILE_EXTENSIONS
-    
-    
+
+
 
 def get_fastas(genbank, tempdir):
-    """Retruns fasta and complement of fasta for a given genbank file
+    """Returns Fasta and complement of Fasta for a given Genbank file
 
     Args:
-        genbank (genebank): Genbank file to process
+        genbank (str): Genbank file to process
 
     Returns:
-        (out.fasta): Fasta file in forward orientation (5'-3')
-        (out_complement.fasta): Complement of Fasta file in reverese orientation (3'-5')
+        (str): out.fasta path, Fasta file in forward orientation (5'-3')
+        (str): out_complement.fasta path, Complement of Fasta file
 
     """
     if allowed_file(genbank):
@@ -113,44 +113,37 @@ def get_fastas(genbank, tempdir):
         SeqIO.write(sequences_complement, os.path.join(tempdir,"out_complement.fasta"), "fasta")
     else:
         print("Invalid file type, allowed file type is .gbk")
-        
 
 
-def map_pam(tempdir, pamseq,threads,strand):
-    """Runs seqkit locate to find the pam in given genome (FASTA)
+
+def map_pam(tempdir, pamseq, threads, strand):
+    """Runs seqkit locate to find the PAM site in the genome (Fasta)
 
     Args:
-        threads (int or str):the number of processor threads to use
+        threads (int): the number of processor threads to use
 
     Returns:
-        (str): Bedfile format with matches
+        (str): Data in Bedfile format with matches
 
     """
     try:
         infasta = os.path.join(tempdir, "out.fasta")
         infasta_complement = os.path.join(tempdir, "out_complement.fasta")
-        if strand == "+":
-            parameters = ["seqkit",
-                           "locate",
-                           "-p", pamseq,
-                           infasta,"-P",
-                           "--bed",
-                            "--threads", str(threads)]
-            p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
-            out, err = p.communicate()
-            out = out.decode('utf-8')
-        if strand =="-":
-            parameters = ["seqkit",
-                           "locate",
-                           "-p", pamseq,
-                           infasta_complement,"-P",
-                           "--bed",
-                            "--threads", str(threads)]
-            p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
-            out, err = p.communicate()
-            out = out.decode('utf-8')
+        parameters = ["seqkit",
+                       "locate",
+                       "-p", pamseq,
+                       infasta,"-P",
+                       "--bed",
+                        "--threads", str(threads),
+                        "-d"]
+        if strand == "negative":
+            parameters = parameters.append("infasta_complement,")
+        p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        out = out.decode('utf-8')
         return out
     except subprocess.CalledProcessError as e:
+        logging.error(e)
         raise e
     except FileNotFoundError as f:
         raise f
@@ -162,21 +155,25 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     Args:
         tempdir (str): Temporary directory
         mappingdata (str): Bedfile output from map_pam
+        targetlength ...
+        strand ...
 
     Returns:
         (str): Bedfile format with matches
-    
+
     """
     target_dict = {}
-    # track keys so that any duplicated entry can be removed from the final dictionay
+    # track keys so that any duplicated entry can be removed from the final dictionary
     keys_list =[]
+    # this won't work for big genomes because it reads into memory try seqio index
     infasta = SeqIO.read(os.path.join(tempdir, "out.fasta"), "fasta")
     infasta_complement = SeqIO.read(os.path.join(tempdir, "out_complement.fasta"), "fasta")
     bylines = mappingdata.splitlines()
+    # think about how to combine this block into one
     if strand == "+":
         for entry in bylines:
             tline = entry.split()
-            pam_start_ps = int(tline[1]) - 1 # -1 to adjust- beacaue seqkit convention - starts from 1 but in python starts from 0.
+            pam_start_ps = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
             pam_end_ps = int(tline[2])
             pam_seq = tline[3]
             target_sp = pam_start_ps - targetlength
@@ -208,22 +205,23 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     return target_dict2
 
 
-# parse key then create 12 bp and remanining part, also take care of strand specifictity
-def parse_target(targetdict,strand):
+# parse key then create first section and remaining part, also take care of strand specificity
+def parse_target(targetdict, anystrand): # use local variable for close12
     """Given a dictionary of target sequence, parse target sequence into two parts:
-    close12 and remainingseq, then create a new dictionary with unique close12 sequences as keys
+    close region and remaining seq, then create a new dictionary with unique close region sequences as keys
 
         Args:
             targetdict (dict): Dictionary of target sequences obtained after running get_target
 
         Returns:
-            parse_target_dict(dict): Dictionary with unique close12 sequences as keys
-        
+            parse_target_dict(dict): Dictionary with unique close region sequences as keys
+
     """
     parse_target_dict={}
-    # track keys so that any duplicated entry can be removed from the final dictionay
+    # track keys so that any duplicated entry can be removed from the final dictionary
     keys_list =[]
     for items in targetdict.items():
+        # combine if possible
         if items[1]['strand']=="+":
             close12 = items[0][-CLOSE12:]
             remainingseq = items[0][:-CLOSE12]
@@ -247,9 +245,9 @@ def create_index(strings):
     """Initializes and returns a NMSLIB index
     Args:
         strings (str): Strings to calculate distance
-        
+
     Returns:
-        index(index): Returns a NMSLIB index
+        index (obj): Returns a NMSLIB index
     """
     index = nmslib.init(space='leven',
                         dtype=nmslib.DistType.INT,
@@ -260,19 +258,24 @@ def create_index(strings):
     return index
 
 ## Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
-def filter_parse_target(parse_dict):
-    """Returns a filter target sequences based on Leven distance (greater than 2) on sequences 12 bp away from the PAM motif
+def filter_parse_target(parse_dict, threads=1):
+    """Returns filtered target sequences based on Leven distance (greater than 2) on sequences 12 bp away from the PAM motif
+
     Args:
         parse_dict(dict): A dictionary with parse target sequence
-        
+
     Returns:
         filter_pasrse_dict(dict): A dictionary whose target sequences that are 12 bp away from PAM sequences are at the Levenshtein distance greater than 2.
     """
     filter_parse_dict={}
     # initialize a new index
     ref_index = create_index(list(parse_dict.keys()))
+    dist_tuple = ref_index.knnQueryBatch(input=list.parse_dict.keys(), k=1, num_threads=threads)
+    # query tuple for speed
     for keys, value in parse_dict.items():
         ids, distances = ref_index.knnQuery(keys, k=1) ## k =number of k nearest neighbours (knn)
+
+        ## Do this with less than operator
         check_values= list(range(0, EDIT_DISTANCE + 1)) ## Levenshtein Distance greater than 2 is selected, less than or equal to 2 is considered as too similar -- maximizing specificity of target
         # here distance is sort in ascending order
         if distances not in check_values:
@@ -283,11 +286,11 @@ def reformat_parse_target_for_pybed(filterpasrsedict):
     """Converts dictionary to tab separated format as need for pybed tools.
     Args:
         filterpasrsedict(dict): A dictionary with filter parse target sequence
-        
+
     Returns:
         tab(file): Tab separated file
     """
-    dict_to_pd = pd.DataFrame.from_dict(filterpasrsedict,orient='index')
+    dict_to_pd = pd.DataFrame.from_dict(filterpasrsedict, orient='index')
     dict_to_pd.reset_index(inplace=True) # reindex
     # pybed need first column to be seqid/chromosome, next column start and thired column as end position
     dict_to_pd_reorder=dict_to_pd[['seqid', 'target_sp', 'target_ep', 'pam_seq', 'pam_start_ps','strand', 'target', 'remainingseq','index']]
@@ -298,99 +301,129 @@ def reformat_parse_target_for_pybed(filterpasrsedict):
     return dict_to_pd_reorder_tab
 
 
-def get_cds(genebank):
-    """Return a list of CDS's for a genbank file
+def get_genbank_thing(genebank):
+    ## Pseudocode
+    """Return a list of things for a genbank file
 
     Args:
         genbank (genebank): Genbank file to process
 
 
     Returns:
-        (list): List of CDS
+        (list): List of things
     """
     cds_list = []
     genebank_file = SeqIO.parse(genebank,"genbank")
     for cds_record in genebank_file:
+        cds_item = {}
         for cds_feature in cds_record.features:
-            if cds_feature.type == "CDS":
-                start = cds_feature.location.start.position
-                stop = cds_feature.location.end.position
-                accession = cds_record.id
-                des = cds_record.description
-                type = cds_feature.type
-                try:
-                    locus_tag = cds_feature.qualifiers['locus_tag'][0]
-                except KeyError:
-                    locus_tag = None
-                try:
-                    product = cds_feature.qualifiers['product'][0]
-                except KeyError:
-                    product = None
+            if cds_feature.type in ['CDS', 'gene']:
+                cds_item["start"] = cds_feature.location.start.position
+                cds_item["stop"] = cds_feature.location.end.position
+                cds_item["accession"] = cds_record.id
+                cds_item["type"] = cds_feature.type
                 if cds_feature.strand < 0:
-                    strand = "-"
+                    cds_item["strand"] = "-"
                 else:
-                    strand = "+"
-                cds_list.append({"accession": accession,  "start": start, "stop": stop,
-                                 "strand": strand, "locus_tag": locus_tag, "type": type,
-                                 "geneID": geneID, "product": product})
+                    cds_item["strand"] = "+"
+                for qualkey, qualval in cds_feature.qualifiers:
+                    cds_item[qualkey] = qualva;
+        cds_list.append(cds_item_
     return cds_list
 
-
-
-def get_gene(genebank_record):
-    """Return a list of genes for a genbank file
-
-    Args:
-        genbank (genebank): Genbank file to process
-
-
-    Returns:
-        (list): List of genes
-    """
-    gene_list = []
-    genebank_file = SeqIO.parse(genebank,"genbank")
-    for gene_record in genebank_file:
-        for gene_feature in gene_record.features:
-            if gene_feature.type == 'gene':
-                start = gene_feature.location.start.position
-                stop = gene_feature.location.end.position
-                accession = gene_record.id
-                type = gene_feature.type
-                try:
-                    geneID = gene_feature.qualifiers['db_xref'][0]
-                except KeyError:
-                    geneID = None
-                try:
-                    locus_tag = gene_feature.qualifiers['locus_tag'][0]
-                except KeyError:
-                    locus_tag = None
-                try:
-                    gene_name = gene_feature.qualifiers['name'][0]
-                except KeyError:
-                    gene_name = None
-                if gene_feature.strand < 0:
-                    strand = "-"
-                else:
-                    strand = "+"
-                gene_list.append({"accession": accession, "start": start, "stop": stop,
-                                  "strand": strand, "locus_tag": locus_tag, "type": type, "gene_name": gene_name,
-                                  "geneID": geneID})
-    return gene_list
-
-def merge_cds_gene(cdslist, genelist, tempdir):
-    """Return a merged cds and gene list based on locus_tag
-
-    Args:
-        (list): List of CDS
-        (list): List of genes
-        
-    Returns:
-        (dataframe): A DataFrame with mergred gene and cds based on locus_tag
-    """
-    cds_df = pd.DataFrame(cdslist)
-    gene_df = pd.DataFrame(genelist)
-    merge_df = pd.merge(gene_df, cds_df,  on=["locus_tag"], how='outer')
-    merge_df.to_csv(os.path.join(tempdir, "features.txt"), sep='\t', header=False, index=False)
+# def get_cds(genebank):
+#     """Return a list of CDS's for a genbank file
+#
+#     Args:
+#         genbank (genebank): Genbank file to process
+#
+#
+#     Returns:
+#         (list): List of CDS
+#     """
+#     cds_list = []
+#     genebank_file = SeqIO.parse(genebank,"genbank")
+#     for cds_record in genebank_file:
+#         for cds_feature in cds_record.features:
+#             if cds_feature.type in ['CDS', 'gene']:
+#                 start = cds_feature.location.start.position
+#                 stop = cds_feature.location.end.position
+#                 accession = cds_record.id
+#                 des = cds_record.description
+#                 type = cds_feature.type
+#                 try:
+#                     locus_tag = cds_feature.qualifiers['locus_tag'][0]
+#                 except KeyError:
+#                     locus_tag = None
+#                 try:
+#                     product = cds_feature.qualifiers['product'][0]
+#                 except KeyError:
+#                     product = None
+#                 if cds_feature.strand < 0:
+#                     strand = "-"
+#                 else:
+#                     strand = "+"
+#                 cds_list.append({"accession": accession, "start": start, "stop": stop,
+#                                  "strand": strand, "locus_tag": locus_tag, "type": type,
+#                                  "geneID": geneID, "product": product})
+#     return cds_list
+#
+#
+#
+# def get_gene(genebank_record):
+#     """Return a list of genes for a genbank file
+#
+#     Args:
+#         genbank (genebank): Genbank file to process
+#
+#
+#     Returns:
+#         (list): List of genes
+#     """
+#     gene_list = []
+#     genebank_file = SeqIO.parse(genebank,"genbank")
+#     for gene_record in genebank_file:
+#         for gene_feature in gene_record.features:
+#             if gene_feature.type == 'gene':
+#                 start = gene_feature.location.start.position
+#                 stop = gene_feature.location.end.position
+#                 accession = gene_record.id
+#                 type = gene_feature.type
+#                 try:
+#                     geneID = gene_feature.qualifiers['db_xref'][0]
+#                 except KeyError:
+#                     geneID = None
+#                 try:
+#                     locus_tag = gene_feature.qualifiers['locus_tag'][0]
+#                 except KeyError:
+#                     locus_tag = None
+#                 try:
+#                     gene_name = gene_feature.qualifiers['name'][0]
+#                 except KeyError:
+#                     gene_name = None
+#                 if gene_feature.strand < 0:
+#                     strand = "-"
+#                 else:
+#                     strand = "+"
+#                 gene_list.append({"accession": accession, "start": start, "stop": stop,
+#                                   "strand": strand, "locus_tag": locus_tag, "type": type, "gene_name": gene_name,
+#                                   "geneID": geneID})
+#     return gene_list
+#
+# def merge_cds_gene(cdslist, genelist, tempdir):
+#     """Return a merged cds and gene list based on locus_tag
+#
+#     Args:
+#         (list): List of CDS
+#         (list): List of genes
+#
+#     Returns:
+#         (dataframe): A DataFrame with mergred gene and cds based on locus_tag
+#     """
+#     cds_df = pd.DataFrame(cdslist)
+#     gene_df = pd.DataFrame(genelist)
+#     merge_df = pd.merge(gene_df, cds_df,  on=["locus_tag"], how='outer')
+#     merge_df.to_csv(os.path.join(tempdir, "features.txt"), sep='\t', header=False, index=False)
 
 ########################################################################################################
 # ######### pybedtools ########
@@ -400,7 +433,7 @@ def pybed_downstream(tempdir, mapfile_from_pam):
 
     Args:
         (tsv): mapping file with target sequence
-        
+
     Returns:
         (tsv): A file with target sequences, mapping information, and downstream information
     """
@@ -416,7 +449,7 @@ def pybed_upstream(tempdir,mapfile_from_pam):
 
     Args:
         (tsv): mapping file with target sequence
-        
+
     Returns:
         (tsv): A file with target sequences, mapping information, and upstream information
     """
@@ -433,9 +466,9 @@ def merge_downstream_upstream(downsfile,upsfile,tempdir):
     Args:
         (tsv): A file with target sequences, mapping information, and upstream information
         (tsv): A file with target sequences, mapping information, and downstream information
-        
+
     Returns:
-        (dataframe): A DataFrame with mergred upstream information and downstream information for a target sequence
+        (dataframe): A DataFrame with merged upstream information and downstream information for a target sequence
     """
     n = downsfile.to_dataframe().shape[1]
     rownames = list(string.ascii_uppercase[0:n])
@@ -480,38 +513,38 @@ def main(args=None):
         # Retrieving target sequence
         logging.info("Retrieving target sequence for matching PAM : %s", tempdir)
         targetdict = get_target(tempdir=tempdir, mappingdata=mapfile, targetlength=args.targetlength, strand=args.strand)
-        
+
         # Parsing target sequence into two: 1)close12 and 2) remainingseq
         logging.info("Parsing target sequence into two: 1)close12 and 2) remainingseq")
         parsetargetdict = parse_target(targetdict, strand=args.strand)
-        
+
         # Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
         logging.info("Filtering parse target sequence based on Levenshtein distance using NMSLIB index, with knn=1")
         filterparsetargetdict = filter_parse_target(parsetargetdict)
-        
+
         # Formatiing filter parse target sequnece as needed for pybed tools
         logging.info("Formatiing filter parse target sequnece as needed for pybed tools")
         tabfile_for_pybed= reformat_parse_target_for_pybed(filterparsetargetdict)
-        
+
         # get cds list
         logging.info("Retrieving CDS information")
         cdslist = get_cds(SeqIO.parse(args.gbkfile, "genbank"))
-        
+
         # get gene list
         logging.info("Retrieving Gene information")
         genelist = get_gene(SeqIO.parse(args.gbkfile, "genbank"))
-        
+
         # merge cds and genelist
         logging.info("Merge cda and gene file- features.txt located at : %s", tempdir)
         merge_cds_gene(cdslist=cdslist,genelist=genelist, tempdir=tempdir)
-        
+
         # pybedtools
         logging.info("Mapping features downstream of target sequence")
         find_downstream = pybed_downstream(tempdir,mapfile_from_pam=tabfile_for_pybed)
-        
+
         logging.info("Mapping features upstream of target sequence")
         find_upstream = pybed_upstream(tempdir,mapfile_from_pam=tabfile_for_pybed)
-        
+
         # merge upstream and downstream output
         logging.info("Writing features file all.txt - : %s", tempdir)
         merge_downstream_upstream(find_downstream,find_upstream,tempdir)
