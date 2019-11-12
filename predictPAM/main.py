@@ -301,35 +301,35 @@ def reformat_parse_target_for_pybed(filterpasrsedict):
     return dict_to_pd_reorder_tab
 
 
-def get_genbank_thing(genebank):
+def get_genbank_features(genebank):
     ## Pseudocode
-    """Return a list of things for a genbank file
+    """Return a list of features for a genbank file
 
     Args:
         genbank (genebank): Genbank file to process
 
 
     Returns:
-        (list): List of things
+        (list): List of features with genebank informations
     """
-    cds_list = []
+    feature_list = []
     genebank_file = SeqIO.parse(genebank,"genbank")
-    for cds_record in genebank_file:
-        cds_item = {}
-        for cds_feature in cds_record.features:
-            if cds_feature.type in ['CDS', 'gene']:
-                cds_item["start"] = cds_feature.location.start.position
-                cds_item["stop"] = cds_feature.location.end.position
-                cds_item["accession"] = cds_record.id
-                cds_item["type"] = cds_feature.type
-                if cds_feature.strand < 0:
-                    cds_item["strand"] = "-"
+    for entry in genebank_file:
+        feature_dict = {}
+        for record in entry.features:
+            if entry.features.type in ['CDS', 'gene']:
+                feature_dict["start"] = entry.features.location.start.position
+                feature_dict["stop"] = entry.features.location.end.position
+                feature_dict["accession"] = entry.features.id
+                feature_dict["type"] = entry.features.type
+                if feature_dict.strand < 0:
+                    feature_dict["strand"] = "-"
                 else:
-                    cds_item["strand"] = "+"
-                for qualkey, qualval in cds_feature.qualifiers:
-                    cds_item[qualkey] = qualva;
-        cds_list.append(cds_item_
-    return cds_list
+                    feature_dict["strand"] = "+"
+                for qualifier_key, qualifier_val in entry.features.qualifiers:
+                    entry.features[qualifier_key] = qualifier_val
+        feature_list.append(feature_dict)
+    return feature_list
 
 # def get_cds(genebank):
 #     """Return a list of CDS's for a genbank file
