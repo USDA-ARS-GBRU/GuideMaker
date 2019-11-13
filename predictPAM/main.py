@@ -35,7 +35,9 @@ def myparser():
                         help='A genbank .gbk file')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet'),
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence'),
-    parser.add_argument('--strand', '-s', default="+", help='Strand of DNA'), # use choices array,  use 'plus' and 'minus"
+    parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA'), # use choices array,  use 'plus' and 'minus"
+    parser.add_argument('--lcp', type=int, default=12, required=True, help='Length of convered sequence close to PAM'),
+    parser.add_argument('--eds', type=int, choices=range(6),default=2, required=True, help='Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM'),
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
@@ -45,9 +47,6 @@ def myparser():
 
 # GLOBAL parsing variables
 ALLOWED_FILE_EXTENSIONS = set(['gbk']) # See if there is a built in validation in biopython
-CLOSE12 = 12 # Number of base pair close to PAM  #don't put value in variable name
-EDIT_DISTANCE = 2 # Should we let users set it to 1-3?
-
 
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
@@ -114,7 +113,7 @@ def get_fastas(genbank, tempdir):
     else:
         print("Invalid file type, allowed file type is .gbk")
 
-
+tempdir='/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_1w0sd889'
 
 def map_pam(tempdir, pamseq, threads, strand):
     """Runs seqkit locate to find the PAM site in the genome (Fasta)
@@ -136,8 +135,8 @@ def map_pam(tempdir, pamseq, threads, strand):
                        "--bed",
                         "--threads", str(threads),
                         "-d"]
-        if strand == "negative":
-            parameters = parameters.append("infasta_complement,")
+        if strand == "reverse":
+            parameters[4] =infasta_complement
         p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
         out, err = p.communicate()
         out = out.decode('utf-8')
@@ -146,6 +145,7 @@ def map_pam(tempdir, pamseq, threads, strand):
         logging.error(e)
         raise e
     except FileNotFoundError as f:
+        logging.error(f)
         raise f
 
 
@@ -169,44 +169,33 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     infasta = SeqIO.read(os.path.join(tempdir, "out.fasta"), "fasta")
     infasta_complement = SeqIO.read(os.path.join(tempdir, "out_complement.fasta"), "fasta")
     bylines = mappingdata.splitlines()
-    # think about how to combine this block into one
-    if strand == "+":
-        for entry in bylines:
-            tline = entry.split()
-            pam_start_ps = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
-            pam_end_ps = int(tline[2])
-            pam_seq = tline[3]
-            target_sp = pam_start_ps - targetlength
-            target_seq = str(infasta.seq)[target_sp:pam_start_ps]
-            seqid = infasta.id
-            #if PAM match at the beginning or the end then  target seq might be smaller or none
-            if len(target_seq) == targetlength:
+    for entry in bylines:
+        tline = entry.split()
+        pam_sp = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
+        pam_ep = int(tline[2])
+        pam_seq = tline[3]
+        seqid = infasta.id
+        # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
+        if strand=="forward":
+            target_sp = pam_sp - targetlength
+            target_ep = pam_sp
+            target_seq = str(infasta.seq)[target_sp:target_ep]
+        if strand=="reverse":
+            target_sp = pam_ep
+            target_ep = pam_ep + targetlength
+            target_seq = str(infasta_complement.seq)[target_sp:target_ep]
+        if len(target_seq) == targetlength:
                 target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
-                "target_ep": pam_start_ps, "pam_seq": pam_seq,
-                "pam_start_ps": pam_start_ps, "strand": strand}
-            keys_list.append(target_seq)
-    if strand == "-":
-        for entry in bylines:
-            tline = entry.split()
-            pam_start_ps = int(tline[1]) - 1 # -1 to adjust- beacaue seqkit convention - starts from 1 but in python starts from 0.
-            pam_end_ps = int(tline[2])
-            pam_seq = tline[3]
-            target_ep = pam_end_ps + targetlength
-            target_seq = str(infasta_complement.seq)[pam_end_ps:target_ep]
-            seqid = infasta.id
-            #if PAM match at the beginning or the end then  target seq might be smaller or none
-            if len(target_seq) == targetlength:
-                target_dict[target_seq]={"seqid": seqid, "target_sp": pam_end_ps,
                 "target_ep": target_ep, "pam_seq": pam_seq,
-                "pam_start_ps": pam_start_ps, "strand": strand}
-            keys_list.append(target_seq)
+                "pam_start_ps": pam_sp, "strand": strand}
+        keys_list.append(target_seq)
     remove_target = [k for k, v in Counter(keys_list).items() if v > 1] # list of keys with more than one observation
     target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} # although dict over writes on non-unique key, but we want to complete remove such observation
     return target_dict2
 
 
 # parse key then create first section and remaining part, also take care of strand specificity
-def parse_target(targetdict, anystrand): # use local variable for close12
+def parse_target(targetdict, strand, seqlengthtopam): # use local variable for close12
     """Given a dictionary of target sequence, parse target sequence into two parts:
     close region and remaining seq, then create a new dictionary with unique close region sequences as keys
 
@@ -222,20 +211,20 @@ def parse_target(targetdict, anystrand): # use local variable for close12
     keys_list =[]
     for items in targetdict.items():
         # combine if possible
-        if items[1]['strand']=="+":
-            close12 = items[0][-CLOSE12:]
-            remainingseq = items[0][:-CLOSE12]
-            items[1]['target'] = items[0] # move target sequence as value
+        if items[1]['strand']=="forward":
+            seqcloseto_pam = items[0][-seqlengthtopam:]
+            remainingseq = items[0][:-seqlengthtopam]
+            items[1]['target'] = items[0] # move target sequence (key) as value
             items[1]['remainingseq'] = remainingseq
-            parse_target_dict[close12] = items[1] ## will retain only target with unique close12 bp
-            keys_list.append(close12)
-        if strand == "-":
-            close12 = target_key[:CLOSE12]
-            remainingseq = target_key[CLOSE12:]
+            parse_target_dict[seqcloseto_pam] = items[1] ## will retain only target with unique bp, make seqcloseto_pam as key
+            keys_list.append(seqcloseto_pam)
+        if strand == "reverse":
+            seqcloseto_pam = target_key[:seqlengthtopam]
+            remainingseq = target_key[seqlengthtopam:]
             items[1]['target'] = items[0]
             items[1]['remainingseq'] = remainingseq
-            parse_target_dict[close12] = items[1]
-            keys_list.append(close12)
+            parse_target_dict[seqcloseto_pam] = items[1]
+            keys_list.append(seqcloseto_pam)
     remove_target = [k for k, v in Counter(keys_list).items() if v > 1]
     parse_target_dict2 = {k: v for k, v in parse_target_dict.items() if k not in remove_target}
     return parse_target_dict2
@@ -258,7 +247,7 @@ def create_index(strings):
     return index
 
 ## Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
-def filter_parse_target(parse_dict, threads=1):
+def filter_parse_target(parse_dict, threads=1, levendistance=2):
     """Returns filtered target sequences based on Leven distance (greater than 2) on sequences 12 bp away from the PAM motif
 
     Args:
@@ -268,19 +257,24 @@ def filter_parse_target(parse_dict, threads=1):
         filter_pasrse_dict(dict): A dictionary whose target sequences that are 12 bp away from PAM sequences are at the Levenshtein distance greater than 2.
     """
     filter_parse_dict={}
+    
+    # get a list of ramaning sequences
+    rms_list=[]
+    for key_val in parse_dict.keys():
+        rms_list.append(parse_dict[key_val]['remainingseq'])
+        
     # initialize a new index
-    ref_index = create_index(list(parse_dict.keys()))
-    dist_tuple = ref_index.knnQueryBatch(input=list.parse_dict.keys(), k=1, num_threads=threads)
-    # query tuple for speed
+    ref_index = create_index(rms_list)
+    
+    # Find knn of 1 for each remaning seq
     for keys, value in parse_dict.items():
-        ids, distances = ref_index.knnQuery(keys, k=1) ## k =number of k nearest neighbours (knn)
-
-        ## Do this with less than operator
-        check_values= list(range(0, EDIT_DISTANCE + 1)) ## Levenshtein Distance greater than 2 is selected, less than or equal to 2 is considered as too similar -- maximizing specificity of target
-        # here distance is sort in ascending order
-        if distances not in check_values:
+        query_string = value['remainingseq']
+        ids, distances = ref_index.knnQuery(query_string, k=2) ## k =number of k nearest neighbours (knn)
+        if distances[1] > levendistance: # check the second value, because the first value will be mostly zero, distance between the same query and index
             filter_parse_dict[keys] = value
+        
     return filter_parse_dict
+    
 
 def reformat_parse_target_for_pybed(filterpasrsedict):
     """Converts dictionary to tab separated format as need for pybed tools.
@@ -317,111 +311,20 @@ def get_genbank_features(genebank):
     for entry in genebank_file:
         feature_dict = {}
         for record in entry.features:
-            if entry.features.type in ['CDS', 'gene']:
-                feature_dict["start"] = entry.features.location.start.position
-                feature_dict["stop"] = entry.features.location.end.position
-                feature_dict["accession"] = entry.features.id
-                feature_dict["type"] = entry.features.type
-                if feature_dict.strand < 0:
+            if record.type in ['CDS', 'gene']:
+                feature_dict["accession"] = entry.id
+                feature_dict["start"] = record.location.start.position
+                feature_dict["stop"] = record.location.end.position
+                feature_dict["type"] = record.type
+                if record.strand < 0:
                     feature_dict["strand"] = "-"
                 else:
                     feature_dict["strand"] = "+"
-                for qualifier_key, qualifier_val in entry.features.qualifiers:
-                    entry.features[qualifier_key] = qualifier_val
-        feature_list.append(feature_dict)
+                for qualifier_key, qualifier_val in record.qualifiers.items():
+                    feature_dict[qualifier_key] = qualifier_val
+                feature_list.append(feature_dict)
     return feature_list
-
-# def get_cds(genebank):
-#     """Return a list of CDS's for a genbank file
-#
-#     Args:
-#         genbank (genebank): Genbank file to process
-#
-#
-#     Returns:
-#         (list): List of CDS
-#     """
-#     cds_list = []
-#     genebank_file = SeqIO.parse(genebank,"genbank")
-#     for cds_record in genebank_file:
-#         for cds_feature in cds_record.features:
-#             if cds_feature.type in ['CDS', 'gene']:
-#                 start = cds_feature.location.start.position
-#                 stop = cds_feature.location.end.position
-#                 accession = cds_record.id
-#                 des = cds_record.description
-#                 type = cds_feature.type
-#                 try:
-#                     locus_tag = cds_feature.qualifiers['locus_tag'][0]
-#                 except KeyError:
-#                     locus_tag = None
-#                 try:
-#                     product = cds_feature.qualifiers['product'][0]
-#                 except KeyError:
-#                     product = None
-#                 if cds_feature.strand < 0:
-#                     strand = "-"
-#                 else:
-#                     strand = "+"
-#                 cds_list.append({"accession": accession, "start": start, "stop": stop,
-#                                  "strand": strand, "locus_tag": locus_tag, "type": type,
-#                                  "geneID": geneID, "product": product})
-#     return cds_list
-#
-#
-#
-# def get_gene(genebank_record):
-#     """Return a list of genes for a genbank file
-#
-#     Args:
-#         genbank (genebank): Genbank file to process
-#
-#
-#     Returns:
-#         (list): List of genes
-#     """
-#     gene_list = []
-#     genebank_file = SeqIO.parse(genebank,"genbank")
-#     for gene_record in genebank_file:
-#         for gene_feature in gene_record.features:
-#             if gene_feature.type == 'gene':
-#                 start = gene_feature.location.start.position
-#                 stop = gene_feature.location.end.position
-#                 accession = gene_record.id
-#                 type = gene_feature.type
-#                 try:
-#                     geneID = gene_feature.qualifiers['db_xref'][0]
-#                 except KeyError:
-#                     geneID = None
-#                 try:
-#                     locus_tag = gene_feature.qualifiers['locus_tag'][0]
-#                 except KeyError:
-#                     locus_tag = None
-#                 try:
-#                     gene_name = gene_feature.qualifiers['name'][0]
-#                 except KeyError:
-#                     gene_name = None
-#                 if gene_feature.strand < 0:
-#                     strand = "-"
-#                 else:
-#                     strand = "+"
-#                 gene_list.append({"accession": accession, "start": start, "stop": stop,
-#                                   "strand": strand, "locus_tag": locus_tag, "type": type, "gene_name": gene_name,
-#                                   "geneID": geneID})
-#     return gene_list
-#
-# def merge_cds_gene(cdslist, genelist, tempdir):
-#     """Return a merged cds and gene list based on locus_tag
-#
-#     Args:
-#         (list): List of CDS
-#         (list): List of genes
-#
-#     Returns:
-#         (dataframe): A DataFrame with mergred gene and cds based on locus_tag
-#     """
-#     cds_df = pd.DataFrame(cdslist)
-#     gene_df = pd.DataFrame(genelist)
+    
 #     merge_df = pd.merge(gene_df, cds_df,  on=["locus_tag"], how='outer')
 #     merge_df.to_csv(os.path.join(tempdir, "features.txt"), sep='\t', header=False, index=False)
 
@@ -526,9 +429,9 @@ def main(args=None):
         logging.info("Formatiing filter parse target sequnece as needed for pybed tools")
         tabfile_for_pybed= reformat_parse_target_for_pybed(filterparsetargetdict)
 
-        # get cds list
-        logging.info("Retrieving CDS information")
-        cdslist = get_cds(SeqIO.parse(args.gbkfile, "genbank"))
+        # get get_genbank_features from a genebank file
+        logging.info("Retrieving CDS/gene information for each record in the genebank file")
+        genebankfeatures = get_genbank_features(SeqIO.parse(args.gbkfile, "genbank"))
 
         # get gene list
         logging.info("Retrieving Gene information")
