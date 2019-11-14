@@ -30,13 +30,12 @@ from collections import Counter
 
 def myparser():
     parser = argparse.ArgumentParser(description='predictPAM: A python module to predict custom PAM sites in any small genome')
-    parser.add_argument('--gbkfile', '-i', type=str, required=True,
-                        help='A genbank .gbk file')
-    parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet'),
-    parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence'),
-    parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA'), # use choices array,  use 'plus' and 'minus"
-    parser.add_argument('--lcp', type=int, default=12, help='Length of convered sequence close to PAM'),
-    parser.add_argument('--eds', type=int, choices=range(6),default=2, help='Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM'),
+    parser.add_argument('--gbkfile', '-i', type=str, required=True,help='A genbank .gbk file')
+    parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet')
+    parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence')
+    parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA') # use choices array,  use 'plus' and 'minus"
+    parser.add_argument('--lcp', type=int, default=12, help='Length of convered sequence close to PAM')
+    parser.add_argument('--eds', type=int, choices=range(6),default=2, help='Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM')
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
@@ -45,7 +44,6 @@ def myparser():
     return parser
 
 # GLOBAL parsing variables
-ALLOWED_FILE_EXTENSIONS = set(['gbk']) # See if there is a built in validation in biopython
 
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
@@ -74,21 +72,6 @@ def _logger_setup(logfile):
         print("An error occurred setting up logging")
         raise e
 
-
-def allowed_file(filename):
-    """ Check for the correct file type
-
-    Args:
-        filename(file): File to process
-
-    Returns:
-        Booleans(): True or False
-
-    """
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_FILE_EXTENSIONS
-
-
-
 def get_fastas(genbank, tempdir):
     """Returns Fasta and complement of Fasta for a given Genbank file
 
@@ -100,7 +83,22 @@ def get_fastas(genbank, tempdir):
         (str): out_complement.fasta path, Complement of Fasta file
 
     """
-    if allowed_file(genbank):
+    # try:
+    #     gbk_indx = SeqIO.index(genbank,"genbank")
+    #
+    #
+    #     sequences = []
+    #     sequences_complement=[]
+    #     for record in SeqIO.parse(genbank, "genbank"):
+    #         sequences.append(record)
+    #         sequences_complement.append(SeqRecord(record.seq.complement(), record.id+"_complement",
+    #         description=record.description+"_complement", name=record.name+"_complement"))
+    #     SeqIO.write(sequences, os.path.join(tempdir,"out.fasta"), "fasta")
+    #     SeqIO.write(sequences_complement, os.path.join(tempdir,"out_complement.fasta"), "fasta")
+    # except Exception as e:
+    #     print("An error occurred in input genbank file")
+    #     raise e
+    try:
         sequences = []
         sequences_complement=[]
         for record in SeqIO.parse(genbank, "genbank"):
@@ -109,8 +107,10 @@ def get_fastas(genbank, tempdir):
             description=record.description+"_complement", name=record.name+"_complement"))
         SeqIO.write(sequences, os.path.join(tempdir,"out.fasta"), "fasta")
         SeqIO.write(sequences_complement, os.path.join(tempdir,"out_complement.fasta"), "fasta")
-    else:
-        print("Invalid file type, allowed file type is .gbk")
+    except Exception as e:
+        print("An error occurred in input genbank file")
+        raise e
+    
 
 
 def map_pam(tempdir, pamseq, threads, strand):
@@ -297,7 +297,6 @@ def get_genbank_features(inputgbk):
     return feature_list
 
 
-########################################################################################################
 # ######### pybedtools ########
 
 def get_nearby_feature(target_mappingfile, featurefile):
@@ -360,10 +359,13 @@ def main(args=None):
         else:
             tempdir = tempfile.mkdtemp(prefix='pamPredict_', dir=args.tempdir)
         logging.info("Temp directory is: %s", tempdir)
+        
+        
         # Try to avoid writing out and reading genome in fasta format
         logging.info("Retriving fastas- forward and reverse from a genbanke file")
         get_fastas(genbank=args.gbkfile, tempdir=tempdir)
         print(tempdir)
+        
         # mapping
         logging.info("Mapping pam to the genome")
         mapfile = map_pam(tempdir=tempdir, pamseq=args.pamseq, threads=args.threads, strand=args.strand)

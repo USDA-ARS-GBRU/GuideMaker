@@ -173,3 +173,23 @@ targetfile_columns = list(list(filterparsetargetdict.values())[0].keys())
 featurefile_columns = list(gnbfeature_df.columns)
 joined_columns = targetfile_columns + featurefile_columns
 joined_columns.append("distance")
+#######################################################
+##############3 parding siqio.index ####################
+
+gbk_indx = SeqIO.index(genbank,"genbank")
+
+# get list of recode in gbkfile
+list(gbk_indx.keys())
+
+#
+list(gbk_indx.values())
+
+# get values for first record
+v = list(gbk_indx.values())[0]
+type(v)
+
+# get seqeuce
+v.seq
+
+
+tempdir='/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_z8dgknrz'
