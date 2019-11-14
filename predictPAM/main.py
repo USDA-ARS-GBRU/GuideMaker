@@ -217,8 +217,8 @@ def parse_target(targetdict, strand, seqlengthtopam): # use local variable for c
             parse_target_dict[proxitopam] = items[1] ## will retain only target with unique bp, make proxitopam as key
             keys_list.append(proxitopam)
         if strand == "reverse":
-            proxitopam = target_key[:seqlengthtopam]
-            distaltopam = target_key[seqlengthtopam:]
+            proxitopam = items[0][:seqlengthtopam]
+            distaltopam = items[0][seqlengthtopam:]
             items[1]['target'] = items[0]
             items[1]['distaltopam'] = distaltopam
             items[1]['proxitopam'] = proxitopam
@@ -269,23 +269,7 @@ def filter_parse_target(parse_dict, threads=1, levendistance=2):
     return filter_parse_dict
 
 
-def reformat_parse_target_for_pybed(filterpasrsedict):
-    """Converts dictionary to tab separated format as need for pybed tools.
-    Args:
-        filterpasrsedict(dict): A dictionary with filter parse target sequence
-
-    Returns:
-        tab(file): Tab separated file
-    """
-    dict_to_pd = pd.DataFrame.from_dict(filterpasrsedict, orient='index')
-    # remove index, which is key of dict
-    dict_to_pd_dindx = dict_to_pd.reset_index(drop=True)
-    # pybed takes tab separated file with no header, plus first three column has to be as above
-    dict_to_pd_dindx_tab = dict_to_pd_dindx.to_csv(index=False,sep='\t',header=False)
-    return dict_to_pd_dindx_tab
-
-
-def get_genbank_features(genebank):
+def get_genbank_features(inputgbk):
     ## Pseudocode
     """Return a list of features for a genbank file
 
@@ -297,7 +281,7 @@ def get_genbank_features(genebank):
         (list): List of features with genebank informations
     """
     feature_list = []
-    genebank_file = SeqIO.parse(genebank,"genbank")
+    genebank_file = SeqIO.parse(inputgbk,"genbank")
     for entry in genebank_file:
         for record in entry.features:
             feature_dict = {}
@@ -312,25 +296,11 @@ def get_genbank_features(genebank):
                 feature_list.append(feature_dict)
     return feature_list
 
-#     merge_df = pd.merge(gene_df, cds_df,  on=["locus_tag"], how='outer')
-#     merge_df.to_csv(os.path.join(tempdir, "features.txt"), sep='\t', header=False, index=False)
 
 ########################################################################################################
 # ######### pybedtools ########
 
-
-def get_upsdowns_feature(tempdir, mapfile_from_pam):
-    featurefile = os.path.join(tempdir, "features.txt")
-    mapbed = BedTool(mapfile_from_pam.splitlines())
-    # -d reports distance , fb reports first downsteam feature from feature file in reference to information provided in mappiing file(D=a)
-    downstream = mapbed.closest(featurefile , d=True, fd=True, D="a", t="first")
-    # -d reports the distance, t reports the first matched element, id = igrnore downstream, D indicates with reference to or in reference to
-    upstream = mapbed.closest(featurefile , d=True, id=True, D="a", t="first")
-
-
-
-
-def pybed_downstream(tempdir, mapfile_from_pam):
+def get_nearby_feature(target_mappingfile, featurefile):
     """Adds downstream information to the given target sequences and mapping information
 
     Args:
@@ -339,30 +309,18 @@ def pybed_downstream(tempdir, mapfile_from_pam):
     Returns:
         (tsv): A file with target sequences, mapping information, and downstream information
     """
-    featurefile = os.path.join(tempdir, "features.txt")
-    mapbed = BedTool(mapfile_from_pam.splitlines())
-    # -d reports distance , fb reports first downsteam feature from feature file in reference to information provided in mappiing file(D=a)
-    downstream = mapbed.closest(featurefile , d=True, fd=True, D="a", t="first")
-    return downstream
+    # format to featurefile
+    featurebed = BedTool(featurefile.splitlines())
+    # format to mapping file
+    mapbed = BedTool(target_mappingfile.splitlines())
+    # get feature downstream of target sequence
+    downstream = mapbed.closest(featurebed , d=True, fd=True, D="a", t="first")
+    # get feature upstream of target sequence
+    upstream = mapbed.closest(featurebed , d=True, id=True, D="a", t="first")
+    return downstream, upstream
 
 
-def pybed_upstream(tempdir,mapfile_from_pam):
-    """Adds upstream information to the given target sequences and mapping information
-
-    Args:
-        (tsv): mapping file with target sequence
-
-    Returns:
-        (tsv): A file with target sequences, mapping information, and upstream information
-    """
-    featurefile = os.path.join(tempdir, "features.txt")
-    mapbed = BedTool(mapfile_from_pam.splitlines())
-    # -d reports the distance, t reports the first matched element, id = igrnore downstream, D indicates with reference to or in reference to
-    upstream = mapbed.closest(featurefile , d=True, id=True, D="a", t="first")
-    return upstream
-
-
-def merge_downstream_upstream(downsfile,upsfile,tempdir):
+def merge_downstream_upstream(downsfile,upsfile,columns_name, outputfilename):
     """Return a merged file
 
     Args:
@@ -372,16 +330,14 @@ def merge_downstream_upstream(downsfile,upsfile,tempdir):
     Returns:
         (dataframe): A DataFrame with merged upstream information and downstream information for a target sequence
     """
-    n = downsfile.to_dataframe().shape[1]
-    rownames = list(string.ascii_uppercase[0:n])
-    downstream_df = downsfile.to_dataframe(names=rownames,low_memory=False)
-    upstream_df = upsfile.to_dataframe(names=rownames,low_memory=False)
+    downstream_df = downsfile.to_dataframe(names=columns_name,low_memory=False)
+    upstream_df = upsfile.to_dataframe(names=columns_name,low_memory=False)
     all_df = pd.merge(downstream_df, upstream_df,
-                      right_on=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
-                      left_on=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+                      right_on=columns_name[:8],
+                      left_on=columns_name[:8],
                       how='outer')
-    all_df.to_csv(os.path.join(tempdir, "all.txt"), sep='\t', header=True, index=False)
-
+    all_df.to_csv(os.path.join(os.getcwd(),outputfilename),index=False,sep='\t',header=True)
+    return all_df
 ################
 def main(args=None):
     """Run Complete predictPAM workflow.
@@ -424,32 +380,36 @@ def main(args=None):
         logging.info("Filtering parse target sequence based on Levenshtein distance using NMSLIB index, with knn=1")
         filterparsetargetdict = filter_parse_target(parsetargetdict, threads=args.threads, levendistance=args.eds)
 
-        # Formatiing filter parse target sequnece as needed for pybed tools
-        logging.info("Formatiing filter parse target sequnece as needed for pybed tools")
-        tabfile_for_pybed= reformat_parse_target_for_pybed(filterparsetargetdict)
+        # reformating filterparsetargetdict- to make compatible for pybed
+        filterparsetargetdict_pd = pd.DataFrame.from_dict(filterparsetargetdict, orient='index')
+        # remove index, which is key of dict
+        filterparsetargetdict_pd_dindx = filterparsetargetdict_pd.reset_index(drop=True)
+        # pybed takes tab separated file with no header, plus first three column has to be as above
+        filterparsetargetdict_pd_dindx_tab = filterparsetargetdict_pd_dindx.to_csv(index=False,sep='\t',header=False)
 
         # get get_genbank_features from a genebank file
         logging.info("Retrieving CDS/gene information for each record in the genebank file")
-        genebankfeatures = get_genbank_features(SeqIO.parse(args.gbkfile, "genbank"))
-
-        # get gene list
-        logging.info("Retrieving Gene information")
-        genelist = get_gene(SeqIO.parse(args.gbkfile, "genbank"))
-
-        # merge cds and genelist
-        logging.info("Merge cda and gene file- features.txt located at : %s", tempdir)
-        merge_cds_gene(cdslist=cdslist,genelist=genelist, tempdir=tempdir)
+        genebankfeatures = get_genbank_features(args.gbkfile)
+        # reformating genebankfeatures- to make compatible for pybed
+        genebankfeatures_df = pd.DataFrame(genebankfeatures)
+        # enpty tab crates isses in runnign pybed, so replance NaN with NA, then make tab separated
+        genebankfeatures_df = genebankfeatures_df.replace(np.nan, "NA")
+        genebankfeatures_df_tab = genebankfeatures_df.to_csv(index=False,sep='\t',header=False)
 
         # pybedtools
-        logging.info("Mapping features downstream of target sequence")
-        find_downstream = pybed_downstream(tempdir,mapfile_from_pam=tabfile_for_pybed)
+        logging.info("Mapping features downstream and upstream of target sequence")
+        down, up = get_nearby_feature(filterparsetargetdict_pd_dindx_tab, genebankfeatures_df_tab)
 
-        logging.info("Mapping features upstream of target sequence")
-        find_upstream = pybed_upstream(tempdir,mapfile_from_pam=tabfile_for_pybed)
+        ### Adding column name to upstream and downstream output from pybed.
+        # get columns from two input file: target_mappingfile(filterparsetargetdict), featurefile(genebankfeatures_df)
+        targetfile_columns = list(list(filterparsetargetdict.values())[0].keys())
+        featurefile_columns = list(genebankfeatures_df.columns) # from genebank feature dataframe
+        joined_columns = targetfile_columns + featurefile_columns
+        joined_columns.append("distance") # on top of mapping upstream and downstream, we are recording distance in pybed closest. Thus need an extra column
 
         # merge upstream and downstream output
-        logging.info("Writing features file all.txt - : %s", tempdir)
-        merge_downstream_upstream(find_downstream,find_upstream,tempdir)
+        logging.info("Merging downstream and upstream features.Columns with suffix _x represents information from downstream whereas suffix with _y represent that of upstream")
+        merged_down_ups = merge_downstream_upstream(down,up,joined_columns,outputfilename=args.outfile)
 
     except Exception as e:
         logging.error("predictPAM terminated with errors. See the log file for details.")

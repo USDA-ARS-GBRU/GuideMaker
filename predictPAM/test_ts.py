@@ -19,6 +19,38 @@ filter_parse_out = filter_parse_target(parse_out, threads, levendistance)
 
 list(filter_parse_out.items())[:4]
 
+filterparsetargetdict = filter_parse_out
+# reformating filterparsetargetdict- to make compatible for pybed
+filterparsetargetdict_pd = pd.DataFrame.from_dict(filterparsetargetdict, orient='index')
+# remove index, which is key of dict
+filterparsetargetdict_pd_dindx = filterparsetargetdict_pd.reset_index(drop=True)
+# pybed takes tab separated file with no header, plus first three column has to be as above
+filterparsetargetdict_pd_dindx_tab = filterparsetargetdict_pd_dindx.to_csv(index=False,sep='\t',header=False)
+
+
+############
+genebankfeatures = get_genbank_features(genbank)
+# reformating genebankfeatures- to make compatible for pybed
+genebankfeatures_df = pd.DataFrame(genebankfeatures)
+# enpty tab crates isses in runnign pybed, so replance NaN with NA, then make tab separated
+genebankfeatures_df = genebankfeatures_df.replace(np.nan, "NA")
+genebankfeatures_df_tab = genebankfeatures_df.to_csv(index=False,sep='\t',header=False)
+
+down, up = get_nearby_feature(filterparsetargetdict_pd_dindx_tab, genebankfeatures_df_tab)
+
+### add column name to
+kk = filterpasrsedict.values()
+mm=list(kk)
+nn=mm[0]
+oo= list(nn.keys())
+pp = list(gnbfeature_df.columns)
+joined = oo+pp
+joined.append("distance")
+
+
+mm = merge_downstream_upstream(down,up,joined)
+
+
 
 reformat_map = reformat_parse_target_for_pybed(filter_parse_out)
 
@@ -46,17 +78,10 @@ pp = list(gnbfeature_df.columns)
 joined = oo+pp
 joined.append("distance")
 
-## pybed to dataframe
-downstream_df = downstream.to_dataframe(names=joined,low_memory=False)
-downstream_df.to_csv("downstream_df.csv")
-upstream_df = upstream.to_dataframe(names=joined,low_memory=False)
-upstream_df.to_csv("upstream_df.csv")
-all_df = pd.merge(downstream_df, upstream_df,
-                  right_on=joined[:8],
-                  left_on=joined[:8],
-                  how='outer')
-all_df.to_csv("all_df.csv")
 
+
+
+merge_downstream_upstream(downsfile,upsfile,columns_name)
 
 
 ### merging ups and downsfile
@@ -72,6 +97,18 @@ all_df.to_csv(os.path.join(tempdir, "all.txt"), sep='\t', header=True, index=Fal
 
 
 
+
+
+## pybed to dataframe
+downstream_df = downstream.to_dataframe(names=joined,low_memory=False)
+downstream_df.to_csv("downstream_df.csv")
+upstream_df = upstream.to_dataframe(names=joined,low_memory=False)
+upstream_df.to_csv("upstream_df.csv")
+all_df = pd.merge(downstream_df, upstream_df,
+                  right_on=joined[:8],
+                  left_on=joined[:8],
+                  how='outer')
+all_df.to_csv("all_df.csv")
 
 
 
@@ -130,3 +167,9 @@ for entry in genebank_file:
             feature_list.append(feature_dict)
 
 len(feature_list)
+
+
+targetfile_columns = list(list(filterparsetargetdict.values())[0].keys())
+featurefile_columns = list(gnbfeature_df.columns)
+joined_columns = targetfile_columns + featurefile_columns
+joined_columns.append("distance")
