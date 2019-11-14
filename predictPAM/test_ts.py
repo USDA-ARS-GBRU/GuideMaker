@@ -175,8 +175,18 @@ joined_columns = targetfile_columns + featurefile_columns
 joined_columns.append("distance")
 #######################################################
 ##############3 parding siqio.index ####################
+genbank = "Burkholderia_thailandensis_E264__ATCC_700388_133.gbk"
+record_index = SeqIO.index(genbank, "genbank")
+ids = list(record_index)
+records_forward = (record_index[fid] for fid in ids)
+records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
+                            id=record_index[rid].id,
+                            description=record_index[rid].description+"_complement",
+                            name=record_index[rid].name+"_complement"
+                            ) for rid in ids)
+SeqIO.write(records_forward, "out.fasta", "fasta")
+SeqIO.write(records_reverse, "out_complement.fasta", "fasta")
 
-gbk_indx = SeqIO.index(genbank,"genbank")
 
 # get list of recode in gbkfile
 list(gbk_indx.keys())
@@ -193,3 +203,16 @@ v.seq
 
 
 tempdir='/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_z8dgknrz'
+
+
+ids = list(record_index)
+a=ids[0]
+records = (record_index[id] for id in ids)
+
+ids = list(record_index)
+records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
+                            id=record_index[rid].id,
+                            description=record_index[rid].description,
+                            name=record_index[rid].name
+                            ) for rid in ids)
+SeqIO.write(records_reverse, "out_complement.fasta", "fasta")

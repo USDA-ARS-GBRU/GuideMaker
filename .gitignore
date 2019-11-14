@@ -4,3 +4,5 @@
 testing.py
 *.csv
 *.log
+Burkholderia_thailandensis_E264__ATCC_700388_133.gbk
+*.fasta

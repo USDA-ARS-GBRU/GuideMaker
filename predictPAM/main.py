@@ -359,13 +359,13 @@ def main(args=None):
         else:
             tempdir = tempfile.mkdtemp(prefix='pamPredict_', dir=args.tempdir)
         logging.info("Temp directory is: %s", tempdir)
-        
-        
+
+
         # Try to avoid writing out and reading genome in fasta format
         logging.info("Retriving fastas- forward and reverse from a genbanke file")
         get_fastas(genbank=args.gbkfile, tempdir=tempdir)
         print(tempdir)
-        
+
         # mapping
         logging.info("Mapping pam to the genome")
         mapfile = map_pam(tempdir=tempdir, pamseq=args.pamseq, threads=args.threads, strand=args.strand)
