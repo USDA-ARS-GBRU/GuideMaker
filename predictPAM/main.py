@@ -12,7 +12,6 @@ import shutil
 import random
 import itertools
 import subprocess
-import matplotlib
 import numpy
 import tempfile
 import argparse
@@ -36,8 +35,8 @@ def myparser():
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet'),
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence'),
     parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA'), # use choices array,  use 'plus' and 'minus"
-    parser.add_argument('--lcp', type=int, default=12, required=True, help='Length of convered sequence close to PAM'),
-    parser.add_argument('--eds', type=int, choices=range(6),default=2, required=True, help='Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM'),
+    parser.add_argument('--lcp', type=int, default=12, help='Length of convered sequence close to PAM'),
+    parser.add_argument('--eds', type=int, choices=range(6),default=2, help='Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM'),
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
@@ -113,7 +112,6 @@ def get_fastas(genbank, tempdir):
     else:
         print("Invalid file type, allowed file type is .gbk")
 
-tempdir='/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_1w0sd889'
 
 def map_pam(tempdir, pamseq, threads, strand):
     """Runs seqkit locate to find the PAM site in the genome (Fasta)
@@ -187,7 +185,7 @@ def get_target(tempdir, mappingdata, targetlength, strand):
         if len(target_seq) == targetlength:
                 target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
                 "target_ep": target_ep, "pam_seq": pam_seq,
-                "pam_start_ps": pam_sp, "strand": strand}
+                 "strand": strand}
         keys_list.append(target_seq)
     remove_target = [k for k, v in Counter(keys_list).items() if v > 1] # list of keys with more than one observation
     target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} # although dict over writes on non-unique key, but we want to complete remove such observation
@@ -210,21 +208,22 @@ def parse_target(targetdict, strand, seqlengthtopam): # use local variable for c
     # track keys so that any duplicated entry can be removed from the final dictionary
     keys_list =[]
     for items in targetdict.items():
-        # combine if possible
         if items[1]['strand']=="forward":
-            seqcloseto_pam = items[0][-seqlengthtopam:]
-            remainingseq = items[0][:-seqlengthtopam]
+            proxitopam = items[0][-seqlengthtopam:]
+            distaltopam = items[0][:-seqlengthtopam]
             items[1]['target'] = items[0] # move target sequence (key) as value
-            items[1]['remainingseq'] = remainingseq
-            parse_target_dict[seqcloseto_pam] = items[1] ## will retain only target with unique bp, make seqcloseto_pam as key
-            keys_list.append(seqcloseto_pam)
+            items[1]['distaltopam'] = distaltopam
+            items[1]['proxitopam'] = proxitopam
+            parse_target_dict[proxitopam] = items[1] ## will retain only target with unique bp, make proxitopam as key
+            keys_list.append(proxitopam)
         if strand == "reverse":
-            seqcloseto_pam = target_key[:seqlengthtopam]
-            remainingseq = target_key[seqlengthtopam:]
+            proxitopam = target_key[:seqlengthtopam]
+            distaltopam = target_key[seqlengthtopam:]
             items[1]['target'] = items[0]
-            items[1]['remainingseq'] = remainingseq
-            parse_target_dict[seqcloseto_pam] = items[1]
-            keys_list.append(seqcloseto_pam)
+            items[1]['distaltopam'] = distaltopam
+            items[1]['proxitopam'] = proxitopam
+            parse_target_dict[proxitopam] = items[1]
+            keys_list.append(proxitopam)
     remove_target = [k for k, v in Counter(keys_list).items() if v > 1]
     parse_target_dict2 = {k: v for k, v in parse_target_dict.items() if k not in remove_target}
     return parse_target_dict2
@@ -249,32 +248,26 @@ def create_index(strings):
 ## Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
 def filter_parse_target(parse_dict, threads=1, levendistance=2):
     """Returns filtered target sequences based on Leven distance (greater than 2) on sequences 12 bp away from the PAM motif
-
     Args:
         parse_dict(dict): A dictionary with parse target sequence
-
     Returns:
         filter_pasrse_dict(dict): A dictionary whose target sequences that are 12 bp away from PAM sequences are at the Levenshtein distance greater than 2.
     """
     filter_parse_dict={}
-    
     # get a list of ramaning sequences
     rms_list=[]
     for key_val in parse_dict.keys():
-        rms_list.append(parse_dict[key_val]['remainingseq'])
-        
+        rms_list.append(parse_dict[key_val]['distaltopam'])
     # initialize a new index
     ref_index = create_index(rms_list)
-    
     # Find knn of 1 for each remaning seq
     for keys, value in parse_dict.items():
-        query_string = value['remainingseq']
+        query_string = value['distaltopam']
         ids, distances = ref_index.knnQuery(query_string, k=2) ## k =number of k nearest neighbours (knn)
         if distances[1] > levendistance: # check the second value, because the first value will be mostly zero, distance between the same query and index
             filter_parse_dict[keys] = value
-        
     return filter_parse_dict
-    
+
 
 def reformat_parse_target_for_pybed(filterpasrsedict):
     """Converts dictionary to tab separated format as need for pybed tools.
@@ -285,14 +278,11 @@ def reformat_parse_target_for_pybed(filterpasrsedict):
         tab(file): Tab separated file
     """
     dict_to_pd = pd.DataFrame.from_dict(filterpasrsedict, orient='index')
-    dict_to_pd.reset_index(inplace=True) # reindex
-    # pybed need first column to be seqid/chromosome, next column start and thired column as end position
-    dict_to_pd_reorder=dict_to_pd[['seqid', 'target_sp', 'target_ep', 'pam_seq', 'pam_start_ps','strand', 'target', 'remainingseq','index']]
-    # rename index to close12
-    dict_to_pd_reorder.columns = ['seqid', 'target_sp', 'target_ep', 'pam_seq', 'pam_start_ps','strand', 'target', 'remainingseq','close12']
+    # remove index, which is key of dict
+    dict_to_pd_dindx = dict_to_pd.reset_index(drop=True)
     # pybed takes tab separated file with no header, plus first three column has to be as above
-    dict_to_pd_reorder_tab = dict_to_pd_reorder.to_csv(index=False,sep='\t',header=False)
-    return dict_to_pd_reorder_tab
+    dict_to_pd_dindx_tab = dict_to_pd_dindx.to_csv(index=False,sep='\t',header=False)
+    return dict_to_pd_dindx_tab
 
 
 def get_genbank_features(genebank):
@@ -309,27 +299,36 @@ def get_genbank_features(genebank):
     feature_list = []
     genebank_file = SeqIO.parse(genebank,"genbank")
     for entry in genebank_file:
-        feature_dict = {}
         for record in entry.features:
+            feature_dict = {}
             if record.type in ['CDS', 'gene']:
                 feature_dict["accession"] = entry.id
                 feature_dict["start"] = record.location.start.position
                 feature_dict["stop"] = record.location.end.position
                 feature_dict["type"] = record.type
-                if record.strand < 0:
-                    feature_dict["strand"] = "-"
-                else:
-                    feature_dict["strand"] = "+"
+                feature_dict["strand_for_feature"] = 'reverse' if record.strand < 0 else 'forward'
                 for qualifier_key, qualifier_val in record.qualifiers.items():
                     feature_dict[qualifier_key] = qualifier_val
                 feature_list.append(feature_dict)
     return feature_list
-    
+
 #     merge_df = pd.merge(gene_df, cds_df,  on=["locus_tag"], how='outer')
 #     merge_df.to_csv(os.path.join(tempdir, "features.txt"), sep='\t', header=False, index=False)
 
 ########################################################################################################
 # ######### pybedtools ########
+
+
+def get_upsdowns_feature(tempdir, mapfile_from_pam):
+    featurefile = os.path.join(tempdir, "features.txt")
+    mapbed = BedTool(mapfile_from_pam.splitlines())
+    # -d reports distance , fb reports first downsteam feature from feature file in reference to information provided in mappiing file(D=a)
+    downstream = mapbed.closest(featurefile , d=True, fd=True, D="a", t="first")
+    # -d reports the distance, t reports the first matched element, id = igrnore downstream, D indicates with reference to or in reference to
+    upstream = mapbed.closest(featurefile , d=True, id=True, D="a", t="first")
+
+
+
 
 def pybed_downstream(tempdir, mapfile_from_pam):
     """Adds downstream information to the given target sequences and mapping information
@@ -418,12 +417,12 @@ def main(args=None):
         targetdict = get_target(tempdir=tempdir, mappingdata=mapfile, targetlength=args.targetlength, strand=args.strand)
 
         # Parsing target sequence into two: 1)close12 and 2) remainingseq
-        logging.info("Parsing target sequence into two: 1)close12 and 2) remainingseq")
-        parsetargetdict = parse_target(targetdict, strand=args.strand)
+        logging.info("Parsing target sequence into two: 1)proxitopam and 2) distaltopam")
+        parsetargetdict = parse_target(targetdict, strand=args.strand, seqlengthtopam=args.lcp)
 
         # Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
         logging.info("Filtering parse target sequence based on Levenshtein distance using NMSLIB index, with knn=1")
-        filterparsetargetdict = filter_parse_target(parsetargetdict)
+        filterparsetargetdict = filter_parse_target(parsetargetdict, threads=args.threads, levendistance=args.eds)
 
         # Formatiing filter parse target sequnece as needed for pybed tools
         logging.info("Formatiing filter parse target sequnece as needed for pybed tools")
