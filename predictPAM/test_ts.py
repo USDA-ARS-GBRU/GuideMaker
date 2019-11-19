@@ -216,3 +216,67 @@ records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
                             name=record_index[rid].name
                             ) for rid in ids)
 SeqIO.write(records_reverse, "out_complement.fasta", "fasta")
+
+
+tempdir='/var/folders/71/l663_yxn40n1f2l111k9x7nc0000gn/T/pamPredict__k9r309z'
+def map_pam(tempdir, pamseq, threads, strand):
+    """Runs seqkit locate to find the PAM site in the genome (Fasta)
+
+    Args:
+        threads (int): the number of processor threads to use
+
+    Returns:
+        (str): Data in Bedfile format with matches
+
+    """
+
+infasta = os.path.join(tempdir, "out.fasta")
+infasta_complement = os.path.join(tempdir, "out_complement.fasta")
+parameters = ["seqkit",
+               "locate",
+               "-p", pamseq,
+               infasta,"-P",
+               "--bed",
+                "--threads", str(threads),
+                "-d"]
+if strand == "reverse":
+    parameters[4] =infasta_complement
+p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
+out, err = p.communicate()
+out = out.decode('utf-8')
+
+mappingdata=out
+target_dict = {}
+# track keys so that any duplicated entry can be removed from the final dictionary
+keys_list =[]
+# this won't work for big genomes because it reads into memory try seqio index
+infasta = SeqIO.index(os.path.join(tempdir, "out.fasta"), "fasta")
+infasta_complement = SeqIO.index(os.path.join(tempdir, "out_complement.fasta"), "fasta")
+bylines = mappingdata.splitlines()
+for entry in bylines:
+    tline = entry.split()
+    whichchromose=tline[0]
+    pam_sp = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
+    pam_ep = int(tline[2])
+    pam_seq = tline[3]
+    seqid = infasta[whichchromose].id
+    # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
+    if strand=="forward":
+        target_sp = pam_sp - targetlength
+        target_ep = pam_sp
+        target_seq = str(infasta[whichchromose].seq)[target_sp:target_ep]
+    if strand=="reverse":
+        target_sp = pam_ep
+        target_ep = pam_ep + targetlength
+        target_seq = str(infasta_complement[whichchromose].seq)[target_sp:target_ep]
+    if len(target_seq) == targetlength:
+            target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
+            "target_ep": target_ep, "pam_seq": pam_seq,
+             "strand": strand}
+    keys_list.append(target_seq)
+
+remove_target = [k for k, v in Counter(keys_list).items() if v > 1] # list of keys with more than one observation
+target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} # although dict over writes on non-unique key, but we want to complete remove such observation
+
+
+aa = get_target(tempdir, out, targetlength, strand)

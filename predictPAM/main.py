@@ -72,7 +72,7 @@ def _logger_setup(logfile):
         print("An error occurred setting up logging")
         raise e
 
-def get_fastas(genbank, tempdir):
+def get_fastas(genbankfile, tempdir):
     """Returns Fasta and complement of Fasta for a given Genbank file
 
     Args:
@@ -83,34 +83,21 @@ def get_fastas(genbank, tempdir):
         (str): out_complement.fasta path, Complement of Fasta file
 
     """
-    # try:
-    #     gbk_indx = SeqIO.index(genbank,"genbank")
-    #
-    #
-    #     sequences = []
-    #     sequences_complement=[]
-    #     for record in SeqIO.parse(genbank, "genbank"):
-    #         sequences.append(record)
-    #         sequences_complement.append(SeqRecord(record.seq.complement(), record.id+"_complement",
-    #         description=record.description+"_complement", name=record.name+"_complement"))
-    #     SeqIO.write(sequences, os.path.join(tempdir,"out.fasta"), "fasta")
-    #     SeqIO.write(sequences_complement, os.path.join(tempdir,"out_complement.fasta"), "fasta")
-    # except Exception as e:
-    #     print("An error occurred in input genbank file")
-    #     raise e
     try:
-        sequences = []
-        sequences_complement=[]
-        for record in SeqIO.parse(genbank, "genbank"):
-            sequences.append(record)
-            sequences_complement.append(SeqRecord(record.seq.complement(), record.id+"_complement",
-            description=record.description+"_complement", name=record.name+"_complement"))
-        SeqIO.write(sequences, os.path.join(tempdir,"out.fasta"), "fasta")
-        SeqIO.write(sequences_complement, os.path.join(tempdir,"out_complement.fasta"), "fasta")
+        record_index = SeqIO.index(genbankfile, "genbank")
+        ids = list(record_index)
+        records_forward = (record_index[fid] for fid in ids)
+        records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
+                                    id=record_index[rid].id,
+                                    description=record_index[rid].description+"_complement",
+                                    name=record_index[rid].name+"_complement"
+                                    ) for rid in ids)
+        SeqIO.write(records_forward , os.path.join(tempdir,"out.fasta"), "fasta")
+        SeqIO.write(records_reverse, os.path.join(tempdir,"out_complement.fasta"), "fasta")
     except Exception as e:
         print("An error occurred in input genbank file")
         raise e
-    
+
 
 
 def map_pam(tempdir, pamseq, threads, strand):
@@ -164,24 +151,25 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     # track keys so that any duplicated entry can be removed from the final dictionary
     keys_list =[]
     # this won't work for big genomes because it reads into memory try seqio index
-    infasta = SeqIO.read(os.path.join(tempdir, "out.fasta"), "fasta")
-    infasta_complement = SeqIO.read(os.path.join(tempdir, "out_complement.fasta"), "fasta")
+    infasta = SeqIO.index(os.path.join(tempdir, "out.fasta"), "fasta")
+    infasta_complement = SeqIO.index(os.path.join(tempdir, "out_complement.fasta"), "fasta")
     bylines = mappingdata.splitlines()
     for entry in bylines:
         tline = entry.split()
+        whichchromose=tline[0]
         pam_sp = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
         pam_ep = int(tline[2])
         pam_seq = tline[3]
-        seqid = infasta.id
+        seqid = infasta[whichchromose].id
         # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
         if strand=="forward":
             target_sp = pam_sp - targetlength
             target_ep = pam_sp
-            target_seq = str(infasta.seq)[target_sp:target_ep]
+            target_seq = str(infasta[whichchromose].seq)[target_sp:target_ep]
         if strand=="reverse":
             target_sp = pam_ep
             target_ep = pam_ep + targetlength
-            target_seq = str(infasta_complement.seq)[target_sp:target_ep]
+            target_seq = str(infasta_complement[whichchromose].seq)[target_sp:target_ep]
         if len(target_seq) == targetlength:
                 target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
                 "target_ep": target_ep, "pam_seq": pam_seq,
@@ -363,7 +351,7 @@ def main(args=None):
 
         # Try to avoid writing out and reading genome in fasta format
         logging.info("Retriving fastas- forward and reverse from a genbanke file")
-        get_fastas(genbank=args.gbkfile, tempdir=tempdir)
+        get_fastas(genbankfile=args.gbkfile, tempdir=tempdir)
         print(tempdir)
 
         # mapping
