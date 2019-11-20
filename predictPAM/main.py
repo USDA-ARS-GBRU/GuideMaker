@@ -31,7 +31,7 @@ from collections import Counter
 
 def myparser():
     parser = argparse.ArgumentParser(description='predictPAM: A python module to predict custom PAM sites in any small genome')
-    parser.add_argument('--gbkfile', '-i', type=str, required=True,help='A genbank .gbk file')
+    parser.add_argument('--gbkfile', '-i', nargs='*', type=str, required=True,help='A genbank .gbk file')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet')
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence')
     parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA') # use choices array,  use 'plus' and 'minus"
@@ -73,32 +73,50 @@ def _logger_setup(logfile):
         print("An error occurred setting up logging")
         raise e
 
-def get_fastas(genbankfile, tempdir):
-    """Returns Fasta and complement of Fasta for a given Genbank file
-
-    Args:
-        genbank (str): Genbank file to process
-
-    Returns:
-        (str): out.fasta path, Fasta file in forward orientation (5'-3')
-        (str): out_complement.fasta path, Complement of Fasta file
-
-    """
-    try:
-        record_index = SeqIO.index(genbankfile, "genbank")
-        ids = list(record_index)
-        records_forward = (record_index[fid] for fid in ids)
-        records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
-                                    id=record_index[rid].id,
-                                    description=record_index[rid].description+"_complement",
-                                    name=record_index[rid].name+"_complement"
-                                    ) for rid in ids)
-        SeqIO.write(records_forward , os.path.join(tempdir,"out.fasta"), "fasta")
-        SeqIO.write(records_reverse, os.path.join(tempdir,"out_complement.fasta"), "fasta")
-    except Exception as e:
-        print("An error occurred in input genbank file")
-        raise e
-
+# def get_fastas(genbankfile, tempdir):
+#     """Returns Fasta and complement of Fasta for a given Genbank file
+#
+#     Args:
+#         genbank (str): Genbank file to process
+#
+#     Returns:
+#         (str): out.fasta path, Fasta file in forward orientation (5'-3')
+#         (str): out_complement.fasta path, Complement of Fasta file
+#
+#     """
+#     try:
+#         record_index = SeqIO.index(genbankfile, "genbank")
+#         ids = list(record_index)
+#         records_forward = (record_index[fid] for fid in ids)
+#         records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
+#                                     id=record_index[rid].id,
+#                                     description=record_index[rid].description+"_complement",
+#                                     name=record_index[rid].name+"_complement"
+#                                     ) for rid in ids)
+#         SeqIO.write(records_forward , os.path.join(tempdir,"out.fasta"), "fasta")
+#         SeqIO.write(records_reverse, os.path.join(tempdir,"out_complement.fasta"), "fasta")
+#     except Exception as e:
+#         print("An error occurred in input genbank file")
+#         raise e
+def get_fastas(*args, tempdir):
+    f_list=[]
+    r_list=[]
+    for file in args:
+        record_index = SeqIO.index(file, "genbank")
+        record_index_list=list(record_index)
+        for item in record_index_list:
+            record_f = SeqRecord(record_index[item].seq,
+                              record_index[item].id,
+                              record_index[item].name,
+                              record_index[item].description)
+            record_r = SeqRecord(record_index[item].seq.complement(),
+                              record_index[item].id+"_complement",
+                              record_index[item].name+"_complement",
+                              record_index[item].description+"_complement")
+            f_list.append(record_f)
+            r_list.append(record_r)
+    SeqIO.write(f_list , os.path.join(tempdir,"out.fasta"), "fasta")
+    SeqIO.write(r_list, os.path.join(tempdir,"out_complement.fasta"), "fasta")
 
 
 def map_pam(tempdir, pamseq, threads, strand):

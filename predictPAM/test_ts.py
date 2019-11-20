@@ -322,3 +322,122 @@ for entry in bylines:
 
 remove_target = [k for k, v in Counter(keys_list).items() if v > 1] # list of keys with more than one observation
 target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} # although dict over writes on non-unique key, but we want to complete remove such observation
+
+
+
+
+
+
+
+
+
+
+
+
+#########
+
+def get_fastas(*args):
+    f_list=[]
+    r_list=[]
+    for file in args:
+        record_index = SeqIO.index(file, "genbank")
+        ids = list(record_index)
+        records_forward = [record_index[fid] for fid in ids]
+        f_list.append(records_forward)
+        records_reverse = [SeqRecord(seq=record_index[rid].seq.complement(),
+                                    id=record_index[rid].id,
+                                    description=record_index[rid].description+"_complement",
+                                    name=record_index[rid].name+"_complement"
+                                    ) for rid in ids]
+        r_list.append(records_reverse)
+    return f_list, r_list
+                                    
+
+        SeqIO.write(records_forward , "out.fasta", "fasta")
+        SeqIO.write(records_reverse, "out_complement.fasta", "fasta")
+
+
+aa =get_fastas("Pseudomonas_aeruginosa_PAO1_107.gbk","Burkholderia_thailandensis_E264__ATCC_700388_133.gbk")
+
+
+
+def get_fastas(*args):
+    f_list=[]
+    for file in args:
+        record_index = SeqIO.index(file, "genbank")
+        ids = list(record_index)
+        records_forward = [record_index[fid] for fid in ids]
+        f_list.append(records_forward)
+    return f_list
+
+
+aa = get_fastas("Pseudomonas_aeruginosa_PAO1_107.gbk","Burkholderia_thailandensis_E264__ATCC_700388_133.gbk")
+SeqIO.write(aa , "out.fasta", "fasta")
+
+
+record_index = SeqIO.index("Burkholderia_thailandensis_E264__ATCC_700388_133.gbk", "genbank")
+record_index_list=list(record_index)
+f_list=[]
+for item in record_index_list:
+    record= SeqRecord(record_index[item].seq,record_index[item].id,
+            record_index[item].name,
+            record_index[item].description)
+    f_list.append(record)
+
+SeqIO.write(f_list , "out.fasta", "fasta")
+    
+    
+    
+records = (SeqRecord(Seq(seq, generic_dna), str(index)) for index,seq in enumerate(sequence_set) )
+SeqIO.write(records, file_location, "fasta")
+
+
+
+##
+from Bio import SeqIO
+for index, record in enumerate(SeqIO.parse("Burkholderia_thailandensis_E264__ATCC_700388_133.gbk", "genbank")):
+    print("index %i, ID = %s, length %i, with %i features"
+          % (index, record.id, len(record.seq), len(record.features)))
+
+
+##
+def get_fastas(*args):
+    f_list=[]
+    r_list=[]
+    for file in args:
+        record_index = SeqIO.index(file, "genbank")
+        record_index_list=list(record_index)
+        for item in record_index_list:
+            record_f = SeqRecord(record_index[item].seq,
+                              record_index[item].id,
+                              record_index[item].name,
+                              record_index[item].description)
+            record_r = SeqRecord(record_index[item].seq.complement(),
+                              record_index[item].id+"_complement",
+                              record_index[item].name+"_complement",
+                              record_index[item].description+"_complement")
+            f_list.append(record_f)
+            r_list.append(record_r)
+    SeqIO.write(f_list , "out.fasta", "fasta")
+    SeqIO.write(r_list , "out_complement.fasta", "fasta")
+
+
+# def get_fastas(*args):
+#     f_list=[]
+#     r_list=[]
+#     for file in args:
+#         record_index = SeqIO.index(file, "genbank")
+#         record_index_list=list(record_index)
+#         for item in record_index_list:
+#             record_f = SeqRecord(record_index[item].seq,
+#                               record_index[item].id)
+#             record_r = SeqRecord(record_index[item].seq.complement(),
+#                               record_index[item].id)
+#             f_list.append(record_f)
+#             r_list.append(record_r)
+#     SeqIO.write(f_list , "out.fasta", "fasta")
+#     SeqIO.write(r_list , "out_complement.fasta", "fasta")
+
+
+
+get_fastas("Pseudomonas_aeruginosa_PAO1_107.gbk","Burkholderia_thailandensis_E264__ATCC_700388_133.gbk")
