@@ -31,7 +31,7 @@ from collections import Counter
 
 def myparser():
     parser = argparse.ArgumentParser(description='predictPAM: A python module to predict custom PAM sites in any small genome')
-    parser.add_argument('--gbkfile', '-i', nargs='*', type=str, required=True,help='A genbank .gbk file')
+    parser.add_argument('--gbkfile', '-i', nargs='+', type=str, required=True,help='A genbank .gbk file')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet')
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence')
     parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA') # use choices array,  use 'plus' and 'minus"
@@ -98,10 +98,10 @@ def _logger_setup(logfile):
 #     except Exception as e:
 #         print("An error occurred in input genbank file")
 #         raise e
-def get_fastas(*args, tempdir):
+def get_fastas(filelist, tempdir):
     f_list=[]
     r_list=[]
-    for file in args:
+    for file in filelist:
         record_index = SeqIO.index(file, "genbank")
         record_index_list=list(record_index)
         for item in record_index_list:
