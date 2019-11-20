@@ -370,8 +370,7 @@ def main(args=None):
 
         # Try to avoid writing out and reading genome in fasta format
         logging.info("Retriving fastas- forward and reverse from a genbanke file")
-        get_fastas(genbankfile=args.gbkfile, tempdir=tempdir)
-        print(tempdir)
+        get_fastas(args.gbkfile, tempdir=tempdir)
 
         # mapping
         logging.info("Mapping pam to the genome")
