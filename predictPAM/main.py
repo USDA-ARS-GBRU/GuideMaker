@@ -73,50 +73,29 @@ def _logger_setup(logfile):
         print("An error occurred setting up logging")
         raise e
 
-# def get_fastas(genbankfile, tempdir):
-#     """Returns Fasta and complement of Fasta for a given Genbank file
-#
-#     Args:
-#         genbank (str): Genbank file to process
-#
-#     Returns:
-#         (str): out.fasta path, Fasta file in forward orientation (5'-3')
-#         (str): out_complement.fasta path, Complement of Fasta file
-#
-#     """
-#     try:
-#         record_index = SeqIO.index(genbankfile, "genbank")
-#         ids = list(record_index)
-#         records_forward = (record_index[fid] for fid in ids)
-#         records_reverse = (SeqRecord(seq=record_index[rid].seq.complement(),
-#                                     id=record_index[rid].id,
-#                                     description=record_index[rid].description+"_complement",
-#                                     name=record_index[rid].name+"_complement"
-#                                     ) for rid in ids)
-#         SeqIO.write(records_forward , os.path.join(tempdir,"out.fasta"), "fasta")
-#         SeqIO.write(records_reverse, os.path.join(tempdir,"out_complement.fasta"), "fasta")
-#     except Exception as e:
-#         print("An error occurred in input genbank file")
-#         raise e
 def get_fastas(filelist, tempdir):
-    f_list=[]
-    r_list=[]
-    for file in filelist:
-        record_index = SeqIO.index(file, "genbank")
-        record_index_list=list(record_index)
-        for item in record_index_list:
-            record_f = SeqRecord(record_index[item].seq,
-                              record_index[item].id,
-                              record_index[item].name,
-                              record_index[item].description)
-            record_r = SeqRecord(record_index[item].seq.complement(),
-                              record_index[item].id+"_complement",
-                              record_index[item].name+"_complement",
-                              record_index[item].description+"_complement")
-            f_list.append(record_f)
-            r_list.append(record_r)
-    SeqIO.write(f_list , os.path.join(tempdir,"out.fasta"), "fasta")
-    SeqIO.write(r_list, os.path.join(tempdir,"out_complement.fasta"), "fasta")
+    """Returns Fasta and complement of Fasta for a given Genbank file
+
+    Args:
+        genbank (str): Genbank file to process
+
+    Returns:
+        (str): forward.fasta, Fasta file in forward orientation (5'-3')
+        (str): reverse.fasta, Complement of Fasta file
+    """
+    try:
+        f1 = open(os.path.join(tempdir,"forward.fasta"),"w")
+        f2 = open(os.path.join(tempdir,"reverse.fasta"),"w")
+        for file in filelist:
+            recs = SeqIO.parse(file, "genbank")
+            for rec in recs:
+                record_f = rec
+                record_r = SeqRecord(rec.seq.complement(),rec.id,rec.name+"_complement",rec.description+"_complement")
+                SeqIO.write(record_f,f1,"fasta")
+                SeqIO.write(record_r,f2,"fasta")
+    except Exception as e:
+        print("An error occurred in input genbank file")
+        raise e
 
 
 def map_pam(tempdir, pamseq, threads, strand):
@@ -130,15 +109,17 @@ def map_pam(tempdir, pamseq, threads, strand):
 
     """
     try:
-        infasta = os.path.join(tempdir, "out.fasta")
-        infasta_complement = os.path.join(tempdir, "out_complement.fasta")
+        infasta = os.path.join(tempdir, "forward.fasta")
+        infasta_complement = os.path.join(tempdir, "reverse.fasta")
+        # -i == ignore cases, -d == pattern/motif contains degenerate base
         parameters = ["seqkit",
                        "locate",
                        "-p", pamseq,
                        infasta,"-P",
                        "--bed",
                         "--threads", str(threads),
-                        "-d"]
+                        "-d",
+                        "-i"]
         if strand == "reverse":
             parameters[4] =infasta_complement
         p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
@@ -170,8 +151,8 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     # track keys so that any duplicated entry can be removed from the final dictionary
     keys_list =[]
     # this won't work for big genomes because it reads into memory try seqio index
-    infasta = Fasta(os.path.join(tempdir, "out.fasta"))
-    infasta_complement = Fasta(os.path.join(tempdir, "out_complement.fasta"))
+    infasta = Fasta(os.path.join(tempdir, "forward.fasta"))
+    infasta_complement = Fasta(os.path.join(tempdir, "reverse.fasta"))
     bylines = mappingdata.splitlines()
     for entry in bylines:
         tline = entry.split()
@@ -276,7 +257,7 @@ def filter_parse_target(parse_dict, threads=1, levendistance=2):
     return filter_parse_dict
 
 
-def get_genbank_features(inputgbk):
+def get_genbank_features(filelist):
     ## Pseudocode
     """Return a list of features for a genbank file
 
@@ -288,20 +269,21 @@ def get_genbank_features(inputgbk):
         (list): List of features with genebank informations
     """
     feature_list = []
-    genebank_file = SeqIO.parse(inputgbk,"genbank")
-    for entry in genebank_file:
-        for record in entry.features:
-            feature_dict = {}
-            if record.type in ['CDS', 'gene']:
-                feature_dict["accession"] = entry.id
-                feature_dict["start"] = record.location.start.position
-                feature_dict["stop"] = record.location.end.position
-                feature_dict["type"] = record.type
-                feature_dict["strand_for_feature"] = 'reverse' if record.strand < 0 else 'forward'
-                for qualifier_key, qualifier_val in record.qualifiers.items():
-                    feature_dict[qualifier_key] = qualifier_val
-                feature_list.append(feature_dict)
-    return feature_list
+    for file in filelist:
+        genebank_file = SeqIO.parse(file,"genbank")
+        for entry in genebank_file:
+            for record in entry.features:
+                feature_dict = {}
+                if record.type in ['CDS', 'gene']:
+                    feature_dict["accession"] = entry.id
+                    feature_dict["start"] = record.location.start.position
+                    feature_dict["stop"] = record.location.end.position
+                    feature_dict["type"] = record.type
+                    feature_dict["strand_for_feature"] = 'reverse' if record.strand < 0 else 'forward'
+                    for qualifier_key, qualifier_val in record.qualifiers.items():
+                        feature_dict[qualifier_key] = qualifier_val
+                    feature_list.append(feature_dict)
+        return feature_list
 
 
 # ######### pybedtools ########

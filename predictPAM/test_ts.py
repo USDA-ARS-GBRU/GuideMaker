@@ -441,3 +441,54 @@ def get_fastas(*args):
 
 
 get_fastas("Pseudomonas_aeruginosa_PAO1_107.gbk","Burkholderia_thailandensis_E264__ATCC_700388_133.gbk")
+
+
+
+def get_fastas(*args):
+    f1 = open("example.fasta", "w")
+    for file in args:
+        records = SeqIO.parse(file, "genbank")
+        SeqIO.write(records, f1, "fasta")
+        
+
+############
+file="Burkholderia_thailandensis_E264__ATCC_700388_133.gbk"
+record = SeqIO.parse(file, "genbank")
+SeqIO.write(record, "test.out", "fasta")
+  
+
+
+recs = SeqIO.parse(sys.argv[1], 'fastq')
+
+for rec in recs:
+    rc = rec.reverse_complement()
+    rc.id = rec.id
+    rc.name = rec.name + '_R2.fastq'
+    rc.description = ''
+    SeqIO.write(rc, rc.name, 'fastq')
+    
+def get_fastas(*args):
+    f1 = open("forward.fasta", "w")
+    f2 = open("reverse.fasta", "w")
+    for file in args:
+        recs = SeqIO.parse(file, "genbank")
+        for rec in recs:
+            record_f = rec
+            record_r = SeqRecord(rec.seq.complement(),rec.id,rec.name+"_complement",rec.description+"_complement")
+            SeqIO.write(record_f, f1, "fasta")
+            SeqIO.write(record_r,f2, "fasta")
+        
+get_fastas("Pseudomonas_aeruginosa_PAO1_107.gbk","Burkholderia_thailandensis_E264__ATCC_700388_133.gbk")
+
+
+
+def get_fastas(*args):
+    f1 = open(os.path.join(tempdir,"forward.fasta"),"w")
+    f2 = open(os.path.join(tempdir,"reverse.fasta"),"w")
+    for file in args:
+        recs = SeqIO.parse(file, "genbank")
+        for rec in recs:
+            record_f = rec
+            record_r = SeqRecord(rec.seq.complement(),rec.id,rec.name+"_complement",rec.description+"_complement")
+            SeqIO.write(record_f , f1,"fasta")
+            SeqIO.write(record_r , f2, "fasta")
