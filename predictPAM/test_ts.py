@@ -1,6 +1,6 @@
-genbank = "Pseudomonas_aeruginosa_PAO1_107.gbk"
+genbank = "Burkholderia_thailandensis_E264__ATCC_700388_133.gbk"
 pamseq ="ATCGA"
-tempdir ='/var/folders/71/l663_yxn40n1f2l111k9x7nc0000gn/T/pamPredict_91ot3oyt'
+tempdir = '/var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict_cs6mazl9'
 threads=2
 strand = "forward"
 targetlength = 25
@@ -280,3 +280,45 @@ target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} 
 
 
 aa = get_target(tempdir, out, targetlength, strand)
+
+
+##########3 learnign pyfaidx
+
+from pyfaidx import Fasta
+genes = Fasta(os.path.join(tempdir, "out.fasta"))
+genes.keys()
+genes['NC_007650'][200:300].seq
+
+
+mappingdata=map_out
+target_dict = {}
+# track keys so that any duplicated entry can be removed from the final dictionary
+keys_list =[]
+# this won't work for big genomes because it reads into memory try seqio index
+infasta = Fasta(os.path.join(tempdir, "out.fasta"))
+infasta_complement = Fasta(os.path.join(tempdir, "out_complement.fasta"))
+bylines = mappingdata.splitlines()
+for entry in bylines:
+    tline = entry.split()
+    whichchromose=tline[0]
+    pam_sp = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
+    pam_ep = int(tline[2])
+    pam_seq = tline[3]
+    seqid = infasta[whichchromose].name
+    # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
+    if strand=="forward":
+        target_sp = pam_sp - targetlength
+        target_ep = pam_sp
+        target_seq = infasta[whichchromose][target_sp:target_ep].seq
+    if strand=="reverse":
+        target_sp = pam_ep
+        target_ep = pam_ep + targetlength
+        target_seq = infasta_complement[whichchromose][target_sp:target_ep].seq
+    if len(target_seq) == targetlength:
+            target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
+            "target_ep": target_ep, "pam_seq": pam_seq,
+             "strand": strand}
+    keys_list.append(target_seq)
+
+remove_target = [k for k, v in Counter(keys_list).items() if v > 1] # list of keys with more than one observation
+target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} # although dict over writes on non-unique key, but we want to complete remove such observation

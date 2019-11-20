@@ -21,6 +21,7 @@ import nmslib
 import numpy as np
 import pandas as pd
 from Bio import SeqIO
+from pyfaidx import Fasta
 from Bio.Alphabet import IUPAC
 from itertools import permutations
 from Bio.Seq import Seq
@@ -151,8 +152,8 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     # track keys so that any duplicated entry can be removed from the final dictionary
     keys_list =[]
     # this won't work for big genomes because it reads into memory try seqio index
-    infasta = SeqIO.index(os.path.join(tempdir, "out.fasta"), "fasta")
-    infasta_complement = SeqIO.index(os.path.join(tempdir, "out_complement.fasta"), "fasta")
+    infasta = Fasta(os.path.join(tempdir, "out.fasta"))
+    infasta_complement = Fasta(os.path.join(tempdir, "out_complement.fasta"))
     bylines = mappingdata.splitlines()
     for entry in bylines:
         tline = entry.split()
@@ -160,16 +161,16 @@ def get_target(tempdir, mappingdata, targetlength, strand):
         pam_sp = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
         pam_ep = int(tline[2])
         pam_seq = tline[3]
-        seqid = infasta[whichchromose].id
+        seqid = infasta[whichchromose].name
         # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
         if strand=="forward":
             target_sp = pam_sp - targetlength
             target_ep = pam_sp
-            target_seq = str(infasta[whichchromose].seq)[target_sp:target_ep]
+            target_seq = infasta[whichchromose][target_sp:target_ep].seq
         if strand=="reverse":
             target_sp = pam_ep
             target_ep = pam_ep + targetlength
-            target_seq = str(infasta_complement[whichchromose].seq)[target_sp:target_ep]
+            target_seq = infasta_complement[whichchromose][target_sp:target_ep].seq
         if len(target_seq) == targetlength:
                 target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
                 "target_ep": target_ep, "pam_seq": pam_seq,

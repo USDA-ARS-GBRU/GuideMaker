@@ -1,4 +1,20 @@
-11-14 18:01 root         INFO     Temp directory is: /var/folders/71/l663_yxn40n1f2l111k9x7nc0000gn/T/pamPredict_oaspqszu
-11-14 18:01 root         INFO     Retriving fastas- forward and reverse from a genbanke file
-11-14 18:01 root         INFO     Mapping pam to the genome
-11-14 18:01 root         INFO     Retrieving target sequence for matching PAM : /var/folders/71/l663_yxn40n1f2l111k9x7nc0000gn/T/pamPredict_oaspqszu
+11-19 22:00 root         INFO     Temp directory is: /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict__z8a4k8v
+11-19 22:00 root         INFO     Retriving fastas- forward and reverse from a genbanke file
+11-19 22:00 root         INFO     Mapping pam to the genome
+11-19 22:00 root         INFO     Retrieving target sequence for matching PAM : /var/folders/52/rbrrfj5d369c35kd2xrktf3m0000gq/T/pamPredict__z8a4k8v
+11-19 22:00 root         INFO     Parsing target sequence into two: 1)proxitopam and 2) distaltopam
+11-19 22:00 root         INFO     Filtering parse target sequence based on Levenshtein distance using NMSLIB index, with knn=1
+11-19 22:00 nmslib       INFO     NN                  = 10
+11-19 22:00 nmslib       INFO     efConstruction_     = 10
+11-19 22:00 nmslib       INFO     indexThreadQty      = 4
+11-19 22:00 nmslib       INFO     useProxyDist        = 0
+11-19 22:00 nmslib       INFO     Set SmallWorldRand query-time parameters:
+11-19 22:00 nmslib       INFO     efSearch           =10
+11-19 22:00 nmslib       INFO     algoType           =0
+11-19 22:00 nmslib       INFO     Current nextNodeId: 0 futureNextNodeId + 1 after batch addition: 15341
+11-19 22:00 nmslib       INFO     4 indexing threads have finished
+11-19 22:00 nmslib       INFO     The number of data points: 15341 NextNodeId_ = 15341
+11-19 22:00 nmslib       DEBUG    Destroying Index
+11-19 22:00 root         INFO     Retrieving CDS/gene information for each record in the genebank file
+11-19 22:00 root         INFO     Mapping features downstream and upstream of target sequence
+11-19 22:00 root         INFO     Merging downstream and upstream features.Columns with suffix _x represents information from downstream whereas suffix with _y represent that of upstream
