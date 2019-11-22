@@ -2,6 +2,8 @@ README.md
 setup.py
 predictPAM/__init__.py
 predictPAM/main.py
+predictPAM/test_ts.py
+predictPAM/testing.py
 predictPAM.egg-info/PKG-INFO
 predictPAM.egg-info/SOURCES.txt
 predictPAM.egg-info/dependency_links.txt
@@ -9,3 +11,4 @@ predictPAM.egg-info/entry_points.txt
 predictPAM.egg-info/not-zip-safe
 predictPAM.egg-info/requires.txt
 predictPAM.egg-info/top_level.txt
+test/test_main.py

@@ -5,3 +5,13 @@ testing.py
 *.csv
 *.log
 *.fasta
+/build
+/predictPAM.egg-info
+/dist
+test_ts.py
+testing.py
+*.log
+/docs/build/
+*.bat
+/docs/source/_static
+/docs/source/_templates
