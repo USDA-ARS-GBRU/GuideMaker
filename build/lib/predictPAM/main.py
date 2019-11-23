@@ -35,12 +35,12 @@ def myparser():
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, may be use IUPAC ambiguous alphabet')
     parser.add_argument('--targetlength', '-l', type=int, default=22, help='Length of the target sequence')
     parser.add_argument('--strand', '-s', choices=['forward','reverse'], default='forward', help='Strand of DNA') # use choices array,  use 'plus' and 'minus"
-    parser.add_argument('--lcp', type=int, default=12, help='Length of convered sequence close to PAM')
+    parser.add_argument('--lcp', type=int, default=12, help='Length of conserved sequence close to PAM')
     parser.add_argument('--eds', type=int, choices=range(6),default=2, help='Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM')
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of pam sites and data')
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
-    parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
-    parser.add_argument('--log' ,help="Log file", default="predictPAM.log")
+    parser.add_argument('--keeptemp',help="Should intermediate files be kept?", action='store_true')
+    parser.add_argument('--log', help="Log file", default="predictPAM.log")
     parser.add_argument('--threads' ,help="Number of processor threads to use.", type=int, default=1)
     return parser
 
@@ -50,8 +50,7 @@ def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
 
     Args:
-        fastq (str): The path to a fastq or fastq.gz file
-        fastq2 (str): The path to a fastq or fastq.gz file for the reverse sequences
+        logfile (str): Log file
 
     """
     try:
@@ -77,11 +76,11 @@ def get_fastas(filelist, tempdir):
     """Returns Fasta and complement of Fasta for a given Genbank file
 
     Args:
-        genbank (str): Genbank file to process
+        filelist (str): Genbank file to process
 
     Returns:
-        (str): forward.fasta, Fasta file in forward orientation (5'-3')
-        (str): reverse.fasta, Complement of Fasta file
+        forward.fasta(str): Fasta file in forward orientation (5'-3')
+        reverse.fasta(str): Complement of Fasta file (3'-5')
     """
     try:
         f1 = open(os.path.join(tempdir,"forward.fasta"),"w")
@@ -102,10 +101,12 @@ def map_pam(tempdir, pamseq, threads, strand):
     """Runs seqkit locate to find the PAM site in the genome (Fasta)
 
     Args:
-        threads (int): the number of processor threads to use
+        pamseq (str) : PAM motif
+        threads (int): Number of processor threads to use
+        strand (str) : forward for 5'-3' or reverse for 3'-5' orientation
 
     Returns:
-        (str): Data in Bedfile format with matches
+        str: Data in Bedfile format with matches
 
     """
     try:
@@ -140,11 +141,11 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     Args:
         tempdir (str): Temporary directory
         mappingdata (str): Bedfile output from map_pam
-        targetlength ...
-        strand ...
-
+        targetlength (int) : Length of the target sequence
+        strand (str) : forward for 5'-3' or reverse for 3'-5' orientation
+        
     Returns:
-        (str): Bedfile format with matches
+        str: Bedfile format with matching genes or CDS
 
     """
     target_dict = {}
@@ -185,11 +186,13 @@ def parse_target(targetdict, strand, seqlengthtopam): # use local variable for c
     """Given a dictionary of target sequence, parse target sequence into two parts:
     close region and remaining seq, then create a new dictionary with unique close region sequences as keys
 
-        Args:
-            targetdict (dict): Dictionary of target sequences obtained after running get_target
+    Args:
+        targetdict (dict): Dictionary of target sequences obtained after running get_target
+        strand (str) : forward for 5'-3' or reverse for 3'-5' orientation
+        seqlengthtopam (int) : Length of conserved sequence close to PAM
 
-        Returns:
-            parse_target_dict(dict): Dictionary with unique close region sequences as keys
+    Returns:
+        dict : Dictionary with unique close region sequences as keys
 
     """
     parse_target_dict={}
@@ -219,11 +222,12 @@ def parse_target(targetdict, strand, seqlengthtopam): # use local variable for c
 #nms lib - create a index with remainingseq
 def create_index(strings):
     """Initializes and returns a NMSLIB index
+    
     Args:
         strings (str): Strings to calculate distance
-
+    
     Returns:
-        index (obj): Returns a NMSLIB index
+        index (nmslib.dist.IntIndex): Returns a NMSLIB index
     """
     index = nmslib.init(space='leven',
                         dtype=nmslib.DistType.INT,
@@ -233,13 +237,16 @@ def create_index(strings):
     index.createIndex(print_progress=True)
     return index
 
-## Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
 def filter_parse_target(parse_dict, threads=1, levendistance=2):
-    """Returns filtered target sequences based on Leven distance (greater than 2) on sequences 12 bp away from the PAM motif
+    """Return a list of features for a genbank file
+
     Args:
         parse_dict(dict): A dictionary with parse target sequence
+        threads (int) : Number of processor threads to use
+        levendistance (int) : Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM
+
     Returns:
-        filter_pasrse_dict(dict): A dictionary whose target sequences that are 12 bp away from PAM sequences are at the Levenshtein distance greater than 2.
+        list: List of features with genebank informations
     """
     filter_parse_dict={}
     # get a list of ramaning sequences
@@ -262,11 +269,11 @@ def get_genbank_features(filelist):
     """Return a list of features for a genbank file
 
     Args:
-        genbank (genebank): Genbank file to process
+        filelist(genebank): Genbank file to process
 
 
     Returns:
-        (list): List of features with genebank informations
+        list: List of features with genebank informations
     """
     feature_list = []
     for file in filelist:
@@ -292,10 +299,11 @@ def get_nearby_feature(target_mappingfile, featurefile):
     """Adds downstream information to the given target sequences and mapping information
 
     Args:
-        (tsv): mapping file with target sequence
+        target_mappingfile (str) : Data in Bedfile format with matches
+        featurefile (list) : List of features with genebank informations
 
     Returns:
-        (tsv): A file with target sequences, mapping information, and downstream information
+        (tsv?? check type of pybed output): A file with target sequences, mapping information, and downstream information
     """
     # format to featurefile
     featurebed = BedTool(featurefile.splitlines())
@@ -312,11 +320,11 @@ def merge_downstream_upstream(downsfile,upsfile,columns_name, outputfilename):
     """Return a merged file
 
     Args:
-        (tsv): A file with target sequences, mapping information, and upstream information
-        (tsv): A file with target sequences, mapping information, and downstream information
+        (tsv?? check type of pybed output): A file with target sequences, mapping information, and upstream information
+        (tsv?? check type of pybed output): A file with target sequences, mapping information, and downstream information
 
     Returns:
-        (dataframe): A DataFrame with merged upstream information and downstream information for a target sequence
+        dataframe: A DataFrame with merged upstream information and downstream information for a target sequence
     """
     downstream_df = downsfile.to_dataframe(names=columns_name,low_memory=False)
     upstream_df = upsfile.to_dataframe(names=columns_name,low_memory=False)
