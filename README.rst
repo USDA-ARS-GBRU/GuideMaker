@@ -40,7 +40,7 @@ Following are the required softwares/programs.
 Usage
 ---------
 
--h, --help            	Show this help message and exit.
+--help, -h            	Show this help message and exit.
 
 --gbkfile, -i		    A ``.GBk``, ``.GB`` file or files. Supports single or multiple genome files with single or multiple chromosomes. Required.
 
@@ -78,53 +78,6 @@ Return a table of pam sites and associated data.
     --lcp 12 --eds 2 --outfile out.txt \
     --log logfile.txt --keeptemp -threads 2
 
-ITSxpress can take gzipped or un-gzipped FASTQ files and it can write gzipped or
-un-gzipped FASTQ files. It expects FASTQ files to end in: .fq, .fastq, .fq.gz or fastq.gz.
-
-Use case 2: Trimming the ITS2 region from a fungal amplicon sequencing dataset with
-forward and reverse gzipped FASTQ files using two cpu threads. Return a forward
-and reverse read files  for use in Dada2.
-
-.. code-block:: bash
-
-    itsxpress --fastq r1.fastq.gz --fastq2 r2.fastq.gz --region ITS2 \
-    --taxa Fungi --log logfile.txt --outfile trimmed_reads.fastq.gz --threads 2
-
-ITSxpress can take gzipped or un-gzipped FASTQ files and it can write gzipped or
-un-gzipped FASTQ files. It expects FASTQ files to end in: .fq, .fastq, .fq.gz or fastq.gz.
-
-
-Use case 3: Trimming the ITS2 region from a fungal amplicon sequencing dataset with
-an interleaved gzipped FASTQ files using two cpu threads. Return a single merged file for use in Deblur.
-
-.. code-block:: bash
-
-    itsxpress --fastq interleaved.fastq.gz  --region ITS2 --taxa Fungi \
-    --log logfile.txt --outfile trimmed_reads.fastq.gz --threads 2
-
-
-Use case 4: Trimming the ITS2 region from a fungal amplicon sequencing dataset with
-an single-ended gzipped FASTQ files using two cpu threads.
-
-.. code-block:: bash
-
-    itsxpress --fastq single-end.fastq.gz --single_end --region ITS2 --taxa Fungi \
-    --log logfile.txt --outfile trimmed_reads.fastq.gz --threads 2
-
-Single ended data is less common and may come from a dataset where the reads have already
-been merged.
-
-Use case 5: Trimming the ITS1 region from a Alveolata amplicon sequencing dataset with
-an interleaved gzipped FASTQ files using 8 cpu threads.
-
-.. code-block:: bash
-
-    itsxpress --fastq interleaved.fastq.gz --region ITS1 --taxa Alveolata \
-    --log logfile.txt --outfile trimmed_reads.fastq.gz --threads 8
-
 
 License information
 --------------------
-This software is a work of the United States Department of Agriculture,
-Agricultural Research Service and is released under a Creative Commons CC0
-public domain attribution.
