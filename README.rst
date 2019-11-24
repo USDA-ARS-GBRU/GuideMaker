@@ -68,9 +68,10 @@ Usage
 Examples
 ---------
 
-Use case 1: Retrieving target sequence for a given PAM motif in the forward strand, where length of target sequence is 25 base pair.
+``Use case:`` Retrieving target sequence for a given PAM motif in the forward strand, where length of target sequence is 25 base pair.
 12 base pair close to PAM motif is conserved ,i.e. unique. Remaining sequence at the distal end to PAM motif has leven distance of more than 2.
-Return a table of pam sites and associated data.
+Here the number of used threads is 2, and we want to keep the temporary directory.
+Return a table of pam sites and associated data, at the current folder.
 
 .. code-block:: bash
     
