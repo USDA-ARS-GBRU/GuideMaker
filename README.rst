@@ -40,29 +40,18 @@ Following are the required softwares/programs.
 Usage
 ---------
 
---help, -h            	Show this help message and exit.
-
---gbkfile, -i		    A ``.GBk``, ``.GB`` file or files. Supports single or multiple genome files with single or multiple chromosomes. Required.
-
---pamseq, -p			A short PAM motif to search for, may be use IUPAC ambiguous alphabet. Required.
-
---targetlength, -l      Length of the target sequence. Default is 22.
-
---strand, -s            Strand of DNA to search for PAM motif. Default is forward. Options: {forward, reverse}.
-
---lcp                   Length of conserved sequence close to PAM motif. Default is 12.
-
---eds                   Unexcepted Levenshtein edit distance on the distal portion of target sequence from PAM motif. Options: {0, 1, 2, 3, 4, 5}. Default is 2.
-
---outfile, -o           The table of pam sites and data. Required.
-
---tempdir				Specify the temp file directory. Default is None.
-
---keeptemp				Should intermediate files be kept? Default is false.
-
---log		          	Log file. Default is predictPAM.log.
-
---threads		     	Number of processor threads to use. Default is 1.
+-h, --help		Show this help message and exit.
+-i, --gbkfile		A ``.GBk``, ``.GB`` file or files. Supports single or multiple genome files with single or multiple chromosomes. Required.
+-p, --pamseq		A short PAM motif to search for, may be use IUPAC ambiguous alphabet. Required.
+-l, --targetlength	Length of the target sequence. Default is 22.
+-s, --strand		Strand of DNA to search for PAM motif. Default is forward. Options: {forward, reverse}.
+--lcp			Length of conserved sequence close to PAM motif. Default is 12.
+--eds			UnexceptedLevenshtein edit distance on the distal portion of target sequence from PAM motif. Options: {0, 1, 2, 3, 4, 5}. Default is 2.
+-o, --outfile		The table of pam sites and data. Required.
+--tempdir		Specify the temp file directory. Default is None.
+--keeptemp		Should intermediate files be kept? Default is false.
+--log			Log file.Default is predictPAM.log.
+--threads		Number of processor threads to use. Default is 1.
 
 
 Examples
