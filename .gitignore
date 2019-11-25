@@ -21,7 +21,4 @@ testing.py
 test_ts.py
 testing.py
 *.log
-/docs/build/
 *.bat
-/docs/source/_static
-/docs/source/_templates
