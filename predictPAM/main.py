@@ -154,7 +154,7 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     # this won't work for big genomes because it reads into memory try seqio index
     infasta = Fasta(os.path.join(tempdir, "forward.fasta"))
     infasta_complement = Fasta(os.path.join(tempdir, "reverse.fasta"))
-    bylines = mappingdata.splitlines()
+    bylines = map_out.splitlines()
     for entry in bylines:
         tline = entry.split()
         whichchromose=tline[0]
@@ -162,17 +162,19 @@ def get_target(tempdir, mappingdata, targetlength, strand):
         pam_ep = int(tline[2])
         pam_seq = tline[3]
         seqid = infasta[whichchromose].name
+        fastalength = infasta[whichchromose].unpadded_len
         # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
         if strand=="forward":
-            target_sp = pam_sp - targetlength
+            target_sp = pam_sp - targetlength ## this might give use negative value.
             target_ep = pam_sp
-            target_seq = infasta[whichchromose][target_sp:target_ep].seq
+            if (target_sp > 0) and (target_ep > target_sp):
+                target_seq = infasta[whichchromose][target_sp:target_ep].seq
         if strand=="reverse":
             target_sp = pam_ep
             target_ep = pam_ep + targetlength
-            target_seq = infasta_complement[whichchromose][target_sp:target_ep].seq
-        if len(target_seq) == targetlength:
-                target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
+            if (target_ep > target_sp) and (target_ep < fastalength):
+                target_seq = infasta_complement[whichchromose][target_sp:target_ep].seq
+        target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
                 "target_ep": target_ep, "pam_seq": pam_seq,
                  "strand": strand}
         keys_list.append(target_seq)
