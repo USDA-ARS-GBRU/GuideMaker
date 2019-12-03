@@ -202,6 +202,8 @@ def parse_target(targetdict, strand, seqlengthtopam): # use local variable for c
 
     Returns:
         dict : Dictionary with unique close region sequences as keys
+        THIS CODE NEED TO ME ADJUSTED FOR REVERSE STRAND, AS NOW WE HAVE RC ADN RC OF PAM, TARGET BEHAVE
+        SAME AS THE FORWARD STRAND. THIS STEP IS SLOW, NOT DOING .ITEMS() MIGHT HELP TO GAIN THE SPEED.
 
     """
     parse_target_dict={}
