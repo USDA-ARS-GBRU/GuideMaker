@@ -64,9 +64,9 @@ Return a table of pam sites and associated data, at the current folder.
 
 .. code-block:: bash
     
-    predictPAM -i sample.gbk -p ATCGAT --targetlength 25 --strand forward \
+    predictPAM -i sample.gbk -p ATCGAT --targetlength 25 -strand forward \
     --lcp 12 --eds 2 --outfile out.txt \
-    --log logfile.txt --keeptemp --threads 2
+    --log logfile.txt --keeptemp -threads 2
 
 
 License information

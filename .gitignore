@@ -6,9 +6,8 @@
 
 # Python egg metadata, regenerated from source files by setuptools.
 /*.egg-info
-/docs
-docs/source/_static
-docs/source/_templates
+
+
 *.pdf
 *.DS_Store
 *.txt

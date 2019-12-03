@@ -80,21 +80,18 @@ def get_fastas(filelist, tempdir):
 
     Returns:
         forward.fasta(str): Fasta file in forward orientation (5'-3')
-        reverse_complement.fasta(str): Reverse Complement of Fasta file
+        reverse.fasta(str): Complement of Fasta file (3'-5')
     """
     try:
         f1 = open(os.path.join(tempdir,"forward.fasta"),"w")
-        f2 = open(os.path.join(tempdir,"reverse_complement.fasta"),"w")
+        f2 = open(os.path.join(tempdir,"reverse.fasta"),"w")
         for file in filelist:
             recs = SeqIO.parse(file, "genbank")
             for rec in recs:
                 record_f = rec
-                record_rc = rec.reverse_complement()
-                record_rc.id =rec.id
-                record_rc.name = rec.name+"_reverse_complement"
-                record_rc.description = rec.description+"_reverse_complement"
+                record_r = SeqRecord(rec.seq.complement(),rec.id,rec.name+"_complement",rec.description+"_complement")
                 SeqIO.write(record_f,f1,"fasta")
-                SeqIO.write(record_rc,f2,"fasta")
+                SeqIO.write(record_r,f2,"fasta")
     except Exception as e:
         print("An error occurred in input genbank file")
         raise e
@@ -114,7 +111,7 @@ def map_pam(tempdir, pamseq, threads, strand):
     """
     try:
         infasta = os.path.join(tempdir, "forward.fasta")
-        infasta_rc = os.path.join(tempdir, "reverse_complement.fasta")
+        infasta_complement = os.path.join(tempdir, "reverse.fasta")
         # -i == ignore cases, -d == pattern/motif contains degenerate base
         parameters = ["seqkit",
                        "locate",
@@ -125,8 +122,7 @@ def map_pam(tempdir, pamseq, threads, strand):
                         "-d",
                         "-i"]
         if strand == "reverse":
-            parameters[3] = str(Seq(pamseq).reverse_complement())
-            parameters[4] = infasta_rc
+            parameters[4] =infasta_complement
         p = subprocess.Popen(parameters, stdout=subprocess.PIPE)
         out, err = p.communicate()
         out = out.decode('utf-8')
@@ -157,34 +153,29 @@ def get_target(tempdir, mappingdata, targetlength, strand):
     keys_list =[]
     # this won't work for big genomes because it reads into memory try seqio index
     infasta = Fasta(os.path.join(tempdir, "forward.fasta"))
-    infasta_rc = Fasta(os.path.join(tempdir, "reverse_complement.fasta"))
+    infasta_complement = Fasta(os.path.join(tempdir, "reverse.fasta"))
     bylines = mappingdata.splitlines()
-    try:
-        for entry in bylines:
-            tline = entry.split()
-            whichchromose=tline[0]
-            pam_sp = int(tline[1])
-            pam_ep = int(tline[2])
-            pam_seq = tline[3]
-            seqid = infasta[whichchromose].name
-            fastalength = infasta[whichchromose].unpadded_len
-            target_sp = pam_sp - targetlength ## this might give use negative value.
+    for entry in bylines:
+        tline = entry.split()
+        whichchromose=tline[0]
+        pam_sp = int(tline[1]) - 1 # -1 to adjust- because seqkit convention - starts from 1 but in python starts from 0.
+        pam_ep = int(tline[2])
+        pam_seq = tline[3]
+        seqid = infasta[whichchromose].name
+        # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
+        if strand=="forward":
+            target_sp = pam_sp - targetlength
             target_ep = pam_sp
-            if target_sp > 0:
-            # note the strand is not mean + from seqkit mapping. Comes from user- orientation of genome to search for target
-                if strand == "forward":
-                    target_seq = infasta[whichchromose][target_sp:target_ep].seq
-                if strand == "reverse":
-                    target_seq = infasta_rc[whichchromose][target_sp:target_ep].seq
-                    pam_seq = str(Seq(pam_seq).reverse_complement())
-                if len(target_seq) == targetlength:
-                    target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
-                        "target_ep": target_ep, "pam_seq": pam_seq,
-                         "strand": strand}
-                keys_list.append(target_seq)
-    except ValueError as f:
-        logging.error(f)
-        raise f
+            target_seq = infasta[whichchromose][target_sp:target_ep].seq
+        if strand=="reverse":
+            target_sp = pam_ep
+            target_ep = pam_ep + targetlength
+            target_seq = infasta_complement[whichchromose][target_sp:target_ep].seq
+        if len(target_seq) == targetlength:
+                target_dict[target_seq]= {"seqid": seqid, "target_sp": target_sp,
+                "target_ep": target_ep, "pam_seq": pam_seq,
+                 "strand": strand}
+        keys_list.append(target_seq)
     remove_target = [k for k, v in Counter(keys_list).items() if v > 1] # list of keys with more than one observation
     target_dict2 = {k: v for k, v in target_dict.items() if k not in remove_target} # although dict over writes on non-unique key, but we want to complete remove such observation
     return target_dict2
@@ -374,22 +365,18 @@ def main(args=None):
         # mapping
         logging.info("Mapping pam to the genome")
         mapfile = map_pam(tempdir=tempdir, pamseq=args.pamseq, threads=args.threads, strand=args.strand)
-        
 
         # Retrieving target sequence
         logging.info("Retrieving target sequence for matching PAM : %s", tempdir)
         targetdict = get_target(tempdir=tempdir, mappingdata=mapfile, targetlength=args.targetlength, strand=args.strand)
-        
 
         # Parsing target sequence into two: 1)close12 and 2) remainingseq
         logging.info("Parsing target sequence into two: 1)proxitopam and 2) distaltopam")
         parsetargetdict = parse_target(targetdict, strand=args.strand, seqlengthtopam=args.lcp)
-        
 
         # Calculate Levenshtein distance among remainingseq, and remove any remainingseq that are similar
         logging.info("Filtering parse target sequence based on Levenshtein distance using NMSLIB index, with knn=1")
         filterparsetargetdict = filter_parse_target(parsetargetdict, threads=args.threads, levendistance=args.eds)
-        
 
         # reformating filterparsetargetdict- to make compatible for pybed
         filterparsetargetdict_pd = pd.DataFrame.from_dict(filterparsetargetdict, orient='index')
