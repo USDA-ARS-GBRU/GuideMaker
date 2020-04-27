@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'predictPAM'
+project = 'GuideFinder'
 copyright = '2019, Ravin Poudel, Adam R. Rivers'
 author = 'Ravin Poudel, Adam R. Rivers'
 
@@ -80,7 +80,7 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'predictPAM'
+htmlhelp_basename = 'GuideFinder'
 
 
 # -- Extension configuration -------------------------------------------------

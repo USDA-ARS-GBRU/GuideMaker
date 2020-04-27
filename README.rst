@@ -1,4 +1,4 @@
-predictPAM: A python module to predict custom PAM sites in any small genome
+GuideFinder: A python module to find  CRISPR-Cas targets using and Cas across any small genome
 ==================================================================================================
 
 Authors
@@ -17,18 +17,16 @@ Installation
 -------------
 predictPAM can be installed from:
 
-1. The Github repository: https://github.com/USDA-ARS-GBRU/predictPAM
+1. The Github repository: https://github.com/USDA-ARS-GBRU/guidefinder
 
 .. code-block:: bash
 
-    git clone https://github.com/USDA-ARS-GBRU/predictPAM.git
+    git clone https://github.com/USDA-ARS-GBRU/guiefinder.git
 
 
 Dependencies
 -------------
 Following are the required softwares/programs.
-
-- ``seqkit``
 
 - ``pybedtools``
 
@@ -51,7 +49,7 @@ Usage
 --tempdir		Specify the temp file directory. Default is None.
 --keeptemp		Should intermediate files be kept? Default is false.
 --log			Log file.Default is predictPAM.log.
---threads		Number of processor threads to use. Default is 1.
+
 
 
 Examples
@@ -63,7 +61,7 @@ Here the number of used threads is 2, and we want to keep the temporary director
 Return a table of pam sites and associated data, at the current folder.
 
 .. code-block:: bash
-    
+
     predictPAM -i sample.gbk -p ATCGAT --targetlength 25 --strand forward \
     --lcp 12 --eds 2 --outfile out.txt \
     --log logfile.txt --keeptemp --threads 2
