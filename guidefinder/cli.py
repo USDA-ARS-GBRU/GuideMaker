@@ -4,8 +4,10 @@
 import logging
 import argparse
 import tempfile
+import shutil
+import os
 
-From Bio import SeqIO
+from Bio import SeqIO
 
 import guidefinder
 
@@ -66,7 +68,8 @@ def main(args=None):
         pamseq = guidefinder.Pam(args.pamseq, args.pam_orientation)
         if args.tempdir:
             if not os.path.exists(args.tempdir):
-                logging.warning("Specified location for tempfile ({}) does not exist, using default location.".format(tempdir))
+                logging.warning("Specified location for tempfile ({}) does not \
+                                 exist, using default location.".format(tempdir))
                 tempdir = tempfile.mkdtemp(prefix='guidefinder_')
         else:
             tempdir = tempfile.mkdtemp(prefix='guidefinder_', dir=args.tempdir)
@@ -76,8 +79,8 @@ def main(args=None):
 
         logging.info("Identifying PAM sites in the genome")
         possible_targets = []
-        input_seqs = SeqIO.parse(os.path.join(tempdir, forward.fasta)
-        for seq in input_fastas:
+        input_seqs = SeqIO.parse(os.path.join(tempdir, "forward.fasta"), "fasta")
+        for seq in input_seqs:
             possible_targets.append(pamseq.find_targets(seq_obj=seq,
                                                         strand=args.strand),
                                                         target_len=args.targetlength)
@@ -112,12 +115,12 @@ def main(args=None):
                                                     up,
                                                     joined_columns,
                                                     outputfilename=args.outfile)
-        logging.info("Guidefinder completed. Output file is %s" % outputfilename)
+        logging.info("Guidefinder completed. Output file is %s" % args.outfile)
 
     except Exception as e:
         logging.error("Guidefinder terminated with errors. See the log file for details.")
         logging.error(e)
-        raise SystemExit(1)
+        raise SystemExit(1)`1`
     finally:
         try:
             shutil.rmtree(tempdir)

@@ -75,25 +75,25 @@ class Pam:
                                               start=start,
                                               stop=stop))
             if hitset == "fset" and strand in ("forward", "both") \
-            and self.pam_orientation == "5prime":
+            and self.pam_orientation == "3prime":
                 start = i - target_len - 1
                 stop = i - 1
                 seq = str(seq_obj[start:stop].seq)
                 tlappend(self, start, stop, seq)
             elif hitset == "fset" and strand in ("forward", "both") \
-            and self.pam_orientation == "3prime":
+            and self.pam_orientation == "5prime":
                 start = i + len(self.pam) - 1
                 stop = i + len(self.pam) + target_len
                 seq = str(seq_obj[start:stop].seq)
                 tlappend(self, start, stop, seq)
             elif hitset == "rset" and strand in ("reverse", "both") \
-            and self.pam_orientation == "5prime":
+            and self.pam_orientation == "3prime":
                 start = i + len(self.pam) - 1
                 stop = i + len(self.pam) + target_len
                 seq = str(seq_obj[start:stop].reverse_complement().seq)
                 tlappend(self, start, stop, seq)
             elif hitset == "rset" and strand in ("reverse", "both") \
-            and self.pam_orientation == "3prime":
+            and self.pam_orientation == "5prime":
                 start = i - target_len - 1
                 stop = i - 1
                 seq = str(seq_obj[start:stop].reverse_complement().seq)
@@ -305,7 +305,6 @@ def get_genbank_features(genbank_list: List[str]) -> object:
         return genebankfeatures_df
         #genebankfeatures_df.to_csv(path=outfile, index=False, sep='\t',header=False)
 
-# ######### pybedtools ########
 
 def get_nearby_feature(targets: object, features: object) -> Tuple[object, object]:
     """Adds downstream information to the given target sequences and mapping information
