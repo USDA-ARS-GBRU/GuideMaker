@@ -6,9 +6,9 @@ from setuptools import setup
 
 
 setup(
-    name='GuideFinder',
+    name='guidefinder',
     version='0.1',
-    packages=['predictPAM'],
+    packages=['guidefinder'],
     license='????',
     description='GuideFinder: globally design gRNAs for any CRISPR-Cas system in any small genome',
     long_description=open('README.rst').read(),
@@ -21,9 +21,9 @@ setup(
     test_suite='pytest',
     author='Adam Rivers',
     author_email='adam.rivers@usda.gov',
-    install_requires=['biopython>=1.70', 'pybedtools>=0.8.0', 'nmslib>=2.0.6'],
-    python_requires='>3.7',
+    install_requires=['biopython>=1.74', 'pybedtools>=0.8.0', 'nmslib>=2.0.6', 'pandas>=1.0.3'],
+    python_requires='>=3.7',
     tests_require=['pytest'],
     include_package_data=True,
-    entry_points={'console_scripts':['guidefinder=guiidefinder.cli:main']},
+    entry_points={'console_scripts':['guidefinder=guidefinder.cli:main']},
     zip_safe=False)

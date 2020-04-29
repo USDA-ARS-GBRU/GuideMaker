@@ -82,8 +82,8 @@ def main(args=None):
         input_seqs = SeqIO.parse(os.path.join(tempdir, "forward.fasta"), "fasta")
         for seq in input_seqs:
             possible_targets.append(pamseq.find_targets(seq_obj=seq,
-                                                        strand=args.strand),
-                                                        target_len=args.targetlength)
+                                                        strand=args.strand,
+                                                        target_len=args.targetlength))
 
         logging.info("Creating a TargetList object")
         targetset = guidefinder.TargetList(targets=possible_targets,
@@ -120,7 +120,7 @@ def main(args=None):
     except Exception as e:
         logging.error("Guidefinder terminated with errors. See the log file for details.")
         logging.error(e)
-        raise SystemExit(1)`1`
+        raise SystemExit(1)
     finally:
         try:
             shutil.rmtree(tempdir)

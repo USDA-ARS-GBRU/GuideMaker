@@ -2,6 +2,7 @@
 
 """
 
-from guidefinder.core import *
+from .core import *
+from .cli import *
 
 __all__ = ["core", "cli"]

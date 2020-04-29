@@ -1,10 +1,10 @@
 """Core classes and functions for Guidefinder
 
 """
-from typing import List, Set, Dict, Tuple
+from typing import List, Set, Tuple
 from itertools import product, tee, chain
-
 from Bio import Seq
+from Bio import SeqIO
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
@@ -15,7 +15,7 @@ class Pam:
     """A Class representing a Protospacer Adjacent Motif (PAM)
     """
     def __init__(self, pam: str, pam_orientation: str) -> None:
-        self.pam: str = str(Seq.Seq(pam).seq)
+        self.pam: str = str(Seq.Seq(pam.upper()))
         self.pam_orientation: str = pam_orientation
 
     def __str__(self) -> str:
@@ -29,12 +29,16 @@ class Pam:
             str: a new Pam object Reverse complemented
 
         """
-        return Pam(pam=str(Seq.Seq(self.pam).reverse_complement().seq),
+        pamseq = Seq.Seq(self.pam.upper())
+        return Pam(pam=str(pamseq.reverse_complement().seq),
                    pam_orientation=self.pam_orientation)
 
     def extend_ambiguous_dna(self) -> Set[str]:
         """return list of all possible sequences given an ambiguous DNA input"""
-        dnaval = Seq.IUPAC.IUPACData.ambiguous_dna_values
+        dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
+                  'M': 'AC', 'R': 'AG', 'W': 'AT', 'S': 'CG',
+                  'Y': 'CT', 'K': 'GT', 'V': 'ACG', 'H': 'ACT',
+                  'D': 'AGT', 'B': 'CGT', 'X': 'GATC', 'N': 'GATC'}
         dnalist = []
         for i in product(*[dnaval[j] for j in self.pam]):
             dnalist.append("".join(i))
@@ -163,7 +167,7 @@ class TargetList:
     def __str__(self):
         info = "TargetList: contains a set of {} potential PAM targets, {} \
                 targets unique near the pam site and {} targets with an edit \
-                distance of \u_2265 {}".format(len(self.targets),
+                distance of >= {}".format(len(self.targets),
                                               len(self.unique_targets),
                                               len(self.neighbors),
                                               self.levindist)
@@ -286,8 +290,8 @@ def get_genbank_features(genbank_list: List[str]) -> object:
         (obj): A Pandas Dataframe in Bed format
     """
     feature_list = []
-    for file in filelist:
-        genebank_file = SeqIO.parse(file,"genbank")
+    for gbfile in genbank_list:
+        genebank_file = SeqIO.parse(gbfile, "genbank")
         for entry in genebank_file:
             for record in entry.features:
                 feature_dict = {}
