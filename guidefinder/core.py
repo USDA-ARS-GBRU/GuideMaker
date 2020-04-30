@@ -5,8 +5,6 @@ import os
 from typing import List, Set, Dict, Tuple
 from itertools import product, tee, chain
 import gzip
-from mimetypes import guess_type
-from functools import partial
 from Bio.Seq import Seq
 from Bio import SeqIO
 import nmslib
@@ -313,7 +311,12 @@ def get_genbank_features(genbank_list: List[str]) -> object:
     """
     feature_list = []
     for gbfile in genbank_list:
-        genebank_file = SeqIO.parse(gbfile, "genbank")
+    for file in filelist:
+        if file.lower().endswith(".gz"):  # uses file extension
+            f = gzip.open(file, mode='rt')
+        else:
+            f = open(file, mode='r')
+        genebank_file = SeqIO.parse(f, "genbank")
         for entry in genebank_file:
             for record in entry.features:
                 feature_dict = {}
@@ -330,7 +333,7 @@ def get_genbank_features(genbank_list: List[str]) -> object:
         #genebankfeatures_df = genebankfeatures_df.replace(np.nan, "NA")
         return genebankfeatures_df
         #genebankfeatures_df.to_csv(path=outfile, index=False, sep='\t',header=False)
-
+    f.close()
 
 def get_nearby_feature(targets: object, features: object) -> Tuple[object, object]:
     """Adds downstream information to the given target sequences and mapping information
