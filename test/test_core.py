@@ -151,7 +151,7 @@ def test_get_nearby_feature():
 
 def test_get_fastas(tmp_path):
     gbfiles = ["test/test_data/Burkholderia_thailandensis_E264__ATCC_700388_133.gbk",
-               "test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"]
+               "test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk.gz"]
     guidefinder.core.get_fastas(gbfiles, tmp_path)
 
 def test_merge_downstream_upstream(tmp_path):

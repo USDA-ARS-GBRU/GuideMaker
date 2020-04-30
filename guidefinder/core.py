@@ -4,11 +4,15 @@
 import os
 from typing import List, Set, Dict, Tuple
 from itertools import product, tee, chain
+import gzip
+from mimetypes import guess_type
+from functools import partial
 from Bio.Seq import Seq
 from Bio import SeqIO
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
+
 
 
 
@@ -383,8 +387,15 @@ def get_fastas(filelist, tempdir):
         with open(os.path.join(tempdir, "forward.fasta"), "w") as f1:
             gblist = []
             for file in filelist:
-                records = (SeqIO.parse(file, "genbank"))
-                SeqIO.write(records, f1, "fasta")
+                if file.lower().endswith(".gz"):  # uses file extension
+                    f = gzip.open(file, mode='rt')
+                else:
+                    f = open(file, mode='r')
+                    records = (SeqIO.parse(f, "genbank"))
+                    SeqIO.write(records, f1, "fasta")
     except Exception as e:
         print("An error occurred in input genbank file")
         raise e
+    finally:
+        f.close()
+        f1.close()

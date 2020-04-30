@@ -1,11 +1,11 @@
-GuideFinder: A python module to find  CRISPR-Cas targets using and Cas across any small genome
+GuideFinder: globally design gRNAs for any CRISPR-Cas system in any small genome
 ==================================================================================================
 
 Authors
 -------
 * Ravin Poudel, US Department of Agriculture, Agricultural Research Service
-* Adam R. Rivers, US Department of Agriculture, Agricultural Research Service
 * Christopher Reisch, Department of Microbiology and Cell Science, University of Florida
+* Adam R. Rivers, US Department of Agriculture, Agricultural Research Service
 
 
 Introduction
@@ -15,7 +15,7 @@ Introduction
 
 Installation
 -------------
-predictPAM can be installed from:
+GuideFinder can be installed from:
 
 1. The Github repository: https://github.com/USDA-ARS-GBRU/guidefinder
 
