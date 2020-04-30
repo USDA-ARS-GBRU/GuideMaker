@@ -55,7 +55,7 @@ def _logger_setup(logfile):
 
 
 def main(args=None):
-    """Run The complete Guidefinder workflow.
+    """Run The complete GuideFinder workflow.
 
     """
     # Set up logging

@@ -1,9 +1,10 @@
 """Core classes and functions for Guidefinder
 
 """
-from typing import List, Set, Tuple
+import os
+from typing import List, Set, Dict, Tuple
 from itertools import product, tee, chain
-from Bio import Seq
+from Bio.Seq import Seq
 from Bio import SeqIO
 import nmslib
 from pybedtools import BedTool
@@ -13,9 +14,21 @@ import pandas as pd
 
 class Pam:
     """A Class representing a Protospacer Adjacent Motif (PAM)
+
     """
     def __init__(self, pam: str, pam_orientation: str) -> None:
-        self.pam: str = str(Seq.Seq(pam.upper()))
+        """Pam __init__
+
+        Args:
+            pam (str): A DNA string in ambiguous IUPAC format
+            pam_orientation (str): [5prime | 3prime ]
+                5prime means the order is 5'-[pam][target]-3'
+                3prime means the order is 5'-[target][pam]-3'
+        """
+        for letter in pam.upper():
+            assert letter in ['G', 'A', 'T', 'C', 'N' ]
+        assert pam_orientation in ["3prime", "5prime"]
+        self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
 
     def __str__(self) -> str:
@@ -29,12 +42,17 @@ class Pam:
             str: a new Pam object Reverse complemented
 
         """
-        pamseq = Seq.Seq(self.pam.upper())
-        return Pam(pam=str(pamseq.reverse_complement().seq),
+        pamseq = Seq(self.pam)
+        return Pam(pam=str(pamseq.reverse_complement()),
                    pam_orientation=self.pam_orientation)
 
     def extend_ambiguous_dna(self) -> Set[str]:
-        """return list of all possible sequences given an ambiguous DNA input"""
+        """convert ambiguous DNA input to return frozen set of all sequences
+
+        Returns:
+            (frozenset): all possible sequences given an ambiguous DNA input
+
+        """
         dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
                   'M': 'AC', 'R': 'AG', 'W': 'AT', 'S': 'CG',
                   'Y': 'CT', 'K': 'GT', 'V': 'ACG', 'H': 'ACT',
@@ -44,22 +62,19 @@ class Pam:
             dnalist.append("".join(i))
         return frozenset(dnalist)
 
-    def find_targets(self, seq_obj: object, strand: str, target_len: int) -> List[object]:
+    def find_targets(self, seqrecord_obj: object, strand: str, target_len: int) -> List[object]:
         """Find all targets on a sequence that match for the PAM on the requested strand(s)
 
         Args:
-            seq_obj (object): A Biopython Seq instance
+            seq_obj (object): A Biopython SeqRecord instance
             strand (str): The strand to search choices: ["forward", "reverse", "both"]
             target_len (int): The length of the target sequence
         Returns:
             list: A list of Target class instances
 
         """
-        if strand == "forward" or "both":
-            fset = self.extend_ambiguous_dna()
-        if strand == "reverse" or "both":
-            rset = self.reverse_complement().extend_ambiguous_dna()
-        target_list = []
+        fset = self.extend_ambiguous_dna()
+        rset = self.reverse_complement().extend_ambiguous_dna()
 
         def window(iterable, size):
             iters = tee(iterable, size)
@@ -67,56 +82,54 @@ class Pam:
                 for each in iters[i:]:
                     next(each, None)
             return zip(*iters)
+#                5prime means the order is 5'-[pam][target]-3'
+#                3prime means the order is 5'-[target][pam]-3'
+        def compute_seq_coords(self, hitset, strand, target_len, seqrecord_obj, i):
+            if hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "3prime":
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord_obj[start:stop].seq)
+            elif hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "5prime":
+                start = i + len(self.pam)
+                stop = i + len(self.pam)  + target_len
+                seq = str(seqrecord_obj[start:stop].seq)
+            elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "3prime":
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord_obj[start:stop].seq.reverse_complement())
+            elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "5prime":
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord_obj[start:stop].seq.reverse_complement())
+            else:
+                return None
+            if 0 <= start <= len(seqrecord_obj) and  0 <= stop <= len(seqrecord_obj):
+                return Target(seq=seq,
+                              pam=self.pam,
+                              strand=strand,
+                              pam_orientation=self.pam_orientation,
+                              seqid=seqrecord_obj.id,
+                              start=start,
+                              stop=stop)
 
-        def compute_seq_coords(self, hitset, strand, target_len, seq_obj, i):
-            def tlappend(self, start, stop, seq):
-                if 0 < start < len(seq_obj) and  0 < stop < len(seq_obj):
-                    target_list.append(Target(seq=seq,
-                                              pam=self.pam,
-                                              strand=strand,
-                                              pam_orientation=self.pam_orientation,
-                                              seqid=seq_obj.id,
-                                              start=start,
-                                              stop=stop))
-            if hitset == "fset" and strand in ("forward", "both") \
-            and self.pam_orientation == "3prime":
-                start = i - target_len - 1
-                stop = i - 1
-                seq = str(seq_obj[start:stop].seq)
-                tlappend(self, start, stop, seq)
-            elif hitset == "fset" and strand in ("forward", "both") \
-            and self.pam_orientation == "5prime":
-                start = i + len(self.pam) - 1
-                stop = i + len(self.pam) + target_len
-                seq = str(seq_obj[start:stop].seq)
-                tlappend(self, start, stop, seq)
-            elif hitset == "rset" and strand in ("reverse", "both") \
-            and self.pam_orientation == "3prime":
-                start = i + len(self.pam) - 1
-                stop = i + len(self.pam) + target_len
-                seq = str(seq_obj[start:stop].reverse_complement().seq)
-                tlappend(self, start, stop, seq)
-            elif hitset == "rset" and strand in ("reverse", "both") \
-            and self.pam_orientation == "5prime":
-                start = i - target_len - 1
-                stop = i - 1
-                seq = str(seq_obj[start:stop].reverse_complement().seq)
-                tlappend(self, start, stop, seq)
         # Create iterable of PAM length windows across the sequence
-        kmer_iter = window(seq_obj.seq, len(self.pam))
+        target_list = []
+        kmer_iter = window(str(seqrecord_obj.seq), len(self.pam))
         for i, kmer in enumerate(kmer_iter):
+            hitset = None
             if ''.join(kmer) in fset:
-                compute_seq_coords(self, hitset="fset",
-                                   strand=strand,
-                                   target_len=target_len,
-                                   seq_obj=seq_obj,
-                                   i=i)
+                hitset = "fset"
             elif ''.join(kmer) in rset:
-                compute_seq_coords(self, hitset="rset",
-                                   strand=strand,
-                                   target_len=target_len,
-                                   seq_obj=seq_obj,
-                                   i=i)
+                hitset = "rset"
+            else:
+                continue
+            tar = compute_seq_coords(self, hitset=hitset,
+                                     strand=strand,
+                                     target_len=target_len,
+                                     seqrecord_obj=seqrecord_obj,
+                                     i=i)
+            if tar:
+                target_list.append(tar)
         return target_list
 
 
@@ -173,6 +186,9 @@ class TargetList:
                                               self.levindist)
         return info
 
+    def __len__(self):
+        return len(self.targets)
+
     def find_unique_near_pam(self) -> None:
         """Filter a list of Target objects filtering for sequences
 
@@ -198,7 +214,7 @@ class TargetList:
             elif getattr(target, "pam_orientation") == "3prime":
                 proximal2 = target.seq[0:self.lcp]
             if proximal2 in  unique_lcp_set:
-                final_dict[target.seq]=target
+                final_dict[target.seq] = target
         self.unique_targets = final_dict
 
     def create_index(self):
@@ -215,8 +231,8 @@ class TargetList:
                             dtype=nmslib.DistType.INT,
                             data_type=nmslib.DataType.OBJECT_AS_STRING,
                             method='small_world_rand')
-        index.addDataPointBatch(self.unique_targets.keys())
-        index.createIndex(print_progress=True)
+        index.addDataPointBatch(list(self.unique_targets.keys()))
+        index.createIndex()
         self.nmslib_index = index
 
     def get_neighbors(self) -> None:
@@ -229,18 +245,20 @@ class TargetList:
         Args: None
         Returns: None
         """
-        seqs = self.unique_targets.keys()
-        results_list = ref_index.knnQueryBatch(seqs,
-                                               k=self.kmum)
+        seqs = list(self.unique_targets.keys())
+        results_list = self.nmslib_index.knnQueryBatch(seqs,
+                                               k=self.knum)
         neighbor_dict = {}
-        for entry, i in enumerate(results_list):
-            if entry[1][1] <= self.levindist:
-                seq = seqs[ i - 1]
-                neighbors = {"seqs" : [seqs[x] for x in entry[0]], "dist": list(entry[1])}
-                neighbor_dict[seqs[ i - 1]] = {"neighbors":neighbors}
-            for target in self.unique_targets:
-                if seq == target:
-                    neighbor_dict[seqs[ i - 1]]["target"] = target
+        for i, entry in enumerate(results_list):
+            queryseq = seqs[ i - 1]
+            hitseqidx = list(entry[0])
+            editdist = list(entry[1])
+            if editdist[1] >= self.levindist:
+                neighbors = {"seqs" : [seqs[x] for x in hitseqidx],
+                             "dist": editdist }
+                neighbor_dict[queryseq] = {"target": self.unique_targets[queryseq],
+                                           "neighbors": neighbors}
+        self.neighbors =  neighbor_dict
 
     def export_bed(self) -> object:
         """export the targets in self.neighbors to a bed format file
@@ -273,7 +291,7 @@ class TargetList:
                                      "name": name,
                                      "strand": strand})
         df.sort_values(by=['chrom','chromstart'], inplace=True)
-        #df = df.replace(np.nan, "NA")
+        # df = df.replace(np.nan, "NA")
         return df
         #df.to_csv(path=outfile, sep="\t", index=False, header=False)
 
@@ -324,7 +342,7 @@ def get_nearby_feature(targets: object, features: object) -> Tuple[object, objec
     # format to featurefile
     featurebed = BedTool.from_dataframe(features)
     # format to mapping file
-    mapbed = BedTool.from_dataframe(target_mapping)
+    mapbed = BedTool.from_dataframe(targets)
     # get feature downstream of target sequence
     downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
     # get feature upstream of target sequence
@@ -358,15 +376,15 @@ def get_fastas(filelist, tempdir):
         filelist (str): Genbank file to process
 
     Returns:
-        forward.fasta(str): Fasta file in forward orientation (5'-3')
-        reverse_complement.fasta(str): Reverse Complement of Fasta file
+        forward.fasta(str): Fasta file containing DNA sequences in the genome
+
     """
     try:
-        with open(os.path.join(tempdir,"forward.fasta"), "w") as f1:
+        with open(os.path.join(tempdir, "forward.fasta"), "w") as f1:
             gblist = []
             for file in filelist:
-                gblist.append(SeqIO.parse(file, "genbank"))
-            SeqIO.write(chain(gblist), f1, "fasta")
+                records = (SeqIO.parse(file, "genbank"))
+                SeqIO.write(records, f1, "fasta")
     except Exception as e:
         print("An error occurred in input genbank file")
         raise e
