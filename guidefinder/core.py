@@ -5,12 +5,13 @@ import os
 from typing import List, Set, Dict, Tuple
 from itertools import product, tee, chain
 import gzip
+import hashlib
 from Bio.Seq import Seq
 from Bio import SeqIO
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
-
+import uuid
 
 
 
@@ -68,7 +69,7 @@ class Pam:
         """Find all targets on a sequence that match for the PAM on the requested strand(s)
 
         Args:
-            seq_obj (object): A Biopython SeqRecord instance
+            seqrecord_obj (object): A Biopython SeqRecord instance
             strand (str): The strand to search choices: ["forward", "reverse", "both"]
             target_len (int): The length of the target sequence
         Returns:
@@ -91,23 +92,27 @@ class Pam:
                 start = i - target_len
                 stop = i
                 seq = str(seqrecord_obj[start:stop].seq)
+                exact_pam = str(seqrecord_obj[stop:(stop + len(self.pam))].seq)
             elif hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "5prime":
                 start = i + len(self.pam)
                 stop = i + len(self.pam)  + target_len
                 seq = str(seqrecord_obj[start:stop].seq)
+                exact_pam = str(seqrecord_obj[start - len(self.pam):(start)].seq)
             elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "3prime":
                 start = i + len(self.pam)
                 stop = i + len(self.pam) + target_len
                 seq = str(seqrecord_obj[start:stop].seq.reverse_complement())
+                exact_pam == str(seqrecord_obj[stop:(stop + len(self.pam))].seq.reverse_complement())
             elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "5prime":
                 start = i - target_len
                 stop = i
                 seq = str(seqrecord_obj[start:stop].seq.reverse_complement())
+                exact_pam =str(seqrecord_obj[start - len(self.pam):(start)].seq.reverse_complement())
             else:
                 return None
             if 0 <= start <= len(seqrecord_obj) and  0 <= stop <= len(seqrecord_obj):
                 return Target(seq=seq,
-                              pam=self.pam,
+                              exact_pam=exact_pam,
                               strand=strand,
                               pam_orientation=self.pam_orientation,
                               seqid=seqrecord_obj.id,
@@ -141,15 +146,16 @@ class Target:
     This is an object for holding data on possible target sequences
     adjacent to PAM sites.
     """
-    def __init__(self, seq: str, pam: str, strand: str, pam_orientation: str,
+    def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
                  seqid: str, start: int, stop: int) -> None:
         self.seq: str= seq
-        self.pam: str = pam
+        self.exact_pam: str = exact_pam
         self.strand: str = strand
         self.pam_orientation: str = pam_orientation
         self.seqid: str = seqid
         self.start: int = start
         self.stop: int = stop
+        self.md5: str  = hashlib.md5(seq.encode()).hexdigest()
 
     def __str__(self) -> str:
         return "A Target object: {self.seq} on sequence {self.seqid} \
@@ -291,6 +297,7 @@ class TargetList:
                                      "chromstart":chromstart,
                                      "chromend": chromend,
                                      "name": name,
+                                     "score": 0,
                                      "strand": strand})
         df.sort_values(by=['chrom','chromstart'], inplace=True)
         # df = df.replace(np.nan, "NA")
@@ -298,92 +305,203 @@ class TargetList:
         #df.to_csv(path=outfile, sep="\t", index=False, header=False)
 
 
+class Annotation:
+    def __init__(self, genbank_list: List[str], target_bed_df: object ) -> None:
+        """Annotation class for data and methods on targets and gene annotations
 
-def get_genbank_features(genbank_list: List[str]) -> object:
-    """Return a list of features for a genbank file
+        Args:
+            genbank_list (List[str]): A list of genbank files from a single genome
+            target_bed_df (object): A pandas dataframe in Bed format with the
+                locations of targets in the genome
+        Returns:
+            None
+        """
+        self.genbank_list: List[str] = genbank_list
+        self.target_bed_df: object = target_bed_df
+        self.genbank_bed_df: object = None
+        self.feature_dict: Dict = None
+        self.nearby: object = None
+        self.filtered_df: object = None
+        self.qualifiers: object = None
+
+    def _get_genbank_features(self, feature_types: List[str]=["CDS"]) -> object:
+        """Parse genbank records into pandas DF/Bed format and dict format saving to self
+
+        Args:
+            feature_types (List[str]): a list of Genbank feature types to use
+
+        Returns:
+            None
+        """
+        feature_dict = {}
+        pddict = {'chrom':[], 'chromStart':[], 'chromEnd':[], 'name':[],'score':[],'strand':[]}
+        for gbfile in self.genbank_list:
+            if gbfile.lower().endswith(".gz"):  # uses file extension
+                f = gzip.open(gbfile, mode='rt')
+            else:
+                f = open(gbfile, mode='r')
+            genebank_file = SeqIO.parse(f, "genbank")
+            for entry in genebank_file:
+                for record in entry.features:
+                    if record.type in feature_types:
+                        featid = hashlib.md5(str(record).encode()).hexdigest()
+                        pddict['chrom'].append(entry.id)
+                        pddict["chromStart"].append(record.location.start.position)
+                        pddict["chromEnd"].append(record.location.end.position)
+                        pddict["name"].append(featid)
+                        pddict["score"].append(0)
+                        pddict["strand"].append("-" if record.strand < 0 else "+")
+                        for qualifier_key, qualifier_val in record.qualifiers.items():
+                            if not qualifier_key in feature_dict:
+                                feature_dict[qualifier_key] = {}
+                            feature_dict[qualifier_key][featid] = qualifier_val
+            genbankbed = pd.DataFrame.from_dict(pddict)
+            self.genbank_bed_df = genbankbed
+            self.feature_dict = feature_dict
+        f.close()
+
+    def _get_qualifiers(self, min_prop: float=0.5, excluded: List[str]= ["translation"]) -> Object:
+        """Create a dataframe with features and their qualifier values
+
+        Create a dataframe with features and their qualifier values for
+        all qualifiers over the minimum threshold (except 'translation'). Add
+        to self.qualifiers
+
+        Args:
+            min_prop (float): A float between 0-1 representing the fraction of
+            features the qualifier must be present in to be included in the dataframe
+            excluded (List(str)): A list of genbank qualifiers to exclude, Default ["translation"]
+        Returns:
+            None
+
+        """
+        final_quals = []
+        qual_df = pd.DataFrame()
+        for quals in self.feature_dict:
+            if quals/len(self.feature_dict) > min_prop
+            final_quals.append(quals)
+        for qualifier in final_quals:
+            if qualifier not in excluded:
+                featlist = []
+                quallist = []
+                for feat, qual inself.feature_dict[qualifier].items()
+                    featlist.append(feat)
+                    quallist.append(qual)
+                tempdf = pd.DataFrame({'Feature id': featlist, qualifier: quallist})
+                qual_df = qual_df.merge(tempdf, how="outer", on="Feature id")
+        self.qualifiers = qual_df
+
+    def _get_nearby_features(self) -> None:
+        """Adds downstream information to the given target sequences and mapping information
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Note:
+            writes a dataframe of nearby features to self.nearby
+        """
+        # format to featurefile
+        featurebed = BedTool.from_dataframe(self.genbank_bed_df)
+        # format to mapping file
+        mapbed = BedTool.from_dataframe(self.target_bed_df)
+        # get feature downstream of target sequence
+        downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
+        # get feature upstream of target sequence
+        upstream = mapbed.closest(featurebed, d=True, id=True, D="a", t="first")
+        headers = {0: "Accession", 1: "Guide start", 2: "Guide end", 3:"Guide sequence",
+                   4: "Score", 5:"Guide strand", 6: "Feature Accession",
+                   7: "Feature start", 8:"Feature end",9:"Feature id",
+                   10:"Feature score", 11:"Feature strand", 12: "Feature distance"}
+        downstream = downstream.to_dataframe(disable_auto_names=True, header=None)
+        downstream = downstream.rename(columns=headers)
+        downstream = downstream['direction'] = 'downstream'
+        upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
+        upstream = upstream.rename(columns=headers)
+        upstream = upstream['direction'] = 'upstream'
+        self.nearby = upstream.append(downstream)
+
+def _filter_features(before_feat=100, after_feat=200):
+    """merge targets with Feature list and filter for guides close enough to interact.
 
     Args:
-        filelist(genebank): Genbank file to process
+        before_feat (int): The maximum distance before the start of a feature
+                           measured from closest point to guide
+        after_feat (int): The maximum distance after the start codon (into the gene)
 
 
     Returns:
-        (obj): A Pandas Dataframe in Bed format
+        None
     """
-    feature_list = []
-    for gbfile in genbank_list:
-    for file in filelist:
-        if file.lower().endswith(".gz"):  # uses file extension
-            f = gzip.open(file, mode='rt')
-        else:
-            f = open(file, mode='r')
-        genebank_file = SeqIO.parse(f, "genbank")
-        for entry in genebank_file:
-            for record in entry.features:
-                feature_dict = {}
-                if record.type in ['CDS', 'gene']:
-                    feature_dict["accession"] = entry.id
-                    feature_dict["start"] = record.location.start.position
-                    feature_dict["stop"] = record.location.end.position
-                    feature_dict["type"] = record.type
-                    feature_dict["strand_for_feature"] = 'reverse' if record.strand < 0 else 'forward'
-                    for qualifier_key, qualifier_val in record.qualifiers.items():
-                        feature_dict[qualifier_key] = qualifier_val
-                    feature_list.append(feature_dict)
-        genebankfeatures_df = pd.DataFrame(feature_list)
-        #genebankfeatures_df = genebankfeatures_df.replace(np.nan, "NA")
-        return genebankfeatures_df
-        #genebankfeatures_df.to_csv(path=outfile, index=False, sep='\t',header=False)
-    f.close()
+    # Select guide forward, gene forward targets
+    filtered_df= self.nearby[(self.nearby["direction"] == "downstream") &
+                             (self.nearby["Guide strand"] == "+") &
+                             (self.nearby["Feature strand"] == "+") & (
+                             (0 < self.nearby["Feature distance"] < before_feat) |
+                             (0 == self.nearby["Feature distance"] &
+                             self.nearby["Guide start"] - self.nearby["Feature start"] < after_feat)
+                             )]
+    filtered_df.append(self.nearby[(self.nearby["Guide strand"] == "-") &
+                      (self.nearby["Feature strand"] == "-") & (
+                      (0 < self.nearby["Feature distance"] < before_feat ) |
+                      (0 == self.nearby["Feature distance"] &
+                      (self.nearby["Feature start"] - self.nearby["Guide start"] < after_feat))
+                      ])
+    filtered_df.append(self.nearby[(self.nearby["Guide strand"] == "-") &
+                      (self.nearby["Feature strand"] == "+") & (
+                      ( 0 < self.nearby["Feature distance"] < before_feat ) |
+                      (0 == self.nearby["Feature distance"] &
+                      self.nearby["Feature start"] - self.nearby["Guide start"] < after_feat))
+                      ])
+    filtered_df.append(self.nearby[(self.nearby["Guide strand"] == "+") &
+                      (self.nearby["Feature strand"] == "-") & (
+                      (0 < self.nearby["Feature distance"] < before_feat ) |
+                      (0 == self.nearby["Feature distance"] &
+                      self.nearby["Feature start"] - self.nearby["Guide start"] < after_feat))
+                      ])
+    self.filtered_df = filtered_df
 
-def get_nearby_feature(targets: object, features: object) -> Tuple[object, object]:
-    """Adds downstream information to the given target sequences and mapping information
-
-    Args:
-        targets (obj) : A Pandas dataframe in Bed format with targets
-        features (lobj) : A Pandas dataframe in Bed format with GenBank information
-
-    Returns:
-        Tuple(object, object): Return a tuple with two BedTool objects
-        containing target sequences, mapping information, and adjacent gene information
+def _format_guide_table(targetlist str:) -> None:
+    """Create guide table for output
     """
-    # format to featurefile
-    featurebed = BedTool.from_dataframe(features)
-    # format to mapping file
-    mapbed = BedTool.from_dataframe(targets)
-    # get feature downstream of target sequence
-    downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
-    # get feature upstream of target sequence
-    upstream = mapbed.closest(featurebed, d=True, id=True, D="a", t="first")
-    return downstream, upstream
+    def gc(seq):
+        cnt = 0
+        for letter in seq:
+            if letter in ["G", "C"]:
+                cnt += 1
+            return cnt/len(seq)
+    def get_exact_pam(seq):
+        return targetlist.neighbors[seq]["target"].exact_pam
+    def get_guide_hash(seq):
+        return targetlist.neighbors[seq]["target"].md5
+    def get_off_target_score(seq):
+        return targetlist.neighbors[seq]["neighbors"].dist
+    def get_off_target_seqs(seq):
+        return targetlist.neighbors[seq]["neighbors"].seqs
+    pretty_df = self.filtered_df.copy()
+    pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
+    pretty_df['PAM'] = pretty_df['Guide sequence'].apply(get_exact_pam)
+    pretty_df['Guide name'] = pretty_df['Guide sequence'].apply(get_guide_hash)
+    pretty_df['Target strand'] = np.where(pretty_df['Guide strand']==pretty_df['Feature strand'], 'coding', 'non-coding')
+    pretty_df['Off target scores'] = pretty_df['Guide sequence'].apply(get_off_target_score)
+    pretty_df['Off target guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
+    pretty_df = pretty_df[['Guide name',"Guide sequence", 'GC', "Accession","Guide start","Guide end",,
+                "Guide strand", 'PAM', "Feature id","Feature start",
+                "Feature end", "Feature strand",
+                "Feature distance", 'Off target guides', 'Off target scores']]
+    pretty_df = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
 
-
-def merge_downstream_upstream(downsfile, upsfile, columns_name, outputfilename):
-    """Return a merged file
-
-    Args:
-        (tsv?? check type of pybed output): A file with target sequences, mapping information, and upstream information
-        (tsv?? check type of pybed output): A file with target sequences, mapping information, and downstream information
-
-    Returns:
-        dataframe: A DataFrame with merged upstream information and downstream information for a target sequence
-    """
-    downstream_df = downsfile.to_dataframe(names=columns_name,low_memory=False)
-    upstream_df = upsfile.to_dataframe(names=columns_name,low_memory=False)
-    all_df = pd.merge(downstream_df, upstream_df,
-                      right_on=columns_name[:8],
-                      left_on=columns_name[:8],
-                      how='outer')
-    all_df.to_csv(outputfilename, index=False, sep='\t', header=True)
-    return outputfilename
 
 def get_fastas(filelist, tempdir):
-    """Returns Fasta and from a Genbank file
+    """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
 
     Args:
         filelist (str): Genbank file to process
 
     Returns:
-        forward.fasta(str): Fasta file containing DNA sequences in the genome
+        None
 
     """
     try:
@@ -397,7 +515,7 @@ def get_fastas(filelist, tempdir):
                     records = (SeqIO.parse(f, "genbank"))
                     SeqIO.write(records, f1, "fasta")
     except Exception as e:
-        print("An error occurred in input genbank file")
+        print("An error occurred in input genbank file %" % file)
         raise e
     finally:
         f.close()
