@@ -6,6 +6,7 @@ import argparse
 import tempfile
 import shutil
 import os
+import pybedtools
 
 from Bio import SeqIO
 
@@ -71,8 +72,10 @@ def main(args=None):
                 logging.warning("Specified location for tempfile ({}) does not \
                                  exist, using default location.".format(tempdir))
                 tempdir = tempfile.mkdtemp(prefix='guidefinder_')
+
         else:
             tempdir = tempfile.mkdtemp(prefix='guidefinder_', dir=args.tempdir)
+            pybedtools.helpers.set_tempdir(tempdir)
         logging.info("Temp directory is: %s", tempdir)
         logging.info("Writing fasta file from genbank file(s)")
         guidefinder.get_fastas(args.gbkfile, tempdir=tempdir)
