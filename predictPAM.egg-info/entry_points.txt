@@ -1,3 +1,0 @@
-[console_scripts]
-predictPAM = predictPAM.main:main
-
