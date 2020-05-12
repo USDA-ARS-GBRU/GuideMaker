@@ -7,7 +7,8 @@ from itertools import product, tee
 import gzip
 import functools
 import hashlib
-
+from collections import deque
+import numpy as np
 from Bio.Seq import Seq
 from Bio import SeqIO
 import nmslib
@@ -123,25 +124,27 @@ class Pam:
                               stop=stop)
 
         # Create iterable of PAM length windows across the sequence
-        target_list = []
+        target_list = deque()
         kmer_iter = window(str(seqrecord_obj.seq), len(self.pam))
         for i, kmer in enumerate(kmer_iter):
             hitset = None
             kmerstr = ''.join(kmer)
             if strand in ["forward", "both"] and kmerstr in self.fset:
                 hitset = "fset"
+                gstrand = "forward"
             elif strand in ["reverse", "both"] and kmerstr in self.rset:
                 hitset = "rset"
+                gstrand = "reverse"
             else:
                 continue
             tar = compute_seq_coords(self, hitset=hitset,
-                                     strand=strand,
+                                     strand=gstrand,
                                      target_len=target_len,
                                      seqrecord_obj=seqrecord_obj,
                                      i=i)
             if tar:
                 target_list.append(tar)
-        return target_list
+        return list(target_list)
 
 
 class Target:
@@ -150,8 +153,8 @@ class Target:
     This is an object for holding data on possible target sequences
     adjacent to PAM sites.
     """
-    def __init__(self, seq: object, exact_pam: object, strand: object, pam_orientation: object,
-                 seqid: object, start: object, stop: object) -> object:
+    def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
+                 seqid: str, start: int, stop: int) -> object:
         self.seq: str = seq
         self.exact_pam: str = exact_pam
         self.strand: str = strand
@@ -182,38 +185,34 @@ class TargetList:
     """
     def __init__(self, targets: List, lcp: int, hammingdist: int=2, knum: int=2) -> None:
         self.targets: List = targets
-        self.bintargets: List[str] = None
         self.lcp: int = lcp
         self.hammingdist: int = hammingdist
         self.knum: int = knum
-        self.nonunique_targets: dict = {}
+        self.unique_targets: dict = {}
         self.nmslib_index: object = None
         self.neighbors: dict = {}
 
     def __str__(self):
-        info = "TargetList: contains a set of {} potential PAM targets, {} \
-                targets unique near the pam site and {} targets with an hamming \
-                distance of >= {}".format(len(self.targets),
-                                              len(self.neighbors),
-                                              self.hamming dist)
+        info = "TargetList: contains a set of {} potential PAM targets".format(len(self.targets))
         return info
 
     def __len__(self):
         return len(self.targets)
 
-    def _one_hot_encode(self):
+    def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
 
         """
-        charmap = {'A': '1000', 'C': '0100', 'G': '0010', 'T': '0001'}
-        def seq_to_bin(seq):
-            charlist = [charmap[letter]  for letter in seq]
-            return "0b" + "".join(charlist)
-        self.bintargets: List = list(map(seq_to_bin, self.targets))
+        charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
+        def seq_to_bin(target_obj):
+            seq = target_obj.seq
+            charlist = [charmap[letter] for letter in seq]
+            return " ".join(charlist)
+        return list(map(seq_to_bin, seq_list))
 
 
-    def find_nonunique_near_pam(self) -> None:
-        """Filter a list of Target objects filtering for sequences
+    def find_unique_near_pam(self) -> None:
+        """identify unique sequences in the target list
 
         The function filters a list of Target objects for targets that
         are unique in the region closest to the PAM. The region length is defined
@@ -222,25 +221,26 @@ class TargetList:
         Args:
             lcp (int): Length of conserved sequence close to PAM
         """
-        unique_lcp_list = []
-        for target in self.targets:
+        def _get_prox(target):
             if target.pam_orientation == "5prime":
-                proximal = target.seq[0:self.lcp]
+                return target.seq[0:self.lcp]
             elif target.pam_orientation == "3prime":
-                proximal = target.seq[(len(target) - self.lcp):]
-            unique_lcp_list.append(proximal)
-        unique_lcp_set = set(unique_lcp_list)
-        final_dict = {}
+                return target.seq[(len(target) - self.lcp):]
+        lcp_dict ={}
         for target in self.targets:
-            if target.pam_orientation == "5prime":
-                proximal2 = target.seq[0:self.lcp]
-            elif target.pam_orientation == "3prime":
-                proximal2 = target.seq[(len(target) - self.lcp):]
-            if proximal2 not in  unique_lcp_set:
-                final_dict[target.seq] = target
-        self.nonunique_targets = final_dict
+            proximal = _get_prox(target)
+            if proximal in lcp_dict.keys():
+                lcp_dict[proximal].append(target)
+            else:
+                lcp_dict[proximal] = [target]
+        filteredlist = deque()
+        for lkey, lval in lcp_dict.items():
+            if len(lval) == 1:
+                filteredlist.append(lval[0])
+        self.unique_targets = list(filteredlist)
 
-    def create_index(self, num_threads: int=1, M: int=10, efC: int=20) -> None:
+
+    def create_index(self, M: int=48, num_threads=4, efC: int=256) -> None:
         """Create nmslib index
 
         Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
@@ -258,17 +258,17 @@ class TargetList:
         Returns:
             None (but writes NMSLIB index to self)
         """
-        self._one_hot_encode()
-        index_params = {'M': M, 'indexThreadQty': num_threads, 'efConstruction': efC, 'post' : 0}
+        bintargets = self._one_hot_encode(self.targets)
+        index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
                             data_type=nmslib.DataType.OBJECT_AS_STRING,
                             method='hnsw')
-        index.addDataPointBatch(self.bintargets)
+        index.addDataPointBatch(bintargets)
         index.createIndex(index_params, print_progress=True)
         self.nmslib_index = index
 
-    def get_neighbors(self) -> None:
+    def get_neighbors(self, ef=200, num_threads=4) -> None:
         """Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
@@ -280,20 +280,24 @@ class TargetList:
         Args: None
         Returns: None
         """
-
-        results_list = self.nmslib_index.knnQueryBatch(self.bintargets,
-                                               k=self.knum)
+        if not self.unique_targets:
+            self.find_unique_near_pam()
+        bintargets = self._one_hot_encode(self.unique_targets)
+        self.nmslib_index.setQueryTimeParams({'efSearch': ef})
+        results_list = self.nmslib_index.knnQueryBatch(bintargets,
+                                               k=self.knum, num_threads = num_threads)
         neighbor_dict = {}
         for i, entry in enumerate(results_list):
-            queryseq = self.targets[ i - 1].seq
+
+            queryseq = self.unique_targets[i - 1].seq
             hitseqidx = list(entry[0])
             hammingdist = list(entry[1])
             if hammingdist[1] >= 4 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors = {"seqs" : [self.targets.seq[x] for x in hitseqidx],
-                             "dist": hammingdist }
-                neighbor_dict[queryseq] = {"target": self.targets[i - 1],
+                neighbors = {"seqs": [self.targets[x].seq for x in hitseqidx], # reverse this?
+                             "dist": [int(x/4) for x in hammingdist]}
+                neighbor_dict[queryseq] = {"target": self.unique_targets[i - 1],
                                            "neighbors": neighbors}
-        self.neighbors =  neighbor_dict
+        self.neighbors = neighbor_dict
 
     def export_bed(self) -> object:
         """export the targets in self.neighbors to a bed format file
@@ -304,35 +308,24 @@ class TargetList:
         Returns:
             (obj): A Pandas Dataframe in Bed format
         """
-        filtered_neighbors = {queryseq: self.neigbors[queryseq] for queryseq not in self.nonunique_targets}
-        chrom = []
-        chromstart = []
-        chromend = []
-        name = []
-        score = []
-        strand = []
-        for rec in filtered_neighbors.values():
-            chrom.append(rec["target"].seqid)
-            chromstart.append(rec["target"].start)
-            chromend.append(rec["target"].stop)
-            name.append(rec["target"].seq)
-            score.append(0)
+        bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
+        for rec in self.neighbors.values():
+            bdict['chrom'].append(rec["target"].seqid)
+            bdict['chromstart'].append(rec["target"].start)
+            bdict['chromend'].append(rec["target"].stop)
+            bdict['name'].append(rec["target"].seq)
+            bdict['score'].append(0)
             if rec["target"].strand == "forward":
-                strand.append("+")
+                bdict['strand'].append("+")
             elif rec["target"].strand == "reverse":
-                strand.append("-")
-        df = pd.DataFrame.from_dict({"chrom": chrom,
-                                     "chromstart":chromstart,
-                                     "chromend": chromend,
-                                     "name": name,
-                                     "score": 0,
-                                     "strand": strand})
+                bdict['strand'].append("-")
+        df = pd.DataFrame.from_dict(bdict)
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
 
 class Annotation:
-    def __init__(self, genbank_list: List[str], target_bed_df: object ) -> None:
+    def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
         """Annotation class for data and methods on targets and gene annotations
 
         Args:
@@ -434,9 +427,9 @@ class Annotation:
         Note:
             writes a dataframe of nearby features to self.nearby
         """
-        # format to featurefile
+        # Import Features
         featurebed = BedTool.from_dataframe(self.genbank_bed_df)
-        # format to mapping file
+        # import guide files
         mapbed = BedTool.from_dataframe(self.target_bed_df)
         # get feature downstream of target sequence
         downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
@@ -447,49 +440,49 @@ class Annotation:
                    7: "Feature start", 8:"Feature end", 9:"Feature id",
                    10:"Feature score", 11:"Feature strand", 12: "Feature distance"}
         downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
-        downstream.rename(columns=headers)
         downstream['direction'] = 'downstream'
         upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
-        upstream.rename(columns=headers)
         upstream['direction'] = 'upstream'
-        self.nearby = upstream.append(downstream)
+        upstream = upstream.append(downstream)
+        self.nearby = upstream.rename(columns=headers)
 
-    def _filter_features(self, before_feat: int=100, after_feat:int =200) -> None:
+    def _filter_features(self, before_feat: int=100, after_feat: int=200) -> None:
         """merge targets with Feature list and filter for guides close enough to interact.
 
         Args:
-            before_feat (int): The maximum distance before the start of a featuremeasured from closest point to guide
+            before_feat (int): The maximum distance before the start of a feature measured from closest point to guide
             after_feat (int): The maximum distance after the start codon (into the gene)
 
         Returns:
             None
         """
-        # Select guide forward, gene forward targets
-        filtered_df= self.nearby[(self.nearby["direction"] == "downstream") &
-                                 (self.nearby["Guide strand"] == "+") &
-                                 (self.nearby["Feature strand"] == "+") & (
-                                 (0 < self.nearby["Feature distance"] < before_feat) |
-                                 (0 == self.nearby["Feature distance"] &
-                                 self.nearby["Guide start"] - self.nearby["Feature start"] < after_feat)
-                                 )]
-        # filtered_df.append(self.nearby[(self.nearby["Guide strand"] == "-") &
-        #                   (self.nearby["Feature strand"] == "-") & (
-        #                   (0 < self.nearby["Feature distance"] < before_feat ) |
-        #                   ((0 == self.nearby["Feature distance"] &
-        #                   (self.nearby["Feature start"] - self.nearby["Guide start"] < after_feat)))])
-        # filtered_df.append(self.nearby[(self.nearby["Guide strand"] == "-") &
-        #                   (self.nearby["Feature strand"] == "+") & (
-        #                   ( 0 < self.nearby["Feature distance"] < before_feat ) |
-        #                   ((0 == self.nearby["Feature distance"] &
-        #                   self.nearby["Feature start"] - self.nearby["Guide start"] < after_feat)))])
-        # filtered_df.append(self.nearby[(self.nearby["Guide strand"] == "+") &
-        #                   (self.nearby["Feature strand"] == "-") & (
-        #                   (0 < self.nearby["Feature distance"] < before_feat ) |
-        #                   ((0 == self.nearby["Feature distance"] &
-        #                   self.nearby["Feature start"] - self.nearby["Guide start"] < after_feat)))])
+        # for guides in the same orientation as the targets ( +/+ or -/-) select guides that are within
+        #  before_feat of the gene start
+        filtered_df = self.nearby.query('`Guide strand` == `Feature strand` and 0 < `Feature distance` < @before_feat')
+        # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
+                                             and `Feature distance` == 0 and \
+                                             `Guide end` - `Feature start` < @after_feat'))
+        # for guides in the -/- orientation select guides where the end is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "-" \
+                                                     and `Feature distance` == 0 \
+                                                     and `Feature end` - `Guide start` < @after_feat'))
+        # Select guides where target is + and guide is - and the guide is infront of the gene
+        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
+                                                     0 <`Feature start` - `Guide end` < @before_feat' ))
+        # Select guides where target is - and guide is + and the guide is infront of the gene
+        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
+                                                     0 <`Guide start` - `Feature end` < @before_feat' ))
+        # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
+                                                             0 <`Guide end` -`Feature start`  < @after_feat'))
+        # Select guides where target is - and guide is + and the guide is is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
+                                                             0 <`Feature end` - `Guide start` < @after_feat'))
+
         self.filtered_df = filtered_df
 
-    def _format_guide_table(self, targetlist: str) -> object :
+    def _format_guide_table(self, targetlist: List[object]) -> object :
         """Create guide table for output
 
         """
@@ -498,15 +491,15 @@ class Annotation:
             for letter in seq:
                 if letter in ["G", "C"]:
                     cnt += 1
-                return cnt/len(seq)
+            return cnt/len(seq)
         def get_exact_pam(seq):
             return targetlist.neighbors[seq]["target"].exact_pam
         def get_guide_hash(seq):
             return targetlist.neighbors[seq]["target"].md5
         def get_off_target_score(seq):
-            return targetlist.neighbors[seq]["neighbors"].dist
+            return targetlist.neighbors[seq]["neighbors"]["dist"]
         def get_off_target_seqs(seq):
-            return targetlist.neighbors[seq]["neighbors"].seqs
+            return targetlist.neighbors[seq]["neighbors"]["seqs"]
         pretty_df = self.filtered_df.copy()
         pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
         pretty_df['PAM'] = pretty_df['Guide sequence'].apply(get_exact_pam)
@@ -514,8 +507,8 @@ class Annotation:
         pretty_df['Target strand'] = np.where(pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
         pretty_df['Off target scores'] = pretty_df['Guide sequence'].apply(get_off_target_score)
         pretty_df['Off target guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
-        pretty_df = pretty_df[['Guide name',"Guide sequence", 'GC', "Accession","Guide start","Guide end",
-                    "Guide strand", 'PAM', "Feature id","Feature start",
+        pretty_df = pretty_df[['Guide name', "Guide sequence", 'GC', "Accession","Guide start", "Guide end",
+                    "Guide strand", 'PAM', "Feature id", "Feature start",
                     "Feature end", "Feature strand",
                     "Feature distance", 'Off target guides', 'Off target scores']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
@@ -526,27 +519,27 @@ def annotate():
 
 def get_fastas(filelist, tempdir=None):
     """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
-
     Args:
         filelist (str): Genbank file to process
 
     Returns:
         None
-
     """
+    def is_gzip(filename):
+        with open(filename, "rb") as f:
+            return f.read(2) == b'\x1f\x8b'
+
     try:
         with open(os.path.join(tempdir, "forward.fasta"), "w") as f1:
-            gblist = []
             for file in filelist:
-                if file.lower().endswith(".gz"):  # uses file extension
-                    f = gzip.open(file, mode='rt')
+                if is_gzip(file):
+                    with gzip.open(file, 'rt') as f:
+                        records = (SeqIO.parse(f, "genbank"))
+                        SeqIO.write(records, f1, "fasta")
                 else:
-                    f = open(file, mode='r')
-                    records = (SeqIO.parse(f, "genbank"))
-                    SeqIO.write(records, f1, "fasta")
+                    with open(file, 'r') as f:
+                        records = (SeqIO.parse(f, "genbank"))
+                        SeqIO.write(records, f1, "fasta")
     except Exception as e:
         print("An error occurred in input genbank file %s" % file)
         raise e
-    finally:
-        f.close()
-        f1.close()
