@@ -197,20 +197,20 @@ def test_get_nearby_features(tmp_path):
 def test_filter_features():
     pamobj = guidefinder.core.Pam("NGG", "5prime")
     gb = SeqIO.read("test/test_data/Pseudomonas_aeruginosa_PAO1_107.sample.fasta", "fasta")
-    targets = pamobj.find_targets(seqrecord_obj=gb, strand="both", target_len=20)
-    tl = guidefinder.core.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
+    pamtargets = pamobj.find_targets(seqrecord_obj=gb, strand="both", target_len=20)
+    tl = guidefinder.core.TargetList(targets=pamtargets, lcp=10, hammingdist=2, knum=2)
     tl.find_unique_near_pam()
     tl.create_index()
     tl.get_neighbors()
     tf_df = tl.export_bed()
-    anno = guidefinder.core.Annotation(genbank_list=["test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"],
+    anno = guidefinder.core.Annotation(genbank_list=["test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk.gz"],
                                        target_bed_df=tf_df)
     anno._get_genbank_features()
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers()
     prettydf = anno._format_guide_table(tl)
-    return prettydf
+    assert prettydf.shape == (2119, 21)
 
 def test_get_fastas(tmp_path):
     gbfiles = ["test/test_data/Burkholderia_thailandensis_E264__ATCC_700388_133.gbk.gz",

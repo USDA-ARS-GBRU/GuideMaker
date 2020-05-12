@@ -15,6 +15,11 @@ import nmslib
 from pybedtools import BedTool
 import pandas as pd
 
+
+def is_gzip(filename):
+    with open(filename, "rb") as f:
+        return f.read(2) == b'\x1f\x8b'
+
 class Pam:
     """A Class representing a Protospacer Adjacent Motif (PAM)
 
@@ -240,7 +245,7 @@ class TargetList:
         self.unique_targets = list(filteredlist)
 
 
-    def create_index(self, M: int=48, num_threads=4, efC: int=256) -> None:
+    def create_index(self, M: int=16, num_threads=2, efC: int=64, post=1) -> None:
         """Create nmslib index
 
         Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
@@ -259,7 +264,7 @@ class TargetList:
             None (but writes NMSLIB index to self)
         """
         bintargets = self._one_hot_encode(self.targets)
-        index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC}
+        index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
                             data_type=nmslib.DataType.OBJECT_AS_STRING,
@@ -268,7 +273,7 @@ class TargetList:
         index.createIndex(index_params, print_progress=True)
         self.nmslib_index = index
 
-    def get_neighbors(self, ef=200, num_threads=4) -> None:
+    def get_neighbors(self, ef=256, num_threads=2) -> None:
         """Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
@@ -293,7 +298,7 @@ class TargetList:
             hitseqidx = list(entry[0])
             hammingdist = list(entry[1])
             if hammingdist[1] >= 4 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors = {"seqs": [self.targets[x].seq for x in hitseqidx], # reverse this?
+                neighbors = {"seqs": [self.targets[x-1].seq for x in hitseqidx], # reverse this?
                              "dist": [int(x/4) for x in hammingdist]}
                 neighbor_dict[queryseq] = {"target": self.unique_targets[i - 1],
                                            "neighbors": neighbors}
@@ -357,7 +362,7 @@ class Annotation:
         feature_dict = {}
         pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], score=[], strand=[])
         for gbfile in self.genbank_list:
-            if gbfile.lower().endswith(".gz"):  # uses file extension
+            if is_gzip(gbfile):
                 f = gzip.open(gbfile, mode='rt')
             else:
                 f = open(gbfile, mode='r')
@@ -411,7 +416,6 @@ class Annotation:
                     featlist.append(feat)
                     quallist.append(qual)
                 tempdf = pd.DataFrame({'Feature id': featlist, qualifier: quallist})
-                print(qual_df)
                 qual_df = qual_df.merge(tempdf, how="outer", on="Feature id")
         self.qualifiers = qual_df
 
@@ -517,6 +521,7 @@ class Annotation:
 def annotate():
     pass
 
+
 def get_fastas(filelist, tempdir=None):
     """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
     Args:
@@ -525,12 +530,9 @@ def get_fastas(filelist, tempdir=None):
     Returns:
         None
     """
-    def is_gzip(filename):
-        with open(filename, "rb") as f:
-            return f.read(2) == b'\x1f\x8b'
-
     try:
-        with open(os.path.join(tempdir, "forward.fasta"), "w") as f1:
+        fastpath = os.path.join(tempdir, "forward.fasta")
+        with open(fastpath, "w") as f1:
             for file in filelist:
                 if is_gzip(file):
                     with gzip.open(file, 'rt') as f:
@@ -540,6 +542,7 @@ def get_fastas(filelist, tempdir=None):
                     with open(file, 'r') as f:
                         records = (SeqIO.parse(f, "genbank"))
                         SeqIO.write(records, f1, "fasta")
+        return fastpath
     except Exception as e:
         print("An error occurred in input genbank file %s" % file)
         raise e
