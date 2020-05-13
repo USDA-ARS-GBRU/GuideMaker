@@ -30,6 +30,7 @@ def myparser():
     parser.add_argument('--threads', help='The number of cpu threads to use', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidefinder.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
+    parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + __version__ + ")")
     return parser
 
 

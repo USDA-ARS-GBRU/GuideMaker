@@ -3,13 +3,18 @@
 """
 
 from setuptools import setup
+import versioneer
+
+version = versioneer.get_version(),
+cmdclass = versioneer.get_cmdclass(),
 
 
 setup(
     name='guidefinder',
-    version='0.1',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     packages=['guidefinder'],
-    license='CC0',
+    license='CC0 1.0 Universal (CC0 1.0) Public Domain Dedication',
     description='GuideFinder: globally design gRNAs for any CRISPR-Cas system in any small genome',
     long_description=open('README.rst').read(),
     classifiers=['Topic :: Scientific/Engineering :: Bio-Informatics',
