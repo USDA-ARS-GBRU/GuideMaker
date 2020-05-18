@@ -2,10 +2,9 @@
 
 """
 import os
-from typing import List, Set, Dict
+from typing import List, Dict
 from itertools import product, tee
 import gzip
-import functools
 import hashlib
 from collections import deque
 import numpy as np
