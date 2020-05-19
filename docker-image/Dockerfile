@@ -6,11 +6,10 @@ LABEL Description="GuideFinder: globally design guide RNAs for any CRISPR-Cas sy
 RUN apt-get update && apt-get install -y \
     build-essential \
     zlib1g-dev
+
+RUN conda update -n base -c defaults conda
 RUN conda create -n guidefinderenv python=3.7 pandas=1.0.3
-
 SHELL ["conda", "run", "-n", "guidefinderenv", "/bin/bash", "-c"]
-
-#RUN conda update -n base -c defaults conda
 RUN conda install --channel bioconda pybedtools
 RUN conda install -c conda-forge biopython=1.76
 RUN pip install --no-binary :all: nmslib
@@ -18,5 +17,6 @@ RUN pip install --no-binary :all: nmslib
 ENV PATH="~/miniconda3/bin:$PATH"
 
 RUN git clone https://github.com/USDA-ARS-GBRU/GuideFinder.git && cd GuideFinder && pip install -e .
+Run mkdir /data
 ENTRYPOINT ["conda", "run", "-n", "guidefinderenv", "guidefinder"]
 CMD ["-h"]
