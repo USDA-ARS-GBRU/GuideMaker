@@ -12,7 +12,6 @@ from Bio import SeqIO
 
 import guidefinder
 
-
 def myparser():
     parser = argparse.ArgumentParser(description='GuideFinder: globally design guide RNAs for any CRISPR-Cas system in any small genome')
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True, help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
