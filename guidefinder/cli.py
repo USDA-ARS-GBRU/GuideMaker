@@ -15,16 +15,16 @@ import guidefinder
 def myparser():
     parser = argparse.ArgumentParser(description='GuideFinder: globally design guide RNAs for any CRISPR-Cas system in any small genome')
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True, help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
-    parser.add_argument('--pamseq', '-p', type=str, required=True, choices=range(2, 7, 1), help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
+    parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outfile', '-o', type=str, required=True, help='The table of PAM sites and data')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime', help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM], Cas9 for example is 5prime")
-    parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1) ,help='Length of the guide sequence')
+    parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]" ,help='Length of the guide sequence')
     parser.add_argument('--strand', '-s', choices=['forward','reverse', 'both'], default='both', help='Strand of DNA to search')
-    parser.add_argument('--lcp', type=int, default=10,choices=range(0, 28, 1),help='Length of the guide closest to  the PAM required to be unique')
-    parser.add_argument('--dist', type=int, choices=range(1, 6, 1), default=2, help='Minimum hamming distance from any other potential guide')
-    parser.add_argument('--before', type=int, default=100, choices=range(1, 500, 1),
+    parser.add_argument('--lcp', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of the guide closest to  the PAM required to be unique')
+    parser.add_argument('--dist', type=int, choices=range(1, 6, 1),  metavar="[1-5]", default=2, help='Minimum hamming distance from any other potential guide')
+    parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far in front of a feature')
-    parser.add_argument('--into', type=int, default=200, choices=range(1, 500, 1),
+    parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1),metavar="[1-500]",
                         help='keep guides this far inside (past the start site)of a feature')
     parser.add_argument('--threads', help='The number of cpu threads to use', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidefinder.log")
@@ -32,8 +32,9 @@ def myparser():
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidefinder.__version__ + ")")
     return parser
 
-def parserval(parser):
-    assert(parser.lcp <= parser.guidelength), "The length of sequence near the PAM the is unique (lcp) must be less than the guide length"
+def parserval(args):
+    assert(args.lcp <= args.guidelength), "The length of sequence near the PAM the is unique (lcp) must be less than the guide length"
+    assert(1 < len(args.pamseq) < 7 ), "The length of the PAM sequence must be between 2-6"
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
 
@@ -69,7 +70,7 @@ def main(args=None):
     parser = myparser()
     if not args:
         args = parser.parse_args()
-    parserval(parser)
+    parserval(args)
 
     _logger_setup(args.log)
     try:
