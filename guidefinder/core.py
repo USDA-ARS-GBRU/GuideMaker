@@ -16,9 +16,12 @@ import pandas as pd
 
 
 def is_gzip(filename):
-    with open(filename, "rb") as f:
-        return f.read(2) == b'\x1f\x8b'
-
+    try:
+        with open(filename, "rb") as f:
+            return f.read(2) == b'\x1f\x8b'
+    except IOError as e:
+        logging.error("Could not open the file %s to determine if it was gzipped" % filename)
+        raise e
 class Pam:
     """A Class representing a Protospacer Adjacent Motif (PAM)
 
@@ -361,10 +364,14 @@ class Annotation:
         feature_dict = {}
         pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], score=[], strand=[])
         for gbfile in self.genbank_list:
-            if is_gzip(gbfile):
-                f = gzip.open(gbfile, mode='rt')
-            else:
-                f = open(gbfile, mode='r')
+            try:
+                if is_gzip(gbfile):
+                    f = gzip.open(gbfile, mode='rt')
+                else:
+                    f = open(gbfile, mode='r')
+            except IOError as e:
+                logging.error("The genbank file %s could not be opened" % gbfile)
+                raise e
             genbank_file = SeqIO.parse(f, "genbank")
             for entry in genbank_file:
                 for record in entry.features:
