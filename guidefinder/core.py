@@ -3,6 +3,7 @@
 """
 import os
 from typing import List, Dict
+import logging
 from itertools import product, tee
 import gzip
 import hashlib
@@ -78,11 +79,11 @@ class Pam:
 
 
 
-    def find_targets(self, seqrecord_obj: object, strand: str, target_len: int) -> List[object]:
+    def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
         """Find all targets on a sequence that match for the PAM on the requested strand(s)
 
         Args:
-            seqrecord_obj (object): A Biopython SeqRecord instance
+            seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
             strand (str): The strand to search choices: ["forward", "reverse", "both"]
             target_len (int): The length of the target sequence
         Returns:
@@ -98,59 +99,60 @@ class Pam:
             return zip(*iters)
 #                5prime means the order is 5'-[pam][target]-3'
 #                3prime means the order is 5'-[target][pam]-3'
-        def compute_seq_coords(self, hitset, strand, target_len, seqrecord_obj, i):
+        def compute_seq_coords(self, hitset, strand, target_len, seqrecord, i):
             if hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "3prime":
                 start = i - target_len
                 stop = i
-                seq = str(seqrecord_obj[start:stop].seq)
-                exact_pam = str(seqrecord_obj[stop:(stop + len(self.pam))].seq)
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq)
             elif hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "5prime":
                 start = i + len(self.pam)
                 stop = i + len(self.pam) + target_len
-                seq = str(seqrecord_obj[start:stop].seq)
-                exact_pam = str(seqrecord_obj[start - len(self.pam):(start)].seq)
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[start - len(self.pam):(start)].seq)
             elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "3prime":
                 start = i + len(self.pam)
                 stop = i + len(self.pam) + target_len
-                seq = str(seqrecord_obj[start:stop].seq.reverse_complement())
-                exact_pam = str(seqrecord_obj[stop:(stop + len(self.pam))].seq.reverse_complement())
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq.reverse_complement())
             elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "5prime":
                 start = i - target_len
                 stop = i
-                seq = str(seqrecord_obj[start:stop].seq.reverse_complement())
-                exact_pam =str(seqrecord_obj[start - len(self.pam):(start)].seq.reverse_complement())
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam =str(seqrecord[start - len(self.pam):(start)].seq.reverse_complement())
             else:
                 return None
-            if 0 <= start <= len(seqrecord_obj) and 0 <= stop <= len(seqrecord_obj):
+            if 0 <= start <= len(seqrecord) and 0 <= stop <= len(seqrecord):
                 return Target(seq=seq,
                               exact_pam=exact_pam,
                               strand=strand,
                               pam_orientation=self.pam_orientation,
-                              seqid=seqrecord_obj.id,
+                              seqid=seqrecord.id,
                               start=start,
                               stop=stop)
 
         # Create iterable of PAM length windows across the sequence
         target_list = deque()
-        kmer_iter = window(str(seqrecord_obj.seq), len(self.pam))
-        for i, kmer in enumerate(kmer_iter):
-            hitset = None
-            kmerstr = ''.join(kmer)
-            if strand in ["forward", "both"] and kmerstr in self.fset:
-                hitset = "fset"
-                gstrand = "forward"
-            elif strand in ["reverse", "both"] and kmerstr in self.rset:
-                hitset = "rset"
-                gstrand = "reverse"
-            else:
-                continue
-            tar = compute_seq_coords(self, hitset=hitset,
-                                     strand=gstrand,
-                                     target_len=target_len,
-                                     seqrecord_obj=seqrecord_obj,
-                                     i=i)
-            if tar:
-                target_list.append(tar)
+        for seqrecord in seq_record_iter:
+            kmer_iter = window(str(seqrecord.seq), len(self.pam))
+            for i, kmer in enumerate(kmer_iter):
+                hitset = None
+                kmerstr = ''.join(kmer)
+                if strand in ["forward", "both"] and kmerstr in self.fset:
+                    hitset = "fset"
+                    gstrand = "forward"
+                elif strand in ["reverse", "both"] and kmerstr in self.rset:
+                    hitset = "rset"
+                    gstrand = "reverse"
+                else:
+                    continue
+                tar = compute_seq_coords(self, hitset=hitset,
+                                         strand=gstrand,
+                                         target_len=target_len,
+                                         seqrecord=seqrecord,
+                                         i=i)
+                if tar:
+                    target_list.append(tar)
         return list(target_list)
 
 
@@ -420,7 +422,7 @@ class Annotation:
                 quallist = []
                 for feat, qual in self.feature_dict[qualifier].items():
                     featlist.append(feat)
-                    quallist.append(qual)
+                    quallist.append(";".join([str(i) for i in qual]))
                 tempdf = pd.DataFrame({'Feature id': featlist, qualifier: quallist})
                 qual_df = qual_df.merge(tempdf, how="outer", on="Feature id")
         self.qualifiers = qual_df
@@ -507,20 +509,23 @@ class Annotation:
         def get_guide_hash(seq):
             return targetlist.neighbors[seq]["target"].md5
         def get_off_target_score(seq):
-            return targetlist.neighbors[seq]["neighbors"]["dist"]
+            dlist = targetlist.neighbors[seq]["neighbors"]["dist"]
+            s = [str(i) for i in dlist]
+            return ";".join(s)
         def get_off_target_seqs(seq):
-            return targetlist.neighbors[seq]["neighbors"]["seqs"]
+            slist = targetlist.neighbors[seq]["neighbors"]["seqs"]
+            return ";".join(slist)
         pretty_df = self.filtered_df.copy()
         pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
         pretty_df['PAM'] = pretty_df['Guide sequence'].apply(get_exact_pam)
         pretty_df['Guide name'] = pretty_df['Guide sequence'].apply(get_guide_hash)
         pretty_df['Target strand'] = np.where(pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
-        pretty_df['Off target scores'] = pretty_df['Guide sequence'].apply(get_off_target_score)
-        pretty_df['Off target guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
+        pretty_df['Similar guide distances'] = pretty_df['Guide sequence'].apply(get_off_target_score)
+        pretty_df['Similar guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
         pretty_df = pretty_df[['Guide name', "Guide sequence", 'GC', "Accession","Guide start", "Guide end",
-                    "Guide strand", 'PAM', "Feature id", "Feature start",
-                    "Feature end", "Feature strand",
-                    "Feature distance", 'Off target guides', 'Off target scores']]
+                    "Guide strand", 'PAM',  "Feature id",
+                    "Feature start", "Feature end", "Feature strand",
+                    "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         return pretty_df
 
@@ -542,7 +547,7 @@ def get_fastas(filelist, tempdir=None):
             for file in filelist:
                 if is_gzip(file):
                     with gzip.open(file, 'rt') as f:
-                        records = (SeqIO.parse(f, "genbank"))
+                        records = SeqIO.parse(f, "genbank")
                         SeqIO.write(records, f1, "fasta")
                 else:
                     with open(file, 'r') as f:
