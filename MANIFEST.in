@@ -1,4 +1,5 @@
 include versioneer.py
-include guidefinder/_version.py
+include guidemaker/_version.py
 include test/test_data/*
 include LICENSE.txt
+include README.rst

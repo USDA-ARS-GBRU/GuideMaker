@@ -1,4 +1,4 @@
-"""Core classes and functions for Guidefinder
+"""Core classes and functions for GuideMaker
 
 """
 import os
