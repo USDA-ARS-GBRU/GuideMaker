@@ -27,7 +27,7 @@ def myparser():
                         help='keep guides this far in front of a feature')
     parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1),metavar="[1-500]",
                         help='keep guides this far inside (past the start site)of a feature')
-    parser.add_argument('--knum', type=int, default=3, choices=range(2, 20, 1), metavar="[2-20]", help='how many sequences similar to the guide to report')
+    parser.add_argument('--knum', type=int, default=3, choices=range(2, 21, 1), metavar="[2-20]", help='how many sequences similar to the guide to report')
     parser.add_argument('--threads', help='The number of cpu threads to use', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)

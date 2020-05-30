@@ -16,7 +16,7 @@ setup(
     packages=['guidemaker'],
     license='CC0 1.0 Universal (CC0 1.0) Public Domain Dedication',
     description='GuideMAker: globally design gRNAs for any CRISPR-Cas system in any small genome',
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     classifiers=['Topic :: Scientific/Engineering :: Bio-Informatics',
                  'Programming Language :: Python :: 3.7',
                  'Programming Language :: Python :: 3.8',
