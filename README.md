@@ -88,6 +88,10 @@ Return a table of pam sites and associated data, at in current folder.
     --log logfile.txt --threads 2
 ```
 
+## API documentation
+
+API documentation for the module can be found [here](/html/guidemaker/index.html)
+
 ## License information
 
 As a work of the United State Governemnt this software is available under  CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
