@@ -1,52 +1,52 @@
-GuideMaker: globally design gRNAs for any CRISPR-Cas system in any small genome
-==================================================================================================
+#GuideMaker
+## Globally design gRNAs for any CRISPR-Cas system in any small genome
 
-Authors
--------
+
+## Authors
+
 * Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
 * Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
 * Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
 * Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
 
 
-Introduction
--------------
+## Introduction
 
 
 
-Installation
--------------
+## Installation
+
 GuideMaker can be installed from:
 
 1. The Github repository: https://github.com/USDA-ARS-GBRU/guidemaker
 
-.. code-block:: bash
-
+```{bash}
     git clone https://github.com/USDA-ARS-GBRU/guiemaker.git
+```
 
+## Dependencies
 
-Dependencies
--------------
 Following are the required softwares/programs.
 
-- ``pybedtools``
-
-- ``NMSLib``
-
-- ``Biopython``
-
-- ``Pandas``
+* ``pybedtools``
+* ``NMSLib``
+* ``Biopython``
+* ``Pandas``
 
 
-Usage
----------
+## Usage
+
+```
 GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome
 
 optional arguments:
+
   -h, --help            show this help message and exit
+
   --genbank GENBANK [GENBANK ...], -i GENBANK [GENBANK ...]
                         One or more genbank .gbk or gzipped .gbk files for a
                         single genome
+
   --pamseq PAMSEQ, -p PAMSEQ
                         A short PAM motif to search for, it may use IUPAC
                         ambiguous alphabet
@@ -72,25 +72,22 @@ optional arguments:
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
   -V, --version         show program's version number and exit
+```
+
+## Examples
 
 
-
-Examples
----------
-
-``Use case:`` Retrieving target sequence for a given PAM motif in the forward and reverse strands, where length of guide sequence is 20 base pair.
+Use case: Retrieving target sequence for a given PAM motif in the forward and reverse strands, where length of guide sequence is 20 base pair.
 12 base pair close to PAM motif is conserved ,i.e. unique and the full sequence has a hamming distance of more than 2.
 Here the number of used threads is 2
 Return a table of pam sites and associated data, at in current folder.
 
-.. code-block:: bash
-
+```
     guidemaker -i sample.gbk -p NGG --targetlength 20 --strand both \
     --lcp 10 --dist 2 --outfile out.txt \
     --log logfile.txt --threads 2
+```
 
+## License information
 
-License information
---------------------
-
-CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+As a work of the United State Governemnt this software is available under  CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
