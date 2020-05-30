@@ -30,5 +30,5 @@ setup(
     python_requires='>=3.6',
     tests_require=['pytest'],
     include_package_data=True,
-    entry_points={'console_scripts':['guidefinder = guidefinder.cli:main',]},
+    entry_points={'console_scripts':['guidemaker = guidemaker.cli:main',]},
     zip_safe=False)

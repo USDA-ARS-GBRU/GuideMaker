@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.8.1" />
+<title>guidemaker.core API documentation</title>
+<meta name="description" content="Core classes and functions for GuideMaker" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>guidemaker.core</code></h1>
+</header>
+<section id="section-intro">
+<p>Core classes and functions for GuideMaker</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;Core classes and functions for GuideMaker
+
+&#34;&#34;&#34;
+import os
+from typing import List, Dict
+import logging
+from itertools import product, tee
+import gzip
+import hashlib
+from collections import deque
+import numpy as np
+from Bio.Seq import Seq
+from Bio import SeqIO
+import nmslib
+from pybedtools import BedTool
+import pandas as pd
+
+
+def is_gzip(filename):
+    try:
+        with open(filename, &#34;rb&#34;) as f:
+            return f.read(2) == b&#39;\x1f\x8b&#39;
+    except IOError as e:
+        logging.error(&#34;Could not open the file %s to determine if it was gzipped&#34; % filename)
+        raise e
+class Pam:
+    &#34;&#34;&#34;A Class representing a Protospacer Adjacent Motif (PAM)
+
+    &#34;&#34;&#34;
+
+    def extend_ambiguous_dna(self, pam) -&gt; None:
+        &#34;&#34;&#34;convert ambiguous DNA input to return frozen set of all sequences
+        Args:
+            pam (str): a pam seq (all caps)
+        Returns:
+            (frozenset): all possible sequences given an ambiguous DNA input
+
+        &#34;&#34;&#34;
+        pamseq = Seq(pam)
+        dnaval = {&#39;A&#39;: &#39;A&#39;, &#39;C&#39;: &#39;C&#39;, &#39;G&#39;: &#39;G&#39;, &#39;T&#39;: &#39;T&#39;,
+                  &#39;M&#39;: &#39;AC&#39;, &#39;R&#39;: &#39;AG&#39;, &#39;W&#39;: &#39;AT&#39;, &#39;S&#39;: &#39;CG&#39;,
+                  &#39;Y&#39;: &#39;CT&#39;, &#39;K&#39;: &#39;GT&#39;, &#39;V&#39;: &#39;ACG&#39;, &#39;H&#39;: &#39;ACT&#39;,
+                  &#39;D&#39;: &#39;AGT&#39;, &#39;B&#39;: &#39;CGT&#39;, &#39;X&#39;: &#39;GATC&#39;, &#39;N&#39;: &#39;GATC&#39;}
+        dnalist = []
+        for i in product(*[dnaval[j] for j in pamseq]):
+            dnalist.append(&#34;&#34;.join(i))
+        return frozenset(dnalist)
+
+    def reverse_complement(self) -&gt; object:
+        &#34;&#34;&#34;reverse complement of the PAM sequence
+        Args:
+            None
+        Returns:
+            str: a pam sequence, reverse complemented
+
+        &#34;&#34;&#34;
+        pamseq = Seq(self.pam)
+        return str(pamseq.reverse_complement())
+
+    def __init__(self, pam: str, pam_orientation: str) -&gt; None:
+        &#34;&#34;&#34;Pam __init__
+
+        Args:
+            pam (str): A DNA string in ambiguous IUPAC format
+            pam_orientation (str): [5prime | 3prime ]
+                5prime means the order is 5&#39;-[pam][target]-3&#39;
+                3prime means the order is 5&#39;-[target][pam]-3&#39;
+        &#34;&#34;&#34;
+        for letter in pam.upper():
+            assert letter in [&#39;G&#39;, &#39;A&#39;, &#39;T&#39;, &#39;C&#39;, &#39;N&#39; ]
+        assert pam_orientation in [&#34;3prime&#34;, &#34;5prime&#34;]
+        self.pam: str = pam.upper()
+        self.pam_orientation: str = pam_orientation
+        self.fset = self.extend_ambiguous_dna(self.pam)
+        self.rset = rset = self.extend_ambiguous_dna(self.reverse_complement())
+
+    def __str__(self) -&gt; str:
+        return &#34;A PAM object: {self.pam}&#34;.format(self=self)
+
+
+
+    def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -&gt; List[object]:
+        &#34;&#34;&#34;Find all targets on a sequence that match for the PAM on the requested strand(s)
+
+        Args:
+            seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
+            strand (str): The strand to search choices: [&#34;forward&#34;, &#34;reverse&#34;, &#34;both&#34;]
+            target_len (int): The length of the target sequence
+        Returns:
+            list: A list of Target class instances
+
+        &#34;&#34;&#34;
+
+        def window(iterable, size):
+            iters = tee(iterable, size)
+            for i in range(1, size):
+                for each in iters[i:]:
+                    next(each, None)
+            return zip(*iters)
+#                5prime means the order is 5&#39;-[pam][target]-3&#39;
+#                3prime means the order is 5&#39;-[target][pam]-3&#39;
+        def compute_seq_coords(self, hitset, strand, target_len, seqrecord, i):
+            if hitset == &#34;fset&#34; and strand in (&#34;forward&#34;, &#34;both&#34;) and self.pam_orientation == &#34;3prime&#34;:
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq)
+            elif hitset == &#34;fset&#34; and strand in (&#34;forward&#34;, &#34;both&#34;) and self.pam_orientation == &#34;5prime&#34;:
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[start - len(self.pam):(start)].seq)
+            elif hitset == &#34;rset&#34; and strand in (&#34;reverse&#34;, &#34;both&#34;) and self.pam_orientation == &#34;3prime&#34;:
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq.reverse_complement())
+            elif hitset == &#34;rset&#34; and strand in (&#34;reverse&#34;, &#34;both&#34;) and self.pam_orientation == &#34;5prime&#34;:
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam =str(seqrecord[start - len(self.pam):(start)].seq.reverse_complement())
+            else:
+                return None
+            if 0 &lt;= start &lt;= len(seqrecord) and 0 &lt;= stop &lt;= len(seqrecord):
+                return Target(seq=seq,
+                              exact_pam=exact_pam,
+                              strand=strand,
+                              pam_orientation=self.pam_orientation,
+                              seqid=seqrecord.id,
+                              start=start,
+                              stop=stop)
+
+        # Create iterable of PAM length windows across the sequence
+        target_list = deque()
+        for seqrecord in seq_record_iter:
+            kmer_iter = window(str(seqrecord.seq), len(self.pam))
+            for i, kmer in enumerate(kmer_iter):
+                hitset = None
+                kmerstr = &#39;&#39;.join(kmer)
+                if strand in [&#34;forward&#34;, &#34;both&#34;] and kmerstr in self.fset:
+                    hitset = &#34;fset&#34;
+                    gstrand = &#34;forward&#34;
+                elif strand in [&#34;reverse&#34;, &#34;both&#34;] and kmerstr in self.rset:
+                    hitset = &#34;rset&#34;
+                    gstrand = &#34;reverse&#34;
+                else:
+                    continue
+                tar = compute_seq_coords(self, hitset=hitset,
+                                         strand=gstrand,
+                                         target_len=target_len,
+                                         seqrecord=seqrecord,
+                                         i=i)
+                if tar:
+                    target_list.append(tar)
+        return list(target_list)
+
+
+class Target:
+    &#34;&#34;&#34;A class representing a candidate target sequence for a PAM
+
+    This is an object for holding data on possible target sequences
+    adjacent to PAM sites.
+    &#34;&#34;&#34;
+    def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
+                 seqid: str, start: int, stop: int) -&gt; object:
+        self.seq: str = seq
+        self.exact_pam: str = exact_pam
+        self.strand: str = strand
+        self.pam_orientation: str = pam_orientation
+        self.seqid: str = seqid
+        self.start: int = start
+        self.stop: int = stop
+        self.md5: str = hashlib.md5(seq.encode()).hexdigest()
+
+    def __str__(self) -&gt; str:
+        return &#34;A Target object: {self.seq} on sequence {self.seqid} \
+                position {self.start}&#34;.format(self=self)
+
+    def __eq__(self, other):
+        return other == self.seq
+    def __ne__(self, other):
+        return not self.__eq__(other)
+    def __len__(self):
+        return len(self.seq)
+
+
+class TargetList:
+    &#34;&#34;&#34;A Class representing a set of guide RNA targets
+
+    The class includes all targets in a set, a dict filtered to be unique in
+    the region near the PAM, and a dict with edit distances for sequences.
+
+    &#34;&#34;&#34;
+    def __init__(self, targets: List, lcp: int, hammingdist: int=2, knum: int=2) -&gt; None:
+        self.targets: List = targets
+        self.lcp: int = lcp
+        self.hammingdist: int = hammingdist
+        self.knum: int = knum
+        self.unique_targets: dict = {}
+        self.nmslib_index: object = None
+        self.neighbors: dict = {}
+
+    def __str__(self):
+        info = &#34;TargetList: contains a set of {} potential PAM targets&#34;.format(len(self.targets))
+        return info
+
+    def __len__(self):
+        return len(self.targets)
+
+    def _one_hot_encode(self, seq_list: List[object])-&gt; List[str]:
+        &#34;&#34;&#34;One hot encode Target DNA as a binary string representation for LMSLIB
+
+        &#34;&#34;&#34;
+        charmap = {&#39;A&#39;: &#39;1 0 0 0&#39;, &#39;C&#39;: &#39;0 1 0 0&#39;, &#39;G&#39;: &#39;0 0 1 0&#39;, &#39;T&#39;: &#39;0 0 0 1&#39;}
+        def seq_to_bin(target_obj):
+            seq = target_obj.seq
+            charlist = [charmap[letter] for letter in seq]
+            return &#34; &#34;.join(charlist)
+        return list(map(seq_to_bin, seq_list))
+
+
+    def find_unique_near_pam(self) -&gt; None:
+        &#34;&#34;&#34;identify unique sequences in the target list
+
+        The function filters a list of Target objects for targets that
+        are unique in the region closest to the PAM. The region length is defined
+        by the lcp.
+
+        Args:
+            lcp (int): Length of conserved sequence close to PAM
+        &#34;&#34;&#34;
+        def _get_prox(target):
+            if target.pam_orientation == &#34;5prime&#34;:
+                return target.seq[0:self.lcp]
+            elif target.pam_orientation == &#34;3prime&#34;:
+                return target.seq[(len(target) - self.lcp):]
+        lcp_dict ={}
+        for target in self.targets:
+            proximal = _get_prox(target)
+            if proximal in lcp_dict.keys():
+                lcp_dict[proximal].append(target)
+            else:
+                lcp_dict[proximal] = [target]
+        filteredlist = deque()
+        for lkey, lval in lcp_dict.items():
+            if len(lval) == 1:
+                filteredlist.append(lval[0])
+        self.unique_targets = list(filteredlist)
+
+
+    def create_index(self, M: int=16, num_threads=2, efC: int=64, post=1) -&gt; None:
+        &#34;&#34;&#34;Create nmslib index
+
+        Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
+
+        Args:
+            num_threads (int): cpu threads
+            M (int): Controls the number of bi-directional links created for each element
+                during index construction. Higher values lead to better results at the expense
+                of memory consumption. Typical values are 2 -100, but for most datasets a
+                range of 12 -48 is suitable. Can’t be smaller than 2.
+            efC (int): Size of the dynamic list used during construction. A larger value means
+                   a better quality index, but increases build time. Should be an integer value
+                   between 1 and the size of the dataset.
+
+        Returns:
+            None (but writes NMSLIB index to self)
+        &#34;&#34;&#34;
+        bintargets = self._one_hot_encode(self.targets)
+        index_params = {&#39;M&#39;: M, &#39;indexThreadQty&#39;: num_threads,&#39;efConstruction&#39;: efC, &#39;post&#39;: post}
+        index = nmslib.init(space=&#39;bit_hamming&#39;,
+                            dtype=nmslib.DistType.INT,
+                            data_type=nmslib.DataType.OBJECT_AS_STRING,
+                            method=&#39;hnsw&#39;)
+        index.addDataPointBatch(bintargets)
+        index.createIndex(index_params, print_progress=True)
+        self.nmslib_index = index
+
+    def get_neighbors(self, ef=256, num_threads=2) -&gt; None:
+        &#34;&#34;&#34;Get nearest neighbors for sequences removing sequences that
+         have neighbors less than the Hamming distance threshold
+
+        For the list of all targets calculate the (knum) nearest neighbors.
+        filter out targets with close neighbors and
+        Writes a dictionary to self.neighbors:
+        self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, ...], dist:[d1, d1,...]}}
+
+        Args: None
+        Returns: None
+        &#34;&#34;&#34;
+        if not self.unique_targets:
+            self.find_unique_near_pam()
+        bintargets = self._one_hot_encode(self.unique_targets)
+        self.nmslib_index.setQueryTimeParams({&#39;efSearch&#39;: ef})
+        results_list = self.nmslib_index.knnQueryBatch(bintargets,
+                                               k=self.knum, num_threads = num_threads)
+        neighbor_dict = {}
+        for i, entry in enumerate(results_list):
+
+            queryseq = self.unique_targets[i - 1].seq
+            hitseqidx = list(entry[0])
+            hammingdist = list(entry[1])
+            if hammingdist[1] &gt;= 4 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
+                neighbors = {&#34;seqs&#34;: [self.targets[x-1].seq for x in hitseqidx], # reverse this?
+                             &#34;dist&#34;: [int(x/4) for x in hammingdist]}
+                neighbor_dict[queryseq] = {&#34;target&#34;: self.unique_targets[i - 1],
+                                           &#34;neighbors&#34;: neighbors}
+        self.neighbors = neighbor_dict
+
+    def export_bed(self) -&gt; object:
+        &#34;&#34;&#34;export the targets in self.neighbors to a bed format file
+
+        Args:
+            file (str): the name and location of file to export
+
+        Returns:
+            (obj): A Pandas Dataframe in Bed format
+        &#34;&#34;&#34;
+        bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
+        for rec in self.neighbors.values():
+            bdict[&#39;chrom&#39;].append(rec[&#34;target&#34;].seqid)
+            bdict[&#39;chromstart&#39;].append(rec[&#34;target&#34;].start)
+            bdict[&#39;chromend&#39;].append(rec[&#34;target&#34;].stop)
+            bdict[&#39;name&#39;].append(rec[&#34;target&#34;].seq)
+            bdict[&#39;score&#39;].append(0)
+            if rec[&#34;target&#34;].strand == &#34;forward&#34;:
+                bdict[&#39;strand&#39;].append(&#34;+&#34;)
+            elif rec[&#34;target&#34;].strand == &#34;reverse&#34;:
+                bdict[&#39;strand&#39;].append(&#34;-&#34;)
+        df = pd.DataFrame.from_dict(bdict)
+        df.sort_values(by=[&#39;chrom&#39;, &#39;chromstart&#39;], inplace=True)
+        return df
+
+
+class Annotation:
+    def __init__(self, genbank_list: List[str], target_bed_df: object) -&gt; None:
+        &#34;&#34;&#34;Annotation class for data and methods on targets and gene annotations
+
+        Args:
+            genbank_list (List[str]): A list of genbank files from a single genome
+            target_bed_df (object): A pandas dataframe in Bed format with the
+                locations of targets in the genome
+        Returns:
+            None
+        &#34;&#34;&#34;
+        self.genbank_list: List[str] = genbank_list
+        self.target_bed_df: object = target_bed_df
+        self.genbank_bed_df: object = None
+        self.feature_dict: Dict = None
+        self.nearby: object = None
+        self.filtered_df: object = None
+        self.qualifiers: object = None
+
+    def _get_genbank_features(self, feature_types: List[str] = None) -&gt; None:
+        &#34;&#34;&#34;Parse genbank records into pandas DF/Bed format and dict format saving to self
+
+        Args:
+            feature_types (List[str]): a list of Genbank feature types to use
+
+        Returns:
+            None
+        &#34;&#34;&#34;
+        if feature_types is None:
+            feature_types = [&#34;CDS&#34;]
+        feature_dict = {}
+        pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], score=[], strand=[])
+        for gbfile in self.genbank_list:
+            try:
+                if is_gzip(gbfile):
+                    f = gzip.open(gbfile, mode=&#39;rt&#39;)
+                else:
+                    f = open(gbfile, mode=&#39;r&#39;)
+            except IOError as e:
+                logging.error(&#34;The genbank file %s could not be opened&#34; % gbfile)
+                raise e
+            genbank_file = SeqIO.parse(f, &#34;genbank&#34;)
+            for entry in genbank_file:
+                for record in entry.features:
+                    if record.type in feature_types:
+                        featid = hashlib.md5(str(record).encode()).hexdigest()
+                        pddict[&#39;chrom&#39;].append(entry.id)
+                        pddict[&#34;chromStart&#34;].append(record.location.start.position)
+                        pddict[&#34;chromEnd&#34;].append(record.location.end.position)
+                        pddict[&#34;name&#34;].append(featid)
+                        pddict[&#34;score&#34;].append(0)
+                        pddict[&#34;strand&#34;].append(&#34;-&#34; if record.strand &lt; 0 else &#34;+&#34;)
+                        for qualifier_key, qualifier_val in record.qualifiers.items():
+                            if not qualifier_key in feature_dict:
+                                feature_dict[qualifier_key] = {}
+                            feature_dict[qualifier_key][featid] = qualifier_val
+            genbankbed = pd.DataFrame.from_dict(pddict)
+            self.genbank_bed_df = genbankbed
+            self.feature_dict = feature_dict
+        f.close()
+
+    def _get_qualifiers(self, min_prop: float = 0.5, excluded: List[str] = None) -&gt; object:
+        &#34;&#34;&#34;Create a dataframe with features and their qualifier values
+
+        Create a dataframe with features and their qualifier values for
+        all qualifiers over the minimum threshold (except &#39;translation&#39;). Add
+        to self.qualifiers
+
+        Args:
+            min_prop (float): A float between 0-1 representing the fraction of
+            features the qualifier must be present in to be included in the dataframe
+            excluded (List(str)): A list of genbank qualifiers to exclude, Default [&#34;translation&#34;]
+        Returns:
+            None
+
+        &#34;&#34;&#34;
+        if excluded is None:
+            excluded = [&#34;translation&#34;]
+        final_quals = []
+        qual_df = pd.DataFrame(data ={&#34;Feature id&#34;:[]})
+        for quals in self.feature_dict:
+            if len(quals)/len(self.feature_dict) &gt; min_prop:
+                final_quals.append(quals)
+        for qualifier in final_quals:
+            if qualifier not in excluded:
+                featlist = []
+                quallist = []
+                for feat, qual in self.feature_dict[qualifier].items():
+                    featlist.append(feat)
+                    quallist.append(&#34;;&#34;.join([str(i) for i in qual]))
+                tempdf = pd.DataFrame({&#39;Feature id&#39;: featlist, qualifier: quallist})
+                qual_df = qual_df.merge(tempdf, how=&#34;outer&#34;, on=&#34;Feature id&#34;)
+        self.qualifiers = qual_df
+
+    def _get_nearby_features(self) -&gt; None:
+        &#34;&#34;&#34;Adds downstream information to the given target sequences and mapping information
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Note:
+            writes a dataframe of nearby features to self.nearby
+        &#34;&#34;&#34;
+        # Import Features
+        featurebed = BedTool.from_dataframe(self.genbank_bed_df)
+        # import guide files
+        mapbed = BedTool.from_dataframe(self.target_bed_df)
+        # get feature downstream of target sequence
+        downstream = mapbed.closest(featurebed, d=True, fd=True, D=&#34;a&#34;, t=&#34;first&#34;)
+        # get feature upstream of target sequence
+        upstream = mapbed.closest(featurebed, d=True, id=True, D=&#34;a&#34;, t=&#34;first&#34;)
+        headers = {0: &#34;Accession&#34;, 1: &#34;Guide start&#34;, 2: &#34;Guide end&#34;, 3:&#34;Guide sequence&#34;,
+                   4: &#34;Score&#34;, 5:&#34;Guide strand&#34;, 6: &#34;Feature Accession&#34;,
+                   7: &#34;Feature start&#34;, 8:&#34;Feature end&#34;, 9:&#34;Feature id&#34;,
+                   10:&#34;Feature score&#34;, 11:&#34;Feature strand&#34;, 12: &#34;Feature distance&#34;}
+        downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
+        downstream[&#39;direction&#39;] = &#39;downstream&#39;
+        upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
+        upstream[&#39;direction&#39;] = &#39;upstream&#39;
+        upstream = upstream.append(downstream)
+        self.nearby = upstream.rename(columns=headers)
+
+    def _filter_features(self, before_feat: int=100, after_feat: int=200) -&gt; None:
+        &#34;&#34;&#34;merge targets with Feature list and filter for guides close enough to interact.
+
+        Args:
+            before_feat (int): The maximum distance before the start of a feature measured from closest point to guide
+            after_feat (int): The maximum distance after the start codon (into the gene)
+
+        Returns:
+            None
+        &#34;&#34;&#34;
+        # for guides in the same orientation as the targets ( +/+ or -/-) select guides that are within
+        #  before_feat of the gene start
+        filtered_df = self.nearby.query(&#39;`Guide strand` == `Feature strand` and 0 &lt; `Feature distance` &lt; @before_feat&#39;)
+        # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;+&#34; and `Feature strand` == &#34;+&#34; \
+                                             and `Feature distance` == 0 and \
+                                             `Guide end` - `Feature start` &lt; @after_feat&#39;))
+        # for guides in the -/- orientation select guides where the end is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;-&#34; and `Feature strand` == &#34;-&#34; \
+                                                     and `Feature distance` == 0 \
+                                                     and `Feature end` - `Guide start` &lt; @after_feat&#39;))
+        # Select guides where target is + and guide is - and the guide is infront of the gene
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;-&#34; and `Feature strand` == &#34;+&#34; and \
+                                                     0 &lt;`Feature start` - `Guide end` &lt; @before_feat&#39; ))
+        # Select guides where target is - and guide is + and the guide is infront of the gene
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;+&#34; and `Feature strand` == &#34;-&#34; and \
+                                                     0 &lt;`Guide start` - `Feature end` &lt; @before_feat&#39; ))
+        # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;-&#34; and `Feature strand` == &#34;+&#34; and \
+                                                             0 &lt;`Guide end` -`Feature start`  &lt; @after_feat&#39;))
+        # Select guides where target is - and guide is + and the guide is is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;+&#34; and `Feature strand` == &#34;-&#34; and \
+                                                             0 &lt;`Feature end` - `Guide start` &lt; @after_feat&#39;))
+
+        self.filtered_df = filtered_df
+
+    def _format_guide_table(self, targetlist: List[object]) -&gt; object :
+        &#34;&#34;&#34;Create guide table for output
+
+        &#34;&#34;&#34;
+        def gc(seq):
+            cnt = 0
+            for letter in seq:
+                if letter in [&#34;G&#34;, &#34;C&#34;]:
+                    cnt += 1
+            return cnt/len(seq)
+        def get_exact_pam(seq):
+            return targetlist.neighbors[seq][&#34;target&#34;].exact_pam
+        def get_guide_hash(seq):
+            return targetlist.neighbors[seq][&#34;target&#34;].md5
+        def get_off_target_score(seq):
+            dlist = targetlist.neighbors[seq][&#34;neighbors&#34;][&#34;dist&#34;]
+            s = [str(i) for i in dlist]
+            return &#34;;&#34;.join(s)
+        def get_off_target_seqs(seq):
+            slist = targetlist.neighbors[seq][&#34;neighbors&#34;][&#34;seqs&#34;]
+            return &#34;;&#34;.join(slist)
+        pretty_df = self.filtered_df.copy()
+        pretty_df[&#39;GC&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(gc)
+        pretty_df[&#39;PAM&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_exact_pam)
+        pretty_df[&#39;Guide name&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_guide_hash)
+        pretty_df[&#39;Target strand&#39;] = np.where(pretty_df[&#39;Guide strand&#39;] == pretty_df[&#39;Feature strand&#39;], &#39;coding&#39;, &#39;non-coding&#39;)
+        pretty_df[&#39;Similar guide distances&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_off_target_score)
+        pretty_df[&#39;Similar guides&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_off_target_seqs)
+        pretty_df = pretty_df[[&#39;Guide name&#39;, &#34;Guide sequence&#34;, &#39;GC&#39;, &#34;Accession&#34;,&#34;Guide start&#34;, &#34;Guide end&#34;,
+                    &#34;Guide strand&#34;, &#39;PAM&#39;,  &#34;Feature id&#34;,
+                    &#34;Feature start&#34;, &#34;Feature end&#34;, &#34;Feature strand&#34;,
+                    &#34;Feature distance&#34;, &#39;Similar guides&#39;, &#39;Similar guide distances&#39;]]
+        pretty_df: object = pretty_df.merge(self.qualifiers, how=&#34;left&#34;, on=&#34;Feature id&#34;)
+        return pretty_df
+
+def annotate():
+    pass
+
+
+def get_fastas(filelist, tempdir=None):
+    &#34;&#34;&#34;Saves a Fasta and from 1 or more Genbank files (may be gzipped)
+    Args:
+        filelist (str): Genbank file to process
+
+    Returns:
+        None
+    &#34;&#34;&#34;
+    try:
+        fastpath = os.path.join(tempdir, &#34;forward.fasta&#34;)
+        with open(fastpath, &#34;w&#34;) as f1:
+            for file in filelist:
+                if is_gzip(file):
+                    with gzip.open(file, &#39;rt&#39;) as f:
+                        records = SeqIO.parse(f, &#34;genbank&#34;)
+                        SeqIO.write(records, f1, &#34;fasta&#34;)
+                else:
+                    with open(file, &#39;r&#39;) as f:
+                        records = (SeqIO.parse(f, &#34;genbank&#34;))
+                        SeqIO.write(records, f1, &#34;fasta&#34;)
+        return fastpath
+    except Exception as e:
+        print(&#34;An error occurred in input genbank file %s&#34; % file)
+        raise e</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="guidemaker.core.annotate"><code class="name flex">
+<span>def <span class="ident">annotate</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def annotate():
+    pass</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.get_fastas"><code class="name flex">
+<span>def <span class="ident">get_fastas</span></span>(<span>filelist, tempdir=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Saves a Fasta and from 1 or more Genbank files (may be gzipped)</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>filelist</code></strong> :&ensp;<code>str</code></dt>
+<dd>Genbank file to process</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>None</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_fastas(filelist, tempdir=None):
+    &#34;&#34;&#34;Saves a Fasta and from 1 or more Genbank files (may be gzipped)
+    Args:
+        filelist (str): Genbank file to process
+
+    Returns:
+        None
+    &#34;&#34;&#34;
+    try:
+        fastpath = os.path.join(tempdir, &#34;forward.fasta&#34;)
+        with open(fastpath, &#34;w&#34;) as f1:
+            for file in filelist:
+                if is_gzip(file):
+                    with gzip.open(file, &#39;rt&#39;) as f:
+                        records = SeqIO.parse(f, &#34;genbank&#34;)
+                        SeqIO.write(records, f1, &#34;fasta&#34;)
+                else:
+                    with open(file, &#39;r&#39;) as f:
+                        records = (SeqIO.parse(f, &#34;genbank&#34;))
+                        SeqIO.write(records, f1, &#34;fasta&#34;)
+        return fastpath
+    except Exception as e:
+        print(&#34;An error occurred in input genbank file %s&#34; % file)
+        raise e</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.is_gzip"><code class="name flex">
+<span>def <span class="ident">is_gzip</span></span>(<span>filename)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_gzip(filename):
+    try:
+        with open(filename, &#34;rb&#34;) as f:
+            return f.read(2) == b&#39;\x1f\x8b&#39;
+    except IOError as e:
+        logging.error(&#34;Could not open the file %s to determine if it was gzipped&#34; % filename)
+        raise e</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="guidemaker.core.Annotation"><code class="flex name class">
+<span>class <span class="ident">Annotation</span></span>
+<span>(</span><span>genbank_list: List[str], target_bed_df: object)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Annotation class for data and methods on targets and gene annotations</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>genbank_list</code></strong> :&ensp;<code>List[str]</code></dt>
+<dd>A list of genbank files from a single genome</dd>
+<dt><strong><code>target_bed_df</code></strong> :&ensp;<code>object</code></dt>
+<dd>A pandas dataframe in Bed format with the
+locations of targets in the genome</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>None</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Annotation:
+    def __init__(self, genbank_list: List[str], target_bed_df: object) -&gt; None:
+        &#34;&#34;&#34;Annotation class for data and methods on targets and gene annotations
+
+        Args:
+            genbank_list (List[str]): A list of genbank files from a single genome
+            target_bed_df (object): A pandas dataframe in Bed format with the
+                locations of targets in the genome
+        Returns:
+            None
+        &#34;&#34;&#34;
+        self.genbank_list: List[str] = genbank_list
+        self.target_bed_df: object = target_bed_df
+        self.genbank_bed_df: object = None
+        self.feature_dict: Dict = None
+        self.nearby: object = None
+        self.filtered_df: object = None
+        self.qualifiers: object = None
+
+    def _get_genbank_features(self, feature_types: List[str] = None) -&gt; None:
+        &#34;&#34;&#34;Parse genbank records into pandas DF/Bed format and dict format saving to self
+
+        Args:
+            feature_types (List[str]): a list of Genbank feature types to use
+
+        Returns:
+            None
+        &#34;&#34;&#34;
+        if feature_types is None:
+            feature_types = [&#34;CDS&#34;]
+        feature_dict = {}
+        pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], score=[], strand=[])
+        for gbfile in self.genbank_list:
+            try:
+                if is_gzip(gbfile):
+                    f = gzip.open(gbfile, mode=&#39;rt&#39;)
+                else:
+                    f = open(gbfile, mode=&#39;r&#39;)
+            except IOError as e:
+                logging.error(&#34;The genbank file %s could not be opened&#34; % gbfile)
+                raise e
+            genbank_file = SeqIO.parse(f, &#34;genbank&#34;)
+            for entry in genbank_file:
+                for record in entry.features:
+                    if record.type in feature_types:
+                        featid = hashlib.md5(str(record).encode()).hexdigest()
+                        pddict[&#39;chrom&#39;].append(entry.id)
+                        pddict[&#34;chromStart&#34;].append(record.location.start.position)
+                        pddict[&#34;chromEnd&#34;].append(record.location.end.position)
+                        pddict[&#34;name&#34;].append(featid)
+                        pddict[&#34;score&#34;].append(0)
+                        pddict[&#34;strand&#34;].append(&#34;-&#34; if record.strand &lt; 0 else &#34;+&#34;)
+                        for qualifier_key, qualifier_val in record.qualifiers.items():
+                            if not qualifier_key in feature_dict:
+                                feature_dict[qualifier_key] = {}
+                            feature_dict[qualifier_key][featid] = qualifier_val
+            genbankbed = pd.DataFrame.from_dict(pddict)
+            self.genbank_bed_df = genbankbed
+            self.feature_dict = feature_dict
+        f.close()
+
+    def _get_qualifiers(self, min_prop: float = 0.5, excluded: List[str] = None) -&gt; object:
+        &#34;&#34;&#34;Create a dataframe with features and their qualifier values
+
+        Create a dataframe with features and their qualifier values for
+        all qualifiers over the minimum threshold (except &#39;translation&#39;). Add
+        to self.qualifiers
+
+        Args:
+            min_prop (float): A float between 0-1 representing the fraction of
+            features the qualifier must be present in to be included in the dataframe
+            excluded (List(str)): A list of genbank qualifiers to exclude, Default [&#34;translation&#34;]
+        Returns:
+            None
+
+        &#34;&#34;&#34;
+        if excluded is None:
+            excluded = [&#34;translation&#34;]
+        final_quals = []
+        qual_df = pd.DataFrame(data ={&#34;Feature id&#34;:[]})
+        for quals in self.feature_dict:
+            if len(quals)/len(self.feature_dict) &gt; min_prop:
+                final_quals.append(quals)
+        for qualifier in final_quals:
+            if qualifier not in excluded:
+                featlist = []
+                quallist = []
+                for feat, qual in self.feature_dict[qualifier].items():
+                    featlist.append(feat)
+                    quallist.append(&#34;;&#34;.join([str(i) for i in qual]))
+                tempdf = pd.DataFrame({&#39;Feature id&#39;: featlist, qualifier: quallist})
+                qual_df = qual_df.merge(tempdf, how=&#34;outer&#34;, on=&#34;Feature id&#34;)
+        self.qualifiers = qual_df
+
+    def _get_nearby_features(self) -&gt; None:
+        &#34;&#34;&#34;Adds downstream information to the given target sequences and mapping information
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Note:
+            writes a dataframe of nearby features to self.nearby
+        &#34;&#34;&#34;
+        # Import Features
+        featurebed = BedTool.from_dataframe(self.genbank_bed_df)
+        # import guide files
+        mapbed = BedTool.from_dataframe(self.target_bed_df)
+        # get feature downstream of target sequence
+        downstream = mapbed.closest(featurebed, d=True, fd=True, D=&#34;a&#34;, t=&#34;first&#34;)
+        # get feature upstream of target sequence
+        upstream = mapbed.closest(featurebed, d=True, id=True, D=&#34;a&#34;, t=&#34;first&#34;)
+        headers = {0: &#34;Accession&#34;, 1: &#34;Guide start&#34;, 2: &#34;Guide end&#34;, 3:&#34;Guide sequence&#34;,
+                   4: &#34;Score&#34;, 5:&#34;Guide strand&#34;, 6: &#34;Feature Accession&#34;,
+                   7: &#34;Feature start&#34;, 8:&#34;Feature end&#34;, 9:&#34;Feature id&#34;,
+                   10:&#34;Feature score&#34;, 11:&#34;Feature strand&#34;, 12: &#34;Feature distance&#34;}
+        downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
+        downstream[&#39;direction&#39;] = &#39;downstream&#39;
+        upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
+        upstream[&#39;direction&#39;] = &#39;upstream&#39;
+        upstream = upstream.append(downstream)
+        self.nearby = upstream.rename(columns=headers)
+
+    def _filter_features(self, before_feat: int=100, after_feat: int=200) -&gt; None:
+        &#34;&#34;&#34;merge targets with Feature list and filter for guides close enough to interact.
+
+        Args:
+            before_feat (int): The maximum distance before the start of a feature measured from closest point to guide
+            after_feat (int): The maximum distance after the start codon (into the gene)
+
+        Returns:
+            None
+        &#34;&#34;&#34;
+        # for guides in the same orientation as the targets ( +/+ or -/-) select guides that are within
+        #  before_feat of the gene start
+        filtered_df = self.nearby.query(&#39;`Guide strand` == `Feature strand` and 0 &lt; `Feature distance` &lt; @before_feat&#39;)
+        # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;+&#34; and `Feature strand` == &#34;+&#34; \
+                                             and `Feature distance` == 0 and \
+                                             `Guide end` - `Feature start` &lt; @after_feat&#39;))
+        # for guides in the -/- orientation select guides where the end is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;-&#34; and `Feature strand` == &#34;-&#34; \
+                                                     and `Feature distance` == 0 \
+                                                     and `Feature end` - `Guide start` &lt; @after_feat&#39;))
+        # Select guides where target is + and guide is - and the guide is infront of the gene
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;-&#34; and `Feature strand` == &#34;+&#34; and \
+                                                     0 &lt;`Feature start` - `Guide end` &lt; @before_feat&#39; ))
+        # Select guides where target is - and guide is + and the guide is infront of the gene
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;+&#34; and `Feature strand` == &#34;-&#34; and \
+                                                     0 &lt;`Guide start` - `Feature end` &lt; @before_feat&#39; ))
+        # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;-&#34; and `Feature strand` == &#34;+&#34; and \
+                                                             0 &lt;`Guide end` -`Feature start`  &lt; @after_feat&#39;))
+        # Select guides where target is - and guide is + and the guide is is within [before_feat] of the gene start
+        filtered_df = filtered_df.append(self.nearby.query(&#39;`Guide strand` == &#34;+&#34; and `Feature strand` == &#34;-&#34; and \
+                                                             0 &lt;`Feature end` - `Guide start` &lt; @after_feat&#39;))
+
+        self.filtered_df = filtered_df
+
+    def _format_guide_table(self, targetlist: List[object]) -&gt; object :
+        &#34;&#34;&#34;Create guide table for output
+
+        &#34;&#34;&#34;
+        def gc(seq):
+            cnt = 0
+            for letter in seq:
+                if letter in [&#34;G&#34;, &#34;C&#34;]:
+                    cnt += 1
+            return cnt/len(seq)
+        def get_exact_pam(seq):
+            return targetlist.neighbors[seq][&#34;target&#34;].exact_pam
+        def get_guide_hash(seq):
+            return targetlist.neighbors[seq][&#34;target&#34;].md5
+        def get_off_target_score(seq):
+            dlist = targetlist.neighbors[seq][&#34;neighbors&#34;][&#34;dist&#34;]
+            s = [str(i) for i in dlist]
+            return &#34;;&#34;.join(s)
+        def get_off_target_seqs(seq):
+            slist = targetlist.neighbors[seq][&#34;neighbors&#34;][&#34;seqs&#34;]
+            return &#34;;&#34;.join(slist)
+        pretty_df = self.filtered_df.copy()
+        pretty_df[&#39;GC&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(gc)
+        pretty_df[&#39;PAM&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_exact_pam)
+        pretty_df[&#39;Guide name&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_guide_hash)
+        pretty_df[&#39;Target strand&#39;] = np.where(pretty_df[&#39;Guide strand&#39;] == pretty_df[&#39;Feature strand&#39;], &#39;coding&#39;, &#39;non-coding&#39;)
+        pretty_df[&#39;Similar guide distances&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_off_target_score)
+        pretty_df[&#39;Similar guides&#39;] = pretty_df[&#39;Guide sequence&#39;].apply(get_off_target_seqs)
+        pretty_df = pretty_df[[&#39;Guide name&#39;, &#34;Guide sequence&#34;, &#39;GC&#39;, &#34;Accession&#34;,&#34;Guide start&#34;, &#34;Guide end&#34;,
+                    &#34;Guide strand&#34;, &#39;PAM&#39;,  &#34;Feature id&#34;,
+                    &#34;Feature start&#34;, &#34;Feature end&#34;, &#34;Feature strand&#34;,
+                    &#34;Feature distance&#34;, &#39;Similar guides&#39;, &#39;Similar guide distances&#39;]]
+        pretty_df: object = pretty_df.merge(self.qualifiers, how=&#34;left&#34;, on=&#34;Feature id&#34;)
+        return pretty_df</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.Pam"><code class="flex name class">
+<span>class <span class="ident">Pam</span></span>
+<span>(</span><span>pam: str, pam_orientation: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A Class representing a Protospacer Adjacent Motif (PAM)</p>
+<p>Pam <strong>init</strong></p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>pam</code></strong> :&ensp;<code>str</code></dt>
+<dd>A DNA string in ambiguous IUPAC format</dd>
+<dt><strong><code>pam_orientation</code></strong> :&ensp;<code>str</code></dt>
+<dd>[5prime | 3prime ]
+5prime means the order is 5'-[pam][target]-3'
+3prime means the order is 5'-[target][pam]-3'</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Pam:
+    &#34;&#34;&#34;A Class representing a Protospacer Adjacent Motif (PAM)
+
+    &#34;&#34;&#34;
+
+    def extend_ambiguous_dna(self, pam) -&gt; None:
+        &#34;&#34;&#34;convert ambiguous DNA input to return frozen set of all sequences
+        Args:
+            pam (str): a pam seq (all caps)
+        Returns:
+            (frozenset): all possible sequences given an ambiguous DNA input
+
+        &#34;&#34;&#34;
+        pamseq = Seq(pam)
+        dnaval = {&#39;A&#39;: &#39;A&#39;, &#39;C&#39;: &#39;C&#39;, &#39;G&#39;: &#39;G&#39;, &#39;T&#39;: &#39;T&#39;,
+                  &#39;M&#39;: &#39;AC&#39;, &#39;R&#39;: &#39;AG&#39;, &#39;W&#39;: &#39;AT&#39;, &#39;S&#39;: &#39;CG&#39;,
+                  &#39;Y&#39;: &#39;CT&#39;, &#39;K&#39;: &#39;GT&#39;, &#39;V&#39;: &#39;ACG&#39;, &#39;H&#39;: &#39;ACT&#39;,
+                  &#39;D&#39;: &#39;AGT&#39;, &#39;B&#39;: &#39;CGT&#39;, &#39;X&#39;: &#39;GATC&#39;, &#39;N&#39;: &#39;GATC&#39;}
+        dnalist = []
+        for i in product(*[dnaval[j] for j in pamseq]):
+            dnalist.append(&#34;&#34;.join(i))
+        return frozenset(dnalist)
+
+    def reverse_complement(self) -&gt; object:
+        &#34;&#34;&#34;reverse complement of the PAM sequence
+        Args:
+            None
+        Returns:
+            str: a pam sequence, reverse complemented
+
+        &#34;&#34;&#34;
+        pamseq = Seq(self.pam)
+        return str(pamseq.reverse_complement())
+
+    def __init__(self, pam: str, pam_orientation: str) -&gt; None:
+        &#34;&#34;&#34;Pam __init__
+
+        Args:
+            pam (str): A DNA string in ambiguous IUPAC format
+            pam_orientation (str): [5prime | 3prime ]
+                5prime means the order is 5&#39;-[pam][target]-3&#39;
+                3prime means the order is 5&#39;-[target][pam]-3&#39;
+        &#34;&#34;&#34;
+        for letter in pam.upper():
+            assert letter in [&#39;G&#39;, &#39;A&#39;, &#39;T&#39;, &#39;C&#39;, &#39;N&#39; ]
+        assert pam_orientation in [&#34;3prime&#34;, &#34;5prime&#34;]
+        self.pam: str = pam.upper()
+        self.pam_orientation: str = pam_orientation
+        self.fset = self.extend_ambiguous_dna(self.pam)
+        self.rset = rset = self.extend_ambiguous_dna(self.reverse_complement())
+
+    def __str__(self) -&gt; str:
+        return &#34;A PAM object: {self.pam}&#34;.format(self=self)
+
+
+
+    def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -&gt; List[object]:
+        &#34;&#34;&#34;Find all targets on a sequence that match for the PAM on the requested strand(s)
+
+        Args:
+            seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
+            strand (str): The strand to search choices: [&#34;forward&#34;, &#34;reverse&#34;, &#34;both&#34;]
+            target_len (int): The length of the target sequence
+        Returns:
+            list: A list of Target class instances
+
+        &#34;&#34;&#34;
+
+        def window(iterable, size):
+            iters = tee(iterable, size)
+            for i in range(1, size):
+                for each in iters[i:]:
+                    next(each, None)
+            return zip(*iters)
+#                5prime means the order is 5&#39;-[pam][target]-3&#39;
+#                3prime means the order is 5&#39;-[target][pam]-3&#39;
+        def compute_seq_coords(self, hitset, strand, target_len, seqrecord, i):
+            if hitset == &#34;fset&#34; and strand in (&#34;forward&#34;, &#34;both&#34;) and self.pam_orientation == &#34;3prime&#34;:
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq)
+            elif hitset == &#34;fset&#34; and strand in (&#34;forward&#34;, &#34;both&#34;) and self.pam_orientation == &#34;5prime&#34;:
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[start - len(self.pam):(start)].seq)
+            elif hitset == &#34;rset&#34; and strand in (&#34;reverse&#34;, &#34;both&#34;) and self.pam_orientation == &#34;3prime&#34;:
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq.reverse_complement())
+            elif hitset == &#34;rset&#34; and strand in (&#34;reverse&#34;, &#34;both&#34;) and self.pam_orientation == &#34;5prime&#34;:
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam =str(seqrecord[start - len(self.pam):(start)].seq.reverse_complement())
+            else:
+                return None
+            if 0 &lt;= start &lt;= len(seqrecord) and 0 &lt;= stop &lt;= len(seqrecord):
+                return Target(seq=seq,
+                              exact_pam=exact_pam,
+                              strand=strand,
+                              pam_orientation=self.pam_orientation,
+                              seqid=seqrecord.id,
+                              start=start,
+                              stop=stop)
+
+        # Create iterable of PAM length windows across the sequence
+        target_list = deque()
+        for seqrecord in seq_record_iter:
+            kmer_iter = window(str(seqrecord.seq), len(self.pam))
+            for i, kmer in enumerate(kmer_iter):
+                hitset = None
+                kmerstr = &#39;&#39;.join(kmer)
+                if strand in [&#34;forward&#34;, &#34;both&#34;] and kmerstr in self.fset:
+                    hitset = &#34;fset&#34;
+                    gstrand = &#34;forward&#34;
+                elif strand in [&#34;reverse&#34;, &#34;both&#34;] and kmerstr in self.rset:
+                    hitset = &#34;rset&#34;
+                    gstrand = &#34;reverse&#34;
+                else:
+                    continue
+                tar = compute_seq_coords(self, hitset=hitset,
+                                         strand=gstrand,
+                                         target_len=target_len,
+                                         seqrecord=seqrecord,
+                                         i=i)
+                if tar:
+                    target_list.append(tar)
+        return list(target_list)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="guidemaker.core.Pam.extend_ambiguous_dna"><code class="name flex">
+<span>def <span class="ident">extend_ambiguous_dna</span></span>(<span>self, pam) -> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"><p>convert ambiguous DNA input to return frozen set of all sequences</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>pam</code></strong> :&ensp;<code>str</code></dt>
+<dd>a pam seq (all caps)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(frozenset): all possible sequences given an ambiguous DNA input</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extend_ambiguous_dna(self, pam) -&gt; None:
+    &#34;&#34;&#34;convert ambiguous DNA input to return frozen set of all sequences
+    Args:
+        pam (str): a pam seq (all caps)
+    Returns:
+        (frozenset): all possible sequences given an ambiguous DNA input
+
+    &#34;&#34;&#34;
+    pamseq = Seq(pam)
+    dnaval = {&#39;A&#39;: &#39;A&#39;, &#39;C&#39;: &#39;C&#39;, &#39;G&#39;: &#39;G&#39;, &#39;T&#39;: &#39;T&#39;,
+              &#39;M&#39;: &#39;AC&#39;, &#39;R&#39;: &#39;AG&#39;, &#39;W&#39;: &#39;AT&#39;, &#39;S&#39;: &#39;CG&#39;,
+              &#39;Y&#39;: &#39;CT&#39;, &#39;K&#39;: &#39;GT&#39;, &#39;V&#39;: &#39;ACG&#39;, &#39;H&#39;: &#39;ACT&#39;,
+              &#39;D&#39;: &#39;AGT&#39;, &#39;B&#39;: &#39;CGT&#39;, &#39;X&#39;: &#39;GATC&#39;, &#39;N&#39;: &#39;GATC&#39;}
+    dnalist = []
+    for i in product(*[dnaval[j] for j in pamseq]):
+        dnalist.append(&#34;&#34;.join(i))
+    return frozenset(dnalist)</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.Pam.find_targets"><code class="name flex">
+<span>def <span class="ident">find_targets</span></span>(<span>self, seq_record_iter: object, strand: str, target_len: int) -> List[object]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Find all targets on a sequence that match for the PAM on the requested strand(s)</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>seq_record_iter</code></strong> :&ensp;<code>object</code></dt>
+<dd>A Biopython SeqRecord iterator from SeqIO.parse</dd>
+<dt><strong><code>strand</code></strong> :&ensp;<code>str</code></dt>
+<dd>The strand to search choices: ["forward", "reverse", "both"]</dd>
+<dt><strong><code>target_len</code></strong> :&ensp;<code>int</code></dt>
+<dd>The length of the target sequence</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code></dt>
+<dd>A list of Target class instances</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">    def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -&gt; List[object]:
+        &#34;&#34;&#34;Find all targets on a sequence that match for the PAM on the requested strand(s)
+
+        Args:
+            seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
+            strand (str): The strand to search choices: [&#34;forward&#34;, &#34;reverse&#34;, &#34;both&#34;]
+            target_len (int): The length of the target sequence
+        Returns:
+            list: A list of Target class instances
+
+        &#34;&#34;&#34;
+
+        def window(iterable, size):
+            iters = tee(iterable, size)
+            for i in range(1, size):
+                for each in iters[i:]:
+                    next(each, None)
+            return zip(*iters)
+#                5prime means the order is 5&#39;-[pam][target]-3&#39;
+#                3prime means the order is 5&#39;-[target][pam]-3&#39;
+        def compute_seq_coords(self, hitset, strand, target_len, seqrecord, i):
+            if hitset == &#34;fset&#34; and strand in (&#34;forward&#34;, &#34;both&#34;) and self.pam_orientation == &#34;3prime&#34;:
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq)
+            elif hitset == &#34;fset&#34; and strand in (&#34;forward&#34;, &#34;both&#34;) and self.pam_orientation == &#34;5prime&#34;:
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord[start:stop].seq)
+                exact_pam = str(seqrecord[start - len(self.pam):(start)].seq)
+            elif hitset == &#34;rset&#34; and strand in (&#34;reverse&#34;, &#34;both&#34;) and self.pam_orientation == &#34;3prime&#34;:
+                start = i + len(self.pam)
+                stop = i + len(self.pam) + target_len
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq.reverse_complement())
+            elif hitset == &#34;rset&#34; and strand in (&#34;reverse&#34;, &#34;both&#34;) and self.pam_orientation == &#34;5prime&#34;:
+                start = i - target_len
+                stop = i
+                seq = str(seqrecord[start:stop].seq.reverse_complement())
+                exact_pam =str(seqrecord[start - len(self.pam):(start)].seq.reverse_complement())
+            else:
+                return None
+            if 0 &lt;= start &lt;= len(seqrecord) and 0 &lt;= stop &lt;= len(seqrecord):
+                return Target(seq=seq,
+                              exact_pam=exact_pam,
+                              strand=strand,
+                              pam_orientation=self.pam_orientation,
+                              seqid=seqrecord.id,
+                              start=start,
+                              stop=stop)
+
+        # Create iterable of PAM length windows across the sequence
+        target_list = deque()
+        for seqrecord in seq_record_iter:
+            kmer_iter = window(str(seqrecord.seq), len(self.pam))
+            for i, kmer in enumerate(kmer_iter):
+                hitset = None
+                kmerstr = &#39;&#39;.join(kmer)
+                if strand in [&#34;forward&#34;, &#34;both&#34;] and kmerstr in self.fset:
+                    hitset = &#34;fset&#34;
+                    gstrand = &#34;forward&#34;
+                elif strand in [&#34;reverse&#34;, &#34;both&#34;] and kmerstr in self.rset:
+                    hitset = &#34;rset&#34;
+                    gstrand = &#34;reverse&#34;
+                else:
+                    continue
+                tar = compute_seq_coords(self, hitset=hitset,
+                                         strand=gstrand,
+                                         target_len=target_len,
+                                         seqrecord=seqrecord,
+                                         i=i)
+                if tar:
+                    target_list.append(tar)
+        return list(target_list)</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.Pam.reverse_complement"><code class="name flex">
+<span>def <span class="ident">reverse_complement</span></span>(<span>self) -> object</span>
+</code></dt>
+<dd>
+<div class="desc"><p>reverse complement of the PAM sequence</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>None</code></strong></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>a pam sequence, reverse complemented</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reverse_complement(self) -&gt; object:
+    &#34;&#34;&#34;reverse complement of the PAM sequence
+    Args:
+        None
+    Returns:
+        str: a pam sequence, reverse complemented
+
+    &#34;&#34;&#34;
+    pamseq = Seq(self.pam)
+    return str(pamseq.reverse_complement())</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="guidemaker.core.Target"><code class="flex name class">
+<span>class <span class="ident">Target</span></span>
+<span>(</span><span>seq: str, exact_pam: str, strand: str, pam_orientation: str, seqid: str, start: int, stop: int)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A class representing a candidate target sequence for a PAM</p>
+<p>This is an object for holding data on possible target sequences
+adjacent to PAM sites.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Target:
+    &#34;&#34;&#34;A class representing a candidate target sequence for a PAM
+
+    This is an object for holding data on possible target sequences
+    adjacent to PAM sites.
+    &#34;&#34;&#34;
+    def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
+                 seqid: str, start: int, stop: int) -&gt; object:
+        self.seq: str = seq
+        self.exact_pam: str = exact_pam
+        self.strand: str = strand
+        self.pam_orientation: str = pam_orientation
+        self.seqid: str = seqid
+        self.start: int = start
+        self.stop: int = stop
+        self.md5: str = hashlib.md5(seq.encode()).hexdigest()
+
+    def __str__(self) -&gt; str:
+        return &#34;A Target object: {self.seq} on sequence {self.seqid} \
+                position {self.start}&#34;.format(self=self)
+
+    def __eq__(self, other):
+        return other == self.seq
+    def __ne__(self, other):
+        return not self.__eq__(other)
+    def __len__(self):
+        return len(self.seq)</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.TargetList"><code class="flex name class">
+<span>class <span class="ident">TargetList</span></span>
+<span>(</span><span>targets: List, lcp: int, hammingdist: int = 2, knum: int = 2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A Class representing a set of guide RNA targets</p>
+<p>The class includes all targets in a set, a dict filtered to be unique in
+the region near the PAM, and a dict with edit distances for sequences.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TargetList:
+    &#34;&#34;&#34;A Class representing a set of guide RNA targets
+
+    The class includes all targets in a set, a dict filtered to be unique in
+    the region near the PAM, and a dict with edit distances for sequences.
+
+    &#34;&#34;&#34;
+    def __init__(self, targets: List, lcp: int, hammingdist: int=2, knum: int=2) -&gt; None:
+        self.targets: List = targets
+        self.lcp: int = lcp
+        self.hammingdist: int = hammingdist
+        self.knum: int = knum
+        self.unique_targets: dict = {}
+        self.nmslib_index: object = None
+        self.neighbors: dict = {}
+
+    def __str__(self):
+        info = &#34;TargetList: contains a set of {} potential PAM targets&#34;.format(len(self.targets))
+        return info
+
+    def __len__(self):
+        return len(self.targets)
+
+    def _one_hot_encode(self, seq_list: List[object])-&gt; List[str]:
+        &#34;&#34;&#34;One hot encode Target DNA as a binary string representation for LMSLIB
+
+        &#34;&#34;&#34;
+        charmap = {&#39;A&#39;: &#39;1 0 0 0&#39;, &#39;C&#39;: &#39;0 1 0 0&#39;, &#39;G&#39;: &#39;0 0 1 0&#39;, &#39;T&#39;: &#39;0 0 0 1&#39;}
+        def seq_to_bin(target_obj):
+            seq = target_obj.seq
+            charlist = [charmap[letter] for letter in seq]
+            return &#34; &#34;.join(charlist)
+        return list(map(seq_to_bin, seq_list))
+
+
+    def find_unique_near_pam(self) -&gt; None:
+        &#34;&#34;&#34;identify unique sequences in the target list
+
+        The function filters a list of Target objects for targets that
+        are unique in the region closest to the PAM. The region length is defined
+        by the lcp.
+
+        Args:
+            lcp (int): Length of conserved sequence close to PAM
+        &#34;&#34;&#34;
+        def _get_prox(target):
+            if target.pam_orientation == &#34;5prime&#34;:
+                return target.seq[0:self.lcp]
+            elif target.pam_orientation == &#34;3prime&#34;:
+                return target.seq[(len(target) - self.lcp):]
+        lcp_dict ={}
+        for target in self.targets:
+            proximal = _get_prox(target)
+            if proximal in lcp_dict.keys():
+                lcp_dict[proximal].append(target)
+            else:
+                lcp_dict[proximal] = [target]
+        filteredlist = deque()
+        for lkey, lval in lcp_dict.items():
+            if len(lval) == 1:
+                filteredlist.append(lval[0])
+        self.unique_targets = list(filteredlist)
+
+
+    def create_index(self, M: int=16, num_threads=2, efC: int=64, post=1) -&gt; None:
+        &#34;&#34;&#34;Create nmslib index
+
+        Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
+
+        Args:
+            num_threads (int): cpu threads
+            M (int): Controls the number of bi-directional links created for each element
+                during index construction. Higher values lead to better results at the expense
+                of memory consumption. Typical values are 2 -100, but for most datasets a
+                range of 12 -48 is suitable. Can’t be smaller than 2.
+            efC (int): Size of the dynamic list used during construction. A larger value means
+                   a better quality index, but increases build time. Should be an integer value
+                   between 1 and the size of the dataset.
+
+        Returns:
+            None (but writes NMSLIB index to self)
+        &#34;&#34;&#34;
+        bintargets = self._one_hot_encode(self.targets)
+        index_params = {&#39;M&#39;: M, &#39;indexThreadQty&#39;: num_threads,&#39;efConstruction&#39;: efC, &#39;post&#39;: post}
+        index = nmslib.init(space=&#39;bit_hamming&#39;,
+                            dtype=nmslib.DistType.INT,
+                            data_type=nmslib.DataType.OBJECT_AS_STRING,
+                            method=&#39;hnsw&#39;)
+        index.addDataPointBatch(bintargets)
+        index.createIndex(index_params, print_progress=True)
+        self.nmslib_index = index
+
+    def get_neighbors(self, ef=256, num_threads=2) -&gt; None:
+        &#34;&#34;&#34;Get nearest neighbors for sequences removing sequences that
+         have neighbors less than the Hamming distance threshold
+
+        For the list of all targets calculate the (knum) nearest neighbors.
+        filter out targets with close neighbors and
+        Writes a dictionary to self.neighbors:
+        self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, ...], dist:[d1, d1,...]}}
+
+        Args: None
+        Returns: None
+        &#34;&#34;&#34;
+        if not self.unique_targets:
+            self.find_unique_near_pam()
+        bintargets = self._one_hot_encode(self.unique_targets)
+        self.nmslib_index.setQueryTimeParams({&#39;efSearch&#39;: ef})
+        results_list = self.nmslib_index.knnQueryBatch(bintargets,
+                                               k=self.knum, num_threads = num_threads)
+        neighbor_dict = {}
+        for i, entry in enumerate(results_list):
+
+            queryseq = self.unique_targets[i - 1].seq
+            hitseqidx = list(entry[0])
+            hammingdist = list(entry[1])
+            if hammingdist[1] &gt;= 4 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
+                neighbors = {&#34;seqs&#34;: [self.targets[x-1].seq for x in hitseqidx], # reverse this?
+                             &#34;dist&#34;: [int(x/4) for x in hammingdist]}
+                neighbor_dict[queryseq] = {&#34;target&#34;: self.unique_targets[i - 1],
+                                           &#34;neighbors&#34;: neighbors}
+        self.neighbors = neighbor_dict
+
+    def export_bed(self) -&gt; object:
+        &#34;&#34;&#34;export the targets in self.neighbors to a bed format file
+
+        Args:
+            file (str): the name and location of file to export
+
+        Returns:
+            (obj): A Pandas Dataframe in Bed format
+        &#34;&#34;&#34;
+        bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
+        for rec in self.neighbors.values():
+            bdict[&#39;chrom&#39;].append(rec[&#34;target&#34;].seqid)
+            bdict[&#39;chromstart&#39;].append(rec[&#34;target&#34;].start)
+            bdict[&#39;chromend&#39;].append(rec[&#34;target&#34;].stop)
+            bdict[&#39;name&#39;].append(rec[&#34;target&#34;].seq)
+            bdict[&#39;score&#39;].append(0)
+            if rec[&#34;target&#34;].strand == &#34;forward&#34;:
+                bdict[&#39;strand&#39;].append(&#34;+&#34;)
+            elif rec[&#34;target&#34;].strand == &#34;reverse&#34;:
+                bdict[&#39;strand&#39;].append(&#34;-&#34;)
+        df = pd.DataFrame.from_dict(bdict)
+        df.sort_values(by=[&#39;chrom&#39;, &#39;chromstart&#39;], inplace=True)
+        return df</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="guidemaker.core.TargetList.create_index"><code class="name flex">
+<span>def <span class="ident">create_index</span></span>(<span>self, M: int = 16, num_threads=2, efC: int = 64, post=1) -> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create nmslib index</p>
+<p>Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>num_threads</code></strong> :&ensp;<code>int</code></dt>
+<dd>cpu threads</dd>
+<dt><strong><code>M</code></strong> :&ensp;<code>int</code></dt>
+<dd>Controls the number of bi-directional links created for each element
+during index construction. Higher values lead to better results at the expense
+of memory consumption. Typical values are 2 -100, but for most datasets a
+range of 12 -48 is suitable. Can’t be smaller than 2.</dd>
+<dt><strong><code>efC</code></strong> :&ensp;<code>int</code></dt>
+<dd>Size of the dynamic list used during construction. A larger value means
+a better quality index, but increases build time. Should be an integer value
+between 1 and the size of the dataset.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>None (but writes NMSLIB index to self)</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_index(self, M: int=16, num_threads=2, efC: int=64, post=1) -&gt; None:
+    &#34;&#34;&#34;Create nmslib index
+
+    Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
+
+    Args:
+        num_threads (int): cpu threads
+        M (int): Controls the number of bi-directional links created for each element
+            during index construction. Higher values lead to better results at the expense
+            of memory consumption. Typical values are 2 -100, but for most datasets a
+            range of 12 -48 is suitable. Can’t be smaller than 2.
+        efC (int): Size of the dynamic list used during construction. A larger value means
+               a better quality index, but increases build time. Should be an integer value
+               between 1 and the size of the dataset.
+
+    Returns:
+        None (but writes NMSLIB index to self)
+    &#34;&#34;&#34;
+    bintargets = self._one_hot_encode(self.targets)
+    index_params = {&#39;M&#39;: M, &#39;indexThreadQty&#39;: num_threads,&#39;efConstruction&#39;: efC, &#39;post&#39;: post}
+    index = nmslib.init(space=&#39;bit_hamming&#39;,
+                        dtype=nmslib.DistType.INT,
+                        data_type=nmslib.DataType.OBJECT_AS_STRING,
+                        method=&#39;hnsw&#39;)
+    index.addDataPointBatch(bintargets)
+    index.createIndex(index_params, print_progress=True)
+    self.nmslib_index = index</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.TargetList.export_bed"><code class="name flex">
+<span>def <span class="ident">export_bed</span></span>(<span>self) -> object</span>
+</code></dt>
+<dd>
+<div class="desc"><p>export the targets in self.neighbors to a bed format file</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>file</code></strong> :&ensp;<code>str</code></dt>
+<dd>the name and location of file to export</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(obj): A Pandas Dataframe in Bed format</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def export_bed(self) -&gt; object:
+    &#34;&#34;&#34;export the targets in self.neighbors to a bed format file
+
+    Args:
+        file (str): the name and location of file to export
+
+    Returns:
+        (obj): A Pandas Dataframe in Bed format
+    &#34;&#34;&#34;
+    bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
+    for rec in self.neighbors.values():
+        bdict[&#39;chrom&#39;].append(rec[&#34;target&#34;].seqid)
+        bdict[&#39;chromstart&#39;].append(rec[&#34;target&#34;].start)
+        bdict[&#39;chromend&#39;].append(rec[&#34;target&#34;].stop)
+        bdict[&#39;name&#39;].append(rec[&#34;target&#34;].seq)
+        bdict[&#39;score&#39;].append(0)
+        if rec[&#34;target&#34;].strand == &#34;forward&#34;:
+            bdict[&#39;strand&#39;].append(&#34;+&#34;)
+        elif rec[&#34;target&#34;].strand == &#34;reverse&#34;:
+            bdict[&#39;strand&#39;].append(&#34;-&#34;)
+    df = pd.DataFrame.from_dict(bdict)
+    df.sort_values(by=[&#39;chrom&#39;, &#39;chromstart&#39;], inplace=True)
+    return df</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.TargetList.find_unique_near_pam"><code class="name flex">
+<span>def <span class="ident">find_unique_near_pam</span></span>(<span>self) -> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"><p>identify unique sequences in the target list</p>
+<p>The function filters a list of Target objects for targets that
+are unique in the region closest to the PAM. The region length is defined
+by the lcp.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>lcp</code></strong> :&ensp;<code>int</code></dt>
+<dd>Length of conserved sequence close to PAM</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def find_unique_near_pam(self) -&gt; None:
+    &#34;&#34;&#34;identify unique sequences in the target list
+
+    The function filters a list of Target objects for targets that
+    are unique in the region closest to the PAM. The region length is defined
+    by the lcp.
+
+    Args:
+        lcp (int): Length of conserved sequence close to PAM
+    &#34;&#34;&#34;
+    def _get_prox(target):
+        if target.pam_orientation == &#34;5prime&#34;:
+            return target.seq[0:self.lcp]
+        elif target.pam_orientation == &#34;3prime&#34;:
+            return target.seq[(len(target) - self.lcp):]
+    lcp_dict ={}
+    for target in self.targets:
+        proximal = _get_prox(target)
+        if proximal in lcp_dict.keys():
+            lcp_dict[proximal].append(target)
+        else:
+            lcp_dict[proximal] = [target]
+    filteredlist = deque()
+    for lkey, lval in lcp_dict.items():
+        if len(lval) == 1:
+            filteredlist.append(lval[0])
+    self.unique_targets = list(filteredlist)</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.core.TargetList.get_neighbors"><code class="name flex">
+<span>def <span class="ident">get_neighbors</span></span>(<span>self, ef=256, num_threads=2) -> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get nearest neighbors for sequences removing sequences that
+have neighbors less than the Hamming distance threshold</p>
+<p>For the list of all targets calculate the (knum) nearest neighbors.
+filter out targets with close neighbors and
+Writes a dictionary to self.neighbors:
+self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, &hellip;], dist:[d1, d1,&hellip;]}}</p>
+<p>Args: None
+Returns: None</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_neighbors(self, ef=256, num_threads=2) -&gt; None:
+    &#34;&#34;&#34;Get nearest neighbors for sequences removing sequences that
+     have neighbors less than the Hamming distance threshold
+
+    For the list of all targets calculate the (knum) nearest neighbors.
+    filter out targets with close neighbors and
+    Writes a dictionary to self.neighbors:
+    self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, ...], dist:[d1, d1,...]}}
+
+    Args: None
+    Returns: None
+    &#34;&#34;&#34;
+    if not self.unique_targets:
+        self.find_unique_near_pam()
+    bintargets = self._one_hot_encode(self.unique_targets)
+    self.nmslib_index.setQueryTimeParams({&#39;efSearch&#39;: ef})
+    results_list = self.nmslib_index.knnQueryBatch(bintargets,
+                                           k=self.knum, num_threads = num_threads)
+    neighbor_dict = {}
+    for i, entry in enumerate(results_list):
+
+        queryseq = self.unique_targets[i - 1].seq
+        hitseqidx = list(entry[0])
+        hammingdist = list(entry[1])
+        if hammingdist[1] &gt;= 4 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
+            neighbors = {&#34;seqs&#34;: [self.targets[x-1].seq for x in hitseqidx], # reverse this?
+                         &#34;dist&#34;: [int(x/4) for x in hammingdist]}
+            neighbor_dict[queryseq] = {&#34;target&#34;: self.unique_targets[i - 1],
+                                       &#34;neighbors&#34;: neighbors}
+    self.neighbors = neighbor_dict</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="guidemaker" href="index.html">guidemaker</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="guidemaker.core.annotate" href="#guidemaker.core.annotate">annotate</a></code></li>
+<li><code><a title="guidemaker.core.get_fastas" href="#guidemaker.core.get_fastas">get_fastas</a></code></li>
+<li><code><a title="guidemaker.core.is_gzip" href="#guidemaker.core.is_gzip">is_gzip</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="guidemaker.core.Annotation" href="#guidemaker.core.Annotation">Annotation</a></code></h4>
+</li>
+<li>
+<h4><code><a title="guidemaker.core.Pam" href="#guidemaker.core.Pam">Pam</a></code></h4>
+<ul class="">
+<li><code><a title="guidemaker.core.Pam.extend_ambiguous_dna" href="#guidemaker.core.Pam.extend_ambiguous_dna">extend_ambiguous_dna</a></code></li>
+<li><code><a title="guidemaker.core.Pam.find_targets" href="#guidemaker.core.Pam.find_targets">find_targets</a></code></li>
+<li><code><a title="guidemaker.core.Pam.reverse_complement" href="#guidemaker.core.Pam.reverse_complement">reverse_complement</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="guidemaker.core.Target" href="#guidemaker.core.Target">Target</a></code></h4>
+</li>
+<li>
+<h4><code><a title="guidemaker.core.TargetList" href="#guidemaker.core.TargetList">TargetList</a></code></h4>
+<ul class="">
+<li><code><a title="guidemaker.core.TargetList.create_index" href="#guidemaker.core.TargetList.create_index">create_index</a></code></li>
+<li><code><a title="guidemaker.core.TargetList.export_bed" href="#guidemaker.core.TargetList.export_bed">export_bed</a></code></li>
+<li><code><a title="guidemaker.core.TargetList.find_unique_near_pam" href="#guidemaker.core.TargetList.find_unique_near_pam">find_unique_near_pam</a></code></li>
+<li><code><a title="guidemaker.core.TargetList.get_neighbors" href="#guidemaker.core.TargetList.get_neighbors">get_neighbors</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.8.1</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

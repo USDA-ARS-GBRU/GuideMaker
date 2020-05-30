@@ -1,11 +1,12 @@
-GuideFinder: globally design gRNAs for any CRISPR-Cas system in any small genome
+GuideMaker: globally design gRNAs for any CRISPR-Cas system in any small genome
 ==================================================================================================
 
 Authors
 -------
-* Ravin Poudel, US Department of Agriculture, Agricultural Research Service
-* Christopher Reisch, Department of Microbiology and Cell Science, University of Florida
-* Adam R. Rivers, US Department of Agriculture, Agricultural Research Service
+* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
+* Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
+* Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
+* Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
 
 
 Introduction
@@ -15,13 +16,13 @@ Introduction
 
 Installation
 -------------
-GuideFinder can be installed from:
+GuideMaker can be installed from:
 
-1. The Github repository: https://github.com/USDA-ARS-GBRU/guidefinder
+1. The Github repository: https://github.com/USDA-ARS-GBRU/guidemaker
 
 .. code-block:: bash
 
-    git clone https://github.com/USDA-ARS-GBRU/guiefinder.git
+    git clone https://github.com/USDA-ARS-GBRU/guiemaker.git
 
 
 Dependencies
@@ -30,42 +31,66 @@ Following are the required softwares/programs.
 
 - ``pybedtools``
 
-- ``NMSLIB``
+- ``NMSLib``
 
 - ``Biopython``
+
+- ``Pandas``
 
 
 Usage
 ---------
+GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome
 
--h, --help		Show this help message and exit.
--i, --gbkfile		A ``.GBk``, ``.GB`` file or files. Supports single or multiple genome files with single or multiple chromosomes. Required.
--p, --pamseq		A short PAM motif to search for, may be use IUPAC ambiguous alphabet. Required.
--l, --targetlength	Length of the target sequence. Default is 22.
--s, --strand		Strand of DNA to search for PAM motif. Default is forward. Options: {forward, reverse}.
---lcp			Length of conserved sequence close to PAM motif. Default is 12.
---eds			UnexceptedLevenshtein edit distance on the distal portion of target sequence from PAM motif. Options: {0, 1, 2, 3, 4, 5}. Default is 2.
--o, --outfile		The table of pam sites and data. Required.
---tempdir		Specify the temp file directory. Default is None.
---keeptemp		Should intermediate files be kept? Default is false.
---log			Log file.Default is predictPAM.log.
+optional arguments:
+  -h, --help            show this help message and exit
+  --genbank GENBANK [GENBANK ...], -i GENBANK [GENBANK ...]
+                        One or more genbank .gbk or gzipped .gbk files for a
+                        single genome
+  --pamseq PAMSEQ, -p PAMSEQ
+                        A short PAM motif to search for, it may use IUPAC
+                        ambiguous alphabet
+  --outfile OUTFILE, -o OUTFILE
+                        The table of PAM sites and data
+  --pam_orientation {5prime,3prime}, -r {5prime,3prime}
+                        PAM position relative to target: 5prime:
+                        [PAM][target], 3prime: [target][PAM]. For example,
+                        Cas9 is 3prime
+  --guidelength [10-27], -l [10-27]
+                        Length of the guide sequence
+  --strand {forward,reverse,both}, -s {forward,reverse,both}
+                        Strand of DNA to search
+  --lcp [0-27]          Length of the guide closest to the PAM required to be
+                        unique
+  --dist [1-5]          Minimum hamming distance from any other potential
+                        guide
+  --before [1-500]      keep guides this far in front of a feature
+  --into [1-500]        keep guides this far inside (past the start site)of a
+                        feature
+  --knum [2-20]         how many sequences similar to the guide to report
+  --threads THREADS     The number of cpu threads to use
+  --log LOG             Log file
+  --tempdir TEMPDIR     The temp file directory
+  -V, --version         show program's version number and exit
 
 
 
 Examples
 ---------
 
-``Use case:`` Retrieving target sequence for a given PAM motif in the forward strand, where length of target sequence is 25 base pair.
-12 base pair close to PAM motif is conserved ,i.e. unique. Remaining sequence at the distal end to PAM motif has leven distance of more than 2.
-Here the number of used threads is 2, and we want to keep the temporary directory.
-Return a table of pam sites and associated data, at the current folder.
+``Use case:`` Retrieving target sequence for a given PAM motif in the forward and reverse strands, where length of guide sequence is 20 base pair.
+12 base pair close to PAM motif is conserved ,i.e. unique and the full sequence has a hamming distance of more than 2.
+Here the number of used threads is 2
+Return a table of pam sites and associated data, at in current folder.
 
 .. code-block:: bash
 
-    predictPAM -i sample.gbk -p ATCGAT --targetlength 25 --strand forward \
-    --lcp 12 --eds 2 --outfile out.txt \
-    --log logfile.txt --keeptemp --threads 2
+    guidemaker -i sample.gbk -p NGG --targetlength 20 --strand both \
+    --lcp 10 --dist 2 --outfile out.txt \
+    --log logfile.txt --threads 2
 
 
 License information
 --------------------
+
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
