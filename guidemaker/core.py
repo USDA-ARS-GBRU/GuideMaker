@@ -2,15 +2,17 @@
 
 """
 import os
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import logging
 from itertools import product, tee
 import gzip
 import hashlib
+import statistics
 from collections import deque
 import numpy as np
 from Bio.Seq import Seq
 from Bio import SeqIO
+from Bio.SeqUtils import GC
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
@@ -331,6 +333,50 @@ class TargetList:
         df = pd.DataFrame.from_dict(bdict)
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
+
+    def get_control_seqs(self, seq_record_iter: object, length: int=20, n: int=1000,
+                         search_mult: int=10, num_threads: int=2) -> Tuple[int, float, int, List[int], List[str]]:
+        """Create random sequences with a specified GC probability and find seqs with the greatest
+         distance to any sequence flanking a PAM site
+
+        Args:
+            seq_record_iter (Bio.SeqIO): an iterator of Fastas
+            length (int): length of the sequence, must match the index
+            n = number of sequences to  return
+            search_mult (int): search this times n sequences
+            num_threads (int) nuer of processor threads
+        """
+        # get GC percent
+        totlen = 0
+        gccnt = 0
+        for record in seq_record_iter:
+            gccnt += GC(record.seq) * len(record)
+            totlen += len(record)
+        gc = gccnt/(totlen*100)
+        # generate random sequences
+        seqs = []
+        for i in range(n  * search_mult):
+            seqs.append("".join(np.random.choice(a=["G", "C", "A", "T"], size=length,
+                                                 replace=True, p=[gc/2, gc/2, (1 - gc)/2, (1 - gc)/2])))
+        # one hot encode sequences
+        binseq = []
+        charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
+        for seq in seqs:
+            charlist = [charmap[letter] for letter in seq]
+            binseq.append(" ".join(charlist))
+        rand_seqs = self.nmslib_index.knnQueryBatch(binseq, k=2, num_threads=num_threads)
+        distlist = []
+        for i in rand_seqs:
+            distlist.append(i[1][0])
+        zipped = list(zip(seqs, distlist))
+        dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
+        sort_seq = [item[0] for item in dist_seqs][0:n]
+        sort_dist = [item[1] for item in dist_seqs][0:n]
+        return (min(sort_dist),
+                statistics.median(sort_dist),
+                max(sort_dist),
+                sort_dist,
+                sort_seq)
 
 
 class Annotation:
