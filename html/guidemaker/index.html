@@ -29,12 +29,14 @@
 
 &#34;&#34;&#34;
 
+
+from ._version import get_versions
 from .core import *
 from .cli import *
 
 __all__ = [&#34;core&#34;, &#34;cli&#34;]
 
-from ._version import get_versions
+
 __version__ = get_versions()[&#39;version&#39;]
 del get_versions</code></pre>
 </details>
