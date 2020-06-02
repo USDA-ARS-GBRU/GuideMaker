@@ -2,11 +2,13 @@
 
 """
 
+
+from ._version import get_versions
 from .core import *
 from .cli import *
 
 __all__ = ["core", "cli"]
 
-from ._version import get_versions
+
 __version__ = get_versions()['version']
 del get_versions

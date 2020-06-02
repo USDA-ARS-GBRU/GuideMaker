@@ -17,10 +17,12 @@ import nmslib
 from pybedtools import BedTool
 import pandas as pd
 
+logger = logging.getLogger('guidemaker.core')
 
 def is_gzip(filename):
     try:
         with open(filename, "rb") as f:
+            logging.info("check if %s is gzipped" % filename)
             return f.read(2) == b'\x1f\x8b'
     except IOError as e:
         logging.error("Could not open the file %s to determine if it was gzipped" % filename)
@@ -335,7 +337,7 @@ class TargetList:
         return df
 
     def get_control_seqs(self, seq_record_iter: object, length: int=20, n: int=1000,
-                         search_mult: int=10, num_threads: int=2) -> Tuple[int, float, int, List[int], List[str]]:
+                         search_mult: int=10, num_threads: int=2) -> Tuple[int, float, object]:
         """Create random sequences with a specified GC probability and find seqs with the greatest
          distance to any sequence flanking a PAM site
 
@@ -372,11 +374,14 @@ class TargetList:
         dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
         sort_seq = [item[0] for item in dist_seqs][0:n]
         sort_dist = [item[1] for item in dist_seqs][0:n]
+        randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
+        def create_name(seq):
+            return "Cont-" + hashlib.md5(seq.encode()).hexdigest()
+        randomdf['name'] = randomdf["Sequences"].apply(create_name)
+        randomdf = randomdf[["name", "Sequences", "Hamming distance"]]
         return (min(sort_dist),
                 statistics.median(sort_dist),
-                max(sort_dist),
-                sort_dist,
-                sort_seq)
+                randomdf)
 
 
 class Annotation:
@@ -574,9 +579,6 @@ class Annotation:
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         return pretty_df
-
-def annotate():
-    pass
 
 
 def get_fastas(filelist, tempdir=None):
