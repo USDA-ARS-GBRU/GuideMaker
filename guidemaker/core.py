@@ -74,7 +74,7 @@ class Pam:
         self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
         self.fset = self.extend_ambiguous_dna(self.pam)
-        self.rset = rset = self.extend_ambiguous_dna(self.reverse_complement())
+        self.rset = self.extend_ambiguous_dna(self.reverse_complement())
 
     def __str__(self) -> str:
         return "A PAM object: {self.pam}".format(self=self)
@@ -111,17 +111,17 @@ class Pam:
                 start = i + len(self.pam)
                 stop = i + len(self.pam) + target_len
                 seq = str(seqrecord[start:stop].seq)
-                exact_pam = str(seqrecord[start - len(self.pam):(start)].seq)
+                exact_pam = str(seqrecord[start - len(self.pam):start].seq)
             elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "3prime":
                 start = i + len(self.pam)
                 stop = i + len(self.pam) + target_len
                 seq = str(seqrecord[start:stop].seq.reverse_complement())
-                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq.reverse_complement())
+                exact_pam = str(seqrecord[start - len(self.pam):start].seq.reverse_complement())
             elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "5prime":
                 start = i - target_len
                 stop = i
                 seq = str(seqrecord[start:stop].seq.reverse_complement())
-                exact_pam =str(seqrecord[start - len(self.pam):(start)].seq.reverse_complement())
+                exact_pam =str(seqrecord[stop:stop + len(self.pam)].seq.reverse_complement())
             else:
                 return None
             if 0 <= start <= len(seqrecord) and 0 <= stop <= len(seqrecord):
