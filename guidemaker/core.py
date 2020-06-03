@@ -295,20 +295,20 @@ class TargetList:
         """
         if not self.unique_targets:
             self.find_unique_near_pam()
-        bintargets = self._one_hot_encode(self.unique_targets)
+        unique_bintargets = self._one_hot_encode(self.unique_targets)
         self.nmslib_index.setQueryTimeParams({'efSearch': ef})
-        results_list = self.nmslib_index.knnQueryBatch(bintargets,
+        results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
                                                k=self.knum, num_threads = num_threads)
         neighbor_dict = {}
         for i, entry in enumerate(results_list):
 
-            queryseq = self.unique_targets[i - 1].seq
+            queryseq = self.unique_targets[i].seq
             hitseqidx = list(entry[0])
             hammingdist = list(entry[1])
-            if hammingdist[1] >= 4 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors = {"seqs": [self.targets[x-1].seq for x in hitseqidx], # reverse this?
-                             "dist": [int(x/4) for x in hammingdist]}
-                neighbor_dict[queryseq] = {"target": self.unique_targets[i - 1],
+            if hammingdist[1] >= 2 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
+                neighbors = {"seqs": [self.targets[x].seq for x in hitseqidx], # reverse this?
+                             "dist": [int(x/2) for x in hammingdist]}
+                neighbor_dict[queryseq] = {"target": self.unique_targets[i],
                                            "neighbors": neighbors}
         self.neighbors = neighbor_dict
 
@@ -373,7 +373,7 @@ class TargetList:
         zipped = list(zip(seqs, distlist))
         dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
         sort_seq = [item[0] for item in dist_seqs][0:n]
-        sort_dist = [item[1] for item in dist_seqs][0:n]
+        sort_dist = [item[1]/2 for item in dist_seqs][0:n]
         randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
         def create_name(seq):
             return "Cont-" + hashlib.md5(seq.encode()).hexdigest()
@@ -382,7 +382,6 @@ class TargetList:
         return (min(sort_dist),
                 statistics.median(sort_dist),
                 randomdf)
-
 
 class Annotation:
     def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
@@ -578,7 +577,8 @@ class Annotation:
                     "Feature start", "Feature end", "Feature strand",
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
-        return pretty_df
+        pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
+        return pretty_dfq
 
 
 def get_fastas(filelist, tempdir=None):
