@@ -578,7 +578,7 @@ class Annotation:
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
-        return pretty_dfq
+        return pretty_df
 
 
 def get_fastas(filelist, tempdir=None):
