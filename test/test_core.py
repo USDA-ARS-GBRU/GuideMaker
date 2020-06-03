@@ -139,7 +139,7 @@ def test_get_neighbors():
     tl.create_index()
     tl.get_neighbors()
     print(tl.neighbors)
-    assert tl.neighbors["ATGCAAATTCTTGTGCTCCA"]["neighbors"]["dist"][1] == 6
+    assert tl.neighbors["ATGCAAATTCTTGTGCTCCA"]["neighbors"]["dist"][1] == 12
 
 
 def test_export_bed():
@@ -190,7 +190,7 @@ def test_get_nearby_features(tmp_path):
                                        target_bed_df=tf_df)
     anno._get_genbank_features()
     anno._get_nearby_features()
-    assert anno.nearby.shape == (10644, 14)
+    assert anno.nearby.shape == (10792, 14)
 
 def test_get_control_seqs():
     pamobj = guidemaker.core.Pam("NGG", "5prime")
@@ -218,7 +218,7 @@ def test_filter_features():
     anno._filter_features()
     anno._get_qualifiers()
     prettydf = anno._format_guide_table(tl)
-    assert prettydf.shape == (2119, 21)
+    assert prettydf.shape == (2141, 21)
 
 def test_get_fastas(tmp_path):
     gbfiles = ["test/test_data/Burkholderia_thailandensis_E264__ATCC_700388_133.gbk.gz",
