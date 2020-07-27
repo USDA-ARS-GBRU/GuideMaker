@@ -21,8 +21,9 @@ GuideMaker can be installed from:
 1. The Github repository: https://github.com/USDA-ARS-GBRU/guidemaker
 
 ```{bash}
-    git clone https://github.com/USDA-ARS-GBRU/guiemaker.git
+    git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
 ```
+
 
 ## Dependencies
 
