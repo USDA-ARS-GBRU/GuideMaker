@@ -68,6 +68,7 @@ optional arguments:
   --into [1-500]        keep guides this far inside (past the start site)of a
                         feature
   --knum [2-20]         how many sequences similar to the guide to report
+  --controls CONTROLS   The number or random control RNAs to generate
   --threads THREADS     The number of cpu threads to use
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
@@ -83,9 +84,12 @@ Here the number of used threads is 2
 Return a table of pam sites and associated data, at in current folder.
 
 ```
-    guidemaker -i sample.gbk -p NGG --targetlength 20 --strand both \
-    --lcp 10 --dist 2 --outfile out.txt \
-    --log logfile.txt --threads 2
+
+	guidemaker -i test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk \
+		--pamseq NGG  --outdir OUTDIR --pam_orientation 5prime\
+		--guidelength 12 --strand both --lcp 10 --dist 3 --before 100 \
+		--into  100 --knum 10 --controls 10  --log logfile.txt --threads 2 
+
 ```
 
 ## API documentation
