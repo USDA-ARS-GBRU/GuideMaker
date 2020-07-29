@@ -141,7 +141,8 @@ def main(args=None):
         raise SystemExit(1)
     finally:
         try:
-            shutil.rmtree(tempdir)
+        	if not args.keeptemp:
+            	shutil.rmtree(tempdir)
         except UnboundLocalError:
             raise SystemExit(1)
         except AttributeError:
