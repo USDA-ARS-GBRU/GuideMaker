@@ -142,7 +142,7 @@ def main(args=None):
     finally:
         try:
         	if not args.keeptemp:
-            	shutil.rmtree(tempdir)
+        		shutil.rmtree(tempdir)
         except UnboundLocalError:
             raise SystemExit(1)
         except AttributeError:
