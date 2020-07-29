@@ -412,7 +412,7 @@ class Annotation:
             None
         """
         if feature_types is None:
-            feature_types = ["CDS","gene"]
+            feature_types = ["CDS"]
         feature_dict = {}
         pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], score=[], strand=[])
         for gbfile in self.genbank_list:
