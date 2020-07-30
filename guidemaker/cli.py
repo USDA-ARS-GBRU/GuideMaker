@@ -120,7 +120,7 @@ def main(args=None):
         if not os.path.exists(args.outdir):
             os.makedirs(args.outdir)
         csvpath = os.path.join(args.outdir, "targets.csv")
-        prettydf.to_csv(csvpath)
+        prettydf.to_csv(csvpath, index=False)
         logging.info("creating random control guides")
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")

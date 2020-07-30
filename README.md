@@ -85,11 +85,10 @@ Here the number of used threads is 2
 Return a table of pam sites and associated data, at in current folder.
 
 ```
-
-	guidemaker -i test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk \
-		--pamseq NGG  --outdir OUTDIR --pam_orientation 5prime\
-		--guidelength 12 --strand both --lcp 10 --dist 3 --before 100 \
-		--into  100 --knum 10 --controls 10  --log logfile.txt --threads 2 
+		guidemaker -i test/test_data/Burkholderia_thailandensis_E264_ATCC_700388_133.gbk \
+		--pamseq AGG  --outdir OUTDIR --pam_orientation 5prime \
+		--guidelength 20 --strand both --lcp 10 --dist 3 --before 100 \
+		--into  100 --knum 10 --controls 10  --log logfile.txt --threads 2
 
 ```
 
