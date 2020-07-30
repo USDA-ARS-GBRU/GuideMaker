@@ -489,10 +489,12 @@ class Annotation:
         Note:
             writes a dataframe of nearby features to self.nearby
         """
-        # Import Features
+        # Import Features and sort by chromosome and then by start position in ascending order
         featurebed = BedTool.from_dataframe(self.genbank_bed_df)
-        # import guide files
+        featurebed = featurebed.sort()
+        # import guide files and sort by chromosome and then by start position in ascending order
         mapbed = BedTool.from_dataframe(self.target_bed_df)
+        mapbed = mapbed.sort()
         # get feature downstream of target sequence
         downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
         # get feature upstream of target sequence
