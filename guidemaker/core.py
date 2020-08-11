@@ -382,7 +382,7 @@ class TargetList:
             dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
             sort_seq = [item[0] for item in dist_seqs][0:n]
             sort_dist = [item[1]/2 for item in dist_seqs][0:n]
-            minimum_hmdist = min(sort_dist)
+            minimum_hmdist = int(min(sort_dist))
             sm_count += 1
             
         randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
