@@ -345,7 +345,6 @@ class TargetList:
             seq_record_iter (Bio.SeqIO): an iterator of Fastas
             length (int): length of the sequence, must match the index
             n = number of sequences to  return
-            search_mult (int): search this times n sequences
             num_threads (int) nuer of processor threads
         """
         # get GC percent
@@ -358,6 +357,8 @@ class TargetList:
         
         minimum_hmdist=0
         sm_count = 0
+        
+        #  search_mult (int): search this times n sequences
         search_multiple=(10, 20, 30, 40, 50,100)
        
         while  minimum_hmdist < 7:
