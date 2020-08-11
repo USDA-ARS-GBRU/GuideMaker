@@ -124,7 +124,7 @@ def main(args=None):
         logging.info("creating random control guides")
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
-        cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, length=args.guidelength, n=args.controls, search_mult=10, num_threads=args.threads)
+        cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, length=args.guidelength, n=args.controls, num_threads=args.threads)
         logging.info("created %i control guides with a minimum distance of %d and a median distance of %d" % (args.controls, cmin, cmed))
         randomdf.to_csv(contpath)
         logging.info("guidemaker completed, results are at %s" % args.outdir)
