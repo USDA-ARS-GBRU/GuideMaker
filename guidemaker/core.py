@@ -337,7 +337,7 @@ class TargetList:
         return df
 
     def get_control_seqs(self, seq_record_iter: object, length: int=20, n: int=1000,
-                         num_threads: int=2) -> Tuple[int, float, object]:
+                         search_mult: int = 10, num_threads: int=2) -> Tuple[int, float, int, object]:
         """Create random sequences with a specified GC probability and find seqs with the greatest
          distance to any sequence flanking a PAM site
 
