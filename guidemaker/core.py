@@ -580,6 +580,8 @@ class Annotation:
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
+        pretty_df['Guide end'] = pretty_df['Guide end'] - 1
+        pretty_df['Feature start'] = pretty_df['Feature start'] + 1
         return pretty_df
 
 
