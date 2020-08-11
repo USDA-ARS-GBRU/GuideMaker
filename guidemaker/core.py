@@ -359,7 +359,7 @@ class TargetList:
         sm_count = 0
         
         #  search_mult (int): search this times n sequences
-        search_multiple=(10, 20, 30, 40, 50,100)
+        search_multiple=[10, 20, 30, 40, 50,100,500.1000]
        
         while  minimum_hmdist < 7:
             # generate random sequences
