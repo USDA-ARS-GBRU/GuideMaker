@@ -362,31 +362,35 @@ class TargetList:
         #  search_mult (int): search this times n sequences
         search_multiple=[10, 20, 30, 40, 50,100,500,1000,10000]
        
-        while  minimum_hmdist < 7 or search_mult ==  10000:
-            # generate random sequences
-            seqs = []
-            search_mult = search_multiple[sm_count]
-            for i in range(n  * search_mult):
-                seqs.append("".join(np.random.choice(a=["G", "C", "A", "T"], size=length,
-                                                     replace=True, p=[gc/2, gc/2, (1 - gc)/2, (1 - gc)/2])))
-            # one hot encode sequences
-            binseq = []
-            charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
-            for seq in seqs:
-                charlist = [charmap[letter] for letter in seq]
-                binseq.append(" ".join(charlist))
-            rand_seqs = self.nmslib_index.knnQueryBatch(binseq, k=2, num_threads=num_threads)
-            distlist = []
-            for i in rand_seqs:
-                distlist.append(i[1][0])
-            zipped = list(zip(seqs, distlist))
-            dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
-            sort_seq = [item[0] for item in dist_seqs][0:n]
-            sort_dist = [item[1]/2 for item in dist_seqs][0:n]
-            minimum_hmdist = int(min(sort_dist))
-            sm_count += 1
-            print(minimum_hmdist)
-            print(search_mult)
+        try:
+            while  minimum_hmdist < 7 or search_mult ==  10000:
+                # generate random sequences
+                seqs = []
+                search_mult = search_multiple[sm_count]
+                for i in range(n  * search_mult):
+                    seqs.append("".join(np.random.choice(a=["G", "C", "A", "T"], size=length,
+                                                         replace=True, p=[gc/2, gc/2, (1 - gc)/2, (1 - gc)/2])))
+                # one hot encode sequences
+                binseq = []
+                charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
+                for seq in seqs:
+                    charlist = [charmap[letter] for letter in seq]
+                    binseq.append(" ".join(charlist))
+                rand_seqs = self.nmslib_index.knnQueryBatch(binseq, k=2, num_threads=num_threads)
+                distlist = []
+                for i in rand_seqs:
+                    distlist.append(i[1][0])
+                zipped = list(zip(seqs, distlist))
+                dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
+                sort_seq = [item[0] for item in dist_seqs][0:n]
+                sort_dist = [item[1]/2 for item in dist_seqs][0:n]
+                minimum_hmdist = int(min(sort_dist))
+                sm_count += 1
+                print(minimum_hmdist)
+                print(search_mult)
+        except IndexError as e:
+            logging.info("Number of random control searched: ", search_mult * n)
+            pass
             
         randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
         def create_name(seq):
