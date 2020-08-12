@@ -363,7 +363,7 @@ class TargetList:
         search_multiple=[10, 100, 1000, 10000]
        
         try:
-            while  minimum_hmdist < 7 or search_mult ==  10000:
+            while  minimum_hmdist < 700 or search_mult ==  10000:
                 # generate random sequences
                 seqs = []
                 search_mult = search_multiple[sm_count]
