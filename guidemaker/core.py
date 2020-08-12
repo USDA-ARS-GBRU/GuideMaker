@@ -360,7 +360,7 @@ class TargetList:
         search_mult = 0
         
         #  search_mult (int): search this times n sequences
-        search_multiple=[10, 20, 30, 40, 50,100,500,1000,10000]
+        search_multiple=[10, 100, 1000, 10000]
        
         try:
             while  minimum_hmdist < 7 or search_mult ==  10000:
@@ -386,8 +386,6 @@ class TargetList:
                 sort_dist = [item[1]/2 for item in dist_seqs][0:n]
                 minimum_hmdist = int(min(sort_dist))
                 sm_count += 1
-                print(minimum_hmdist)
-                print(search_mult)
         except IndexError as e:
             print("Number of random control searched: ", search_mult * n)
             pass
