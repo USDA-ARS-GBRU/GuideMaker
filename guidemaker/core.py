@@ -384,6 +384,8 @@ class TargetList:
             sort_dist = [item[1]/2 for item in dist_seqs][0:n]
             minimum_hmdist = int(min(sort_dist))
             sm_count += 1
+            print(minimum_hmdist)
+            print(search_mult)
             
         randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
         def create_name(seq):
