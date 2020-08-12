@@ -389,7 +389,7 @@ class TargetList:
                 print(minimum_hmdist)
                 print(search_mult)
         except IndexError as e:
-            logging.info("Number of random control searched: ", search_mult * n)
+            print("Number of random control searched: ", search_mult * n)
             pass
             
         randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
