@@ -211,6 +211,7 @@ class TargetList:
 
     def __len__(self):
         return len(self.targets)
+    
 
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
@@ -417,7 +418,7 @@ class Annotation:
         self.nearby: object = None
         self.filtered_df: object = None
         self.qualifiers: object = None
-
+        
     def _get_genbank_features(self, feature_types: List[str] = None) -> None:
         """Parse genbank records into pandas DF/Bed format and dict format saving to self
 
@@ -599,8 +600,13 @@ class Annotation:
         pretty_df['Guide end'] = pretty_df['Guide end'] - 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
         return pretty_df
+    
+    def locuslen(self):
+        locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
+        return(locus_count)
 
 
+        
 def get_fastas(filelist, tempdir=None):
     """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
     Args:
