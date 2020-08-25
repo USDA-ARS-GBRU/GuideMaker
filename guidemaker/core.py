@@ -71,7 +71,7 @@ class Pam:
                 3prime means the order is 5'-[target][pam]-3'
         """
         for letter in pam.upper():
-            assert letter in ['G', 'A', 'T', 'C', 'N' ]
+            assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
         assert pam_orientation in ["3prime", "5prime"]
         self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
