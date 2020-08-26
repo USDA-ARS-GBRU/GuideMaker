@@ -204,6 +204,8 @@ class TargetList:
         self.unique_targets: dict = {}
         self.nmslib_index: object = None
         self.neighbors: dict = {}
+        self.ncontrolsearched: int = None
+        self.gc_percent: float = None
 
     def __str__(self):
         info = "TargetList: contains a set of {} potential PAM targets".format(len(self.targets))
