@@ -355,6 +355,7 @@ class TargetList:
             gccnt += GC(record.seq) * len(record)
             totlen += len(record)
         gc = gccnt/(totlen*100)
+        print("Percentage of GC content in the input genome: "+"{:.2f}".format(gc * 100))
         
         minimum_hmdist=0
         sm_count = 0

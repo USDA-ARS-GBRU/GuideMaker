@@ -200,7 +200,7 @@ def test_get_control_seqs():
     tl.find_unique_near_pam()
     tl.create_index()
     gb = SeqIO.parse("test/test_data/Pseudomonas_aeruginosa_PAO1_107.sample.fasta", "fasta")
-    data = tl.get_control_seqs(gb,length=20, n=100, search_mult=10, num_threads=2)
+    data = tl.get_control_seqs(gb,length=20, n=100, num_threads=2)
 
 def test_filter_features():
     pamobj = guidemaker.core.Pam("NGG", "5prime")
