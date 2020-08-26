@@ -128,6 +128,7 @@ def main(args=None):
         cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, length=args.guidelength, n=args.controls, num_threads=args.threads)
         logging.info("Number of random control searched: %d" % tl.ncontrolsearched)
         logging.info("Percentage of GC content in the input genome: "+"{:.2f}".format(tl.gc_percent))
+        logging.info("Total length of the genome: %d" % tl.genomesize)
         logging.info("created %i control guides with a minimum distance of %d and a median distance of %d" % (args.controls, cmin, cmed))
         randomdf.to_csv(contpath)
         logging.info("guidemaker completed, results are at %s" % args.outdir)
