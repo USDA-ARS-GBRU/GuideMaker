@@ -206,6 +206,7 @@ class TargetList:
         self.neighbors: dict = {}
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
+        self.genomesize: float = None
 
     def __str__(self):
         info = "TargetList: contains a set of {} potential PAM targets".format(len(self.targets))
@@ -359,6 +360,7 @@ class TargetList:
         gc = gccnt/(totlen*100)
         #print("Percentage of GC content in the input genome: "+"{:.2f}".format(gc * 100))
         self.gc_percent = gc * 100
+        self.genomesize = totlen / (1024 * 1024)
         
         minimum_hmdist=0
         sm_count = 0
