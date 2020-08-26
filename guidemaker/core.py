@@ -355,7 +355,8 @@ class TargetList:
             gccnt += GC(record.seq) * len(record)
             totlen += len(record)
         gc = gccnt/(totlen*100)
-        print("Percentage of GC content in the input genome: "+"{:.2f}".format(gc * 100))
+        #print("Percentage of GC content in the input genome: "+"{:.2f}".format(gc * 100))
+        self.gc_percent = gc * 100
         
         minimum_hmdist=0
         sm_count = 0
@@ -389,9 +390,11 @@ class TargetList:
                 minimum_hmdist = int(min(sort_dist))
                 sm_count += 1
         except IndexError as e:
-            print("Number of random control searched: ", search_mult * n)
+           # print("Number of random control searched: ", search_mult * n)
             pass
-            
+        
+        total_ncontrolsearched = search_mult * n
+        self.ncontrolsearched = total_ncontrolsearched
         randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
         def create_name(seq):
             return "Cont-" + hashlib.md5(seq.encode()).hexdigest()

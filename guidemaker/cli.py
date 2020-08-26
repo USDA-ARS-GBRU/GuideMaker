@@ -123,6 +123,8 @@ def main(args=None):
         csvpath = os.path.join(args.outdir, "targets.csv")
         prettydf.to_csv(csvpath, index=False)
         logging.info("creating random control guides")
+        logging.info("Number of random control searched: ", tl.ncontrolsearched)
+        logging.info("Percentage of GC content in the input genome: "+"{:.2f}".format(tl.gc_percent))
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, length=args.guidelength, n=args.controls, num_threads=args.threads)
