@@ -126,7 +126,7 @@ class Pam:
                 exact_pam =str(seqrecord[stop:stop + len(self.pam)].seq.reverse_complement())
             else:
                 return None
-            if 0 <= start <= len(seqrecord) and 0 <= stop <= len(seqrecord):
+            if 0 <= start <= len(seqrecord) and 0 <= stop <= len(seqrecord) and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
                 return Target(seq=seq,
                               exact_pam=exact_pam,
                               strand=strand,
