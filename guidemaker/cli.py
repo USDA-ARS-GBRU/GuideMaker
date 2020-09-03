@@ -32,6 +32,7 @@ def myparser():
     parser.add_argument('--threads', help='The number of cpu threads to use', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
+    parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
 
@@ -144,7 +145,8 @@ def main(args=None):
         raise SystemExit(1)
     finally:
         try:
-            shutil.rmtree(tempdir)
+            if not args.keeptemp:
+                shutil.rmtree(tempdir)
         except UnboundLocalError:
             raise SystemExit(1)
         except AttributeError:

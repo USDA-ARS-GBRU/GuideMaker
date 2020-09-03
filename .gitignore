@@ -26,3 +26,7 @@ testing.py
 targets.csv
 GuideMaker_filter_feature_testing.xls
 *.pptx
+#Aspergillus_fumigatus.gbk
+Aspergillus_fumigatus.fasta
+Arabidopsis_thaliana.gbk
+Arabidopsis_thaliana.fasta
