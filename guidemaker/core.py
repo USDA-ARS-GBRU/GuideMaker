@@ -17,6 +17,7 @@ import nmslib
 from pybedtools import BedTool
 import pandas as pd
 from Bio.SeqRecord import SeqRecord
+import subprocess
 
 logger = logging.getLogger('guidemaker.core')
 
@@ -85,10 +86,9 @@ class Pam:
     
     def target_as_fasta(self, targets: list, tempdir=None):
         """Convert target list as fasta file
-        
+    
         Args:
             targets (list) : Target list
-        
         Returns: None
             
         """
@@ -654,3 +654,62 @@ def get_fastas(filelist, tempdir=None):
     except Exception as e:
         print("An error occurred in input genbank file %s" % file)
         raise e
+
+
+
+
+
+class BOWTIE2:
+    """BOWTIE2 class with functions to run bowtie2 in python """
+        
+    def build(tempdir=None):
+        """
+        Construct bowtie2 indices (.bt2 files)
+        
+        Args:
+        
+            fasta (str): A fasta file containing reference sequences
+            
+        Return: 
+            bt (index): A bowtie indices
+        """
+        try:
+            subprocess.check_output(['bowtie2-build', '-h'])
+        except OSError:
+            raise RuntimeError('bowtie2-build not found')
+        
+        fasta = os.path.join(tempdir, "forward.fasta")
+        subprocess.check_call(['bowtie2-build', '-f', fasta, fasta])
+    
+    
+    def align(tempdir=None, threads=2):
+        """Align fasta with index genome 
+        
+        Args:
+            threads(int): Number of threads 
+        """
+    
+        # check that we have access to bowtie2
+        try:
+            subprocess.check_output(['bowtie2', '-h'])
+        except OSError:
+            raise RuntimeError('bowtie2 not found')
+        
+        gindexpath = os.path.join(tempdir, "forward.fasta")
+        samfile = os.path.join(tempdir, "forward.sam")
+        targetsfile = os.path.join(tempdir, "targets.fasta")
+
+        # stream output from bowtie2
+        bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath, '-f', targetsfile,'-S', samfile]
+        subprocess.check_call(bowtie_args)
+
+
+
+
+
+
+
+
+
+
+
