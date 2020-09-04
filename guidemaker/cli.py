@@ -96,6 +96,8 @@ def main(args=None):
         pamobj = guidemaker.core.Pam(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, strand="both", target_len=args.guidelength)
+        logging.info("Writing all potential targets as a fasta file %s") % tempdir
+        pamobj.target_as_fasta(targets=pamtargets, tempdir=tempdir)
         tl = guidemaker.core.TargetList(targets=pamtargets, lcp=args.lcp, hammingdist=args.dist, knum=args.knum)
         logging.info("Identifing guides that are unique near the PAM site")
         tl.find_unique_near_pam()
