@@ -453,17 +453,19 @@ class Annotation:
             for entry in genbank_file:
                 for record in entry.features:
                     if record.type in feature_types:
-                        featid = hashlib.md5(str(record).encode()).hexdigest()
-                        pddict['chrom'].append(entry.id)
-                        pddict["chromStart"].append(record.location.start.position)
-                        pddict["chromEnd"].append(record.location.end.position)
-                        pddict["name"].append(featid)
-                        pddict["score"].append(0)
-                        pddict["strand"].append("-" if record.strand < 0 else "+")
-                        for qualifier_key, qualifier_val in record.qualifiers.items():
-                            if not qualifier_key in feature_dict:
-                                feature_dict[qualifier_key] = {}
-                            feature_dict[qualifier_key][featid] = qualifier_val
+                        if record.strand in [1, -1, "+","-"]:
+                            pddict["strand"].append("-" if record.strand < 0 else "+")
+                            featid = hashlib.md5(str(record).encode()).hexdigest()
+                            pddict['chrom'].append(entry.id)
+                            pddict["chromStart"].append(record.location.start.position)
+                            pddict["chromEnd"].append(record.location.end.position)
+                            pddict["name"].append(featid)
+                            pddict["score"].append(0)
+                            pddict["strand"].append("-" if record.strand < 0 else "+")
+                            for qualifier_key, qualifier_val in record.qualifiers.items():
+                                if not qualifier_key in feature_dict:
+                                    feature_dict[qualifier_key] = {}
+                                feature_dict[qualifier_key][featid] = qualifier_val
             genbankbed = pd.DataFrame.from_dict(pddict)
             self.genbank_bed_df = genbankbed
             self.feature_dict = feature_dict
