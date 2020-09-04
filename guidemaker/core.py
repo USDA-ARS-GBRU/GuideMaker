@@ -461,7 +461,6 @@ class Annotation:
                             pddict["chromEnd"].append(record.location.end.position)
                             pddict["name"].append(featid)
                             pddict["score"].append(0)
-                            pddict["strand"].append("-" if record.strand < 0 else "+")
                             for qualifier_key, qualifier_val in record.qualifiers.items():
                                 if not qualifier_key in feature_dict:
                                     feature_dict[qualifier_key] = {}
