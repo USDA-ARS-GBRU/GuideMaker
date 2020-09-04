@@ -16,6 +16,7 @@ from Bio.SeqUtils import GC
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
+from Bio.SeqRecord import SeqRecord
 
 logger = logging.getLogger('guidemaker.core')
 
@@ -80,7 +81,20 @@ class Pam:
 
     def __str__(self) -> str:
         return "A PAM object: {self.pam}".format(self=self)
-
+    
+    
+    def target_as_fasta(self, targets: list, tempdir=None):
+        """Convert target list as fasta file
+        
+        Args:
+            targets (list) : Target list
+        
+        Returns: None
+            
+        """
+        fastpath = os.path.join(tempdir, "targets.fasta")
+        seqrecord_list = [SeqRecord(Seq(record.seq), id=record.md5, description="", name="") for record in targets]
+        SeqIO.write(seqrecord_list, fastpath, "fasta")
 
 
     def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
