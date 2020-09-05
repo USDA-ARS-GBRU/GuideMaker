@@ -699,14 +699,27 @@ class BOWTIE2:
         samfile = os.path.join(tempdir, "forward.sam")
         targetsfile = os.path.join(tempdir, "targets.fasta")
 
-        # stream output from bowtie2
-        bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath, '-f', targetsfile,'-S', samfile]
-        subprocess.check_call(bowtie_args)
-
-
-
-
-
+        # stream output from bowtie2 and just retrive the targets that aligned exactly 1 time
+        bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath, '-f',
+                       targetsfile,'-S', samfile, "|","grep", "-E", "'@|NM:'", "...",
+                       "|", "grep", "-v", "'XS:'"]
+        
+        with open("uniq_forward.sam", "w") as file: 
+            subprocess.run(bowtie_args, stdout=file)
+        
+        
+        # bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath,
+        #                '-f', targetsfile,'-S', samfile]
+        
+        # subprocess.check_call(bowtie_args)
+        
+        # xx =['grep', '-E','"@|NM:"', samfile,'|', 'grep','-v', '"XS:"']
+        
+        # yy =['grep', '-E','"@|NM:"', "forward.sam"]
+        
+        # with open("uniq_forward.sam", "w") as file: 
+        #     subprocess.run(yy, stdout=file) 
+        
 
 
 
