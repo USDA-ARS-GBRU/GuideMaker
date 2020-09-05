@@ -659,7 +659,7 @@ def get_fastas(filelist, tempdir=None):
 
 
 
-class BOWTIE2:
+class bowtie2:
     """BOWTIE2 class with functions to run bowtie2 in python """
         
     def build(tempdir=None):
@@ -687,6 +687,10 @@ class BOWTIE2:
         
         Args:
             threads(int): Number of threads 
+        
+        Returns:
+            fasta_header(list): a list with header (md5) of targets
+            
         """
     
         # check that we have access to bowtie2
@@ -698,28 +702,58 @@ class BOWTIE2:
         gindexpath = os.path.join(tempdir, "forward.fasta")
         samfile = os.path.join(tempdir, "forward.sam")
         targetsfile = os.path.join(tempdir, "targets.fasta")
-
-        # stream output from bowtie2 and just retrive the targets that aligned exactly 1 time
+        
+        ###
+        
         bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath, '-f',
-                       targetsfile,'-S', samfile, "|","grep", "-E", "'@|NM:'", "...",
-                       "|", "grep", "-v", "'XS:'"]
+                       targetsfile,'-S', samfile]
         
-        with open("uniq_forward.sam", "w") as file: 
-            subprocess.run(bowtie_args, stdout=file)
+        # run bowtie align
+        
+        subprocess.check_call(bowtie_args)
+        
+        ## retrive only the fasta header for target that aligned exactly 1 time
+        command = ['grep']
+        command.append('-E')
+        command.append("'@|NM:'")
+        command.append(samfile)
+        command.append('|')
+        command.append('grep')
+        command.append('-v')
+        command.append("'XS:'")
+        
+        p1 = subprocess.Popen(command,stdout=subprocess.PIPE)
+        
+        # skip first 3 line of sam file
+        line =p1.stdout.readlines()[4:]
+        fasta_header=[]
+        for ll in range(len(line)):
+                fasta_header.append (line[ll].decode().split('/')[7].split('\t')[0].split(':')[1])
+        return(fasta_header)
+                
         
         
-        # bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath,
-        #                '-f', targetsfile,'-S', samfile]
         
-        # subprocess.check_call(bowtie_args)
         
-        # xx =['grep', '-E','"@|NM:"', samfile,'|', 'grep','-v', '"XS:"']
         
-        # yy =['grep', '-E','"@|NM:"', "forward.sam"]
         
-        # with open("uniq_forward.sam", "w") as file: 
-        #     subprocess.run(yy, stdout=file) 
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
 
 
 
