@@ -98,9 +98,9 @@ def main(args=None):
         logging.info("Writing all potential targets as a fasta file")
         pamobj.target_as_fasta(targets=pamtargets_pa, tempdir=tempdir)
         logging.info("Building Bowtie indices")
-        guidemaker.core.bowtie2.build(tempdir=tempdir)
+        guidemaker.core.bowtie2.build(tempdir=tempdir, threads = args.threads)
         logging.info("Aligning targets to the genome using bowtie2")
-        mapped_fasta_header = guidemaker.core.bowtie2.align(tempdir=tempdir)
+        mapped_fasta_header = guidemaker.core.bowtie2.align(tempdir=tempdir, threads = args.threads)
         logging.info("Identifying guides that align only once in the genome")
         pamtargets = [x for x in pamtargets_pa if x.targetid in mapped_fasta_header]
         tl = guidemaker.core.TargetList(targets=pamtargets, lcp=args.lcp, hammingdist=args.dist, knum=args.knum)

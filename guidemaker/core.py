@@ -668,7 +668,7 @@ def get_fastas(filelist, tempdir=None):
 class bowtie2:
     """BOWTIE2 class with functions to run bowtie2 in python """
         
-    def build(tempdir=None):
+    def build(tempdir=None, threads=2):
         """
         Construct bowtie2 indices (.bt2 files)
         
@@ -685,7 +685,7 @@ class bowtie2:
             raise RuntimeError('bowtie2-build not found')
         
         fasta = os.path.join(tempdir, "forward.fasta")
-        subprocess.check_call(['bowtie2-build', '-f', fasta, fasta])
+        subprocess.check_call(['bowtie2-build', '-f', fasta, fasta, "threads", str(threads),"--quiet"])
     
     
     def align(tempdir=None, threads=2):
@@ -695,7 +695,7 @@ class bowtie2:
             threads(int): Number of threads 
         
         Returns:
-            fasta_header(list): a list with header (md5) of targets
+            fasta_header(list): a list with header of targets
             
         """
     
