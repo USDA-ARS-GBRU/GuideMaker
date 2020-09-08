@@ -18,6 +18,8 @@ from pybedtools import BedTool
 import pandas as pd
 from Bio.SeqRecord import SeqRecord
 import subprocess
+import string
+import random
 
 logger = logging.getLogger('guidemaker.core')
 
@@ -93,7 +95,9 @@ class Pam:
             
         """
         fastpath = os.path.join(tempdir, "targets.fasta")
-        seqrecord_list = [SeqRecord(Seq(record.seq), id=record.md5, description="", name="") for record in targets]
+        seqrecord_list = [SeqRecord(Seq(record.seq), 
+                            id=record.targetid,
+                            description="", name="") for record in targets]
         SeqIO.write(seqrecord_list, fastpath, "fasta")
 
 
@@ -146,6 +150,7 @@ class Pam:
                               strand=strand,
                               pam_orientation=self.pam_orientation,
                               seqid=seqrecord.id,
+                              targetid=''.join([random.choice(string.ascii_letters + string.digits) for n in range(32)]),
                               start=start,
                               stop=stop)
 
@@ -181,12 +186,13 @@ class Target:
     adjacent to PAM sites.
     """
     def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
-                 seqid: str, start: int, stop: int) -> object:
+                 seqid: str,targetid: str, start: int, stop: int) -> object:
         self.seq: str = seq
         self.exact_pam: str = exact_pam
         self.strand: str = strand
         self.pam_orientation: str = pam_orientation
         self.seqid: str = seqid
+        self.targetid: str = targetid
         self.start: int = start
         self.stop: int = stop
         self.md5: str = hashlib.md5(seq.encode()).hexdigest()
@@ -713,26 +719,17 @@ class bowtie2:
         subprocess.check_call(bowtie_args)
         
         ## retrive only the fasta header for target that aligned exactly 1 time
-        command = ['grep']
-        command.append('-E')
-        command.append("'@|NM:'")
-        command.append(samfile)
-        command.append('|')
-        command.append('grep')
-        command.append('-v')
-        command.append("'XS:'")
+        p1 = subprocess.Popen(["grep", "-E", "@|NM:", samfile], stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(["grep", "-v", "XS:"], stdin=p1.stdout, stdout=subprocess.PIPE)
+        p3 = subprocess.Popen(["grep", "-v", "^@"], stdin=p2.stdout, stdout=subprocess.PIPE)
+        p4 = subprocess.Popen(["cut", "-f1"], stdin=p3.stdout, stdout=subprocess.PIPE)
+        outfile = p4.communicate()[0] # outfile is bytes
+        mapped_target_header = outfile.decode()
+        mapped_target_header_set = set(mapped_target_header.split('\n')) # make it set, loop over set is faster than list
+        return(mapped_target_header_set)
         
-        p1 = subprocess.Popen(command,stdout=subprocess.PIPE)
-        
-        # skip first 3 line of sam file
-        line =p1.stdout.readlines()[4:]
-        fasta_header=[]
-        for ll in range(len(line)):
-                fasta_header.append (line[ll].decode().split('/')[7].split('\t')[0].split(':')[1])
-        return(fasta_header)
-                
-        
-        
+     
+    
         
         
         
