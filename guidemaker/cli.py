@@ -102,7 +102,7 @@ def main(args=None):
         logging.info("Aligning targets to the genome using bowtie2")
         mapped_fasta_header = guidemaker.core.bowtie2.align(tempdir=tempdir)
         logging.info("Identifying guides that align only once in the genome")
-        pamtargets = [x for x in pamtargets if x.targetid in mapped_fasta_header]
+        pamtargets = [x for x in pamtargets_pa if x.targetid in mapped_fasta_header]
         tl = guidemaker.core.TargetList(targets=pamtargets, lcp=args.lcp, hammingdist=args.dist, knum=args.knum)
         logging.info("Identifing guides that are unique near the PAM site")
         tl.find_unique_near_pam()
