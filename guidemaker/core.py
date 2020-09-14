@@ -277,7 +277,7 @@ class TargetList:
         self.unique_targets = list(filteredlist)
 
 
-    def create_index(self, M: int=16, num_threads=2, efC: int=64, post=1) -> None:
+    def create_index(self, M: int=16, num_threads=2, efC: int=10, post=1) -> None:
         """Create nmslib index
 
         Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
@@ -305,7 +305,7 @@ class TargetList:
         index.createIndex(index_params, print_progress=True)
         self.nmslib_index = index
 
-    def get_neighbors(self, ef=256, num_threads=2) -> None:
+    def get_neighbors(self, ef=9, num_threads=2) -> None:
         """Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
