@@ -30,3 +30,6 @@ GuideMaker_filter_feature_testing.xls
 Aspergillus_fumigatus.fasta
 Arabidopsis_thaliana.gbk
 Arabidopsis_thaliana.fasta
+*.sam
+*.sketch
+/bowtie
