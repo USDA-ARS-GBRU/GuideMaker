@@ -32,13 +32,15 @@ def myparser():
     parser.add_argument('--threads', help='The number of cpu threads to use', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
+    parser.add_argument('--restriction_enzyme_list', nargs="*", help='List of sequence representing restriction enzymes', default=[])
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
 
 def parserval(args):
     assert(args.lcp <= args.guidelength), "The length of sequence near the PAM the is unique (lcp) must be less than the guide length"
-    assert(1 < len(args.pamseq) < 7 ), "The length of the PAM sequence must be between 2-6"
+    # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
+    assert(1 < len(args.pamseq) < 9 ), "The length of the PAM sequence must be between 2-6"
 
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
@@ -95,18 +97,14 @@ def main(args=None):
         pamobj = guidemaker.core.Pam(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, strand="both", target_len=args.guidelength)
-        #logging.info("Writing all potential targets as a fasta file")
-        #pamobj.target_as_fasta(targets=pamtargets, tempdir=tempdir)
-        #logging.info("Building Bowtie indices")
-        #guidemaker.core.bowtie2.build(tempdir=tempdir, threads = args.threads)
-        #logging.info("Aligning targets to the genome using bowtie2")
-        #mapped_fasta_header = guidemaker.core.bowtie2.align(tempdir=tempdir, threads = args.threads)
-        #logging.info("Identifying guides that align only once in the genome")
-        #pamtargets = [x for x in pamtargets_pa if x.targetid in mapped_fasta_header]
-        #logging.info("Number of guides after aligning with genome usign Bowtie2: %d" % len(pamtargets))
         tl = guidemaker.core.TargetList(targets=pamtargets, lcp=args.lcp, hammingdist=args.dist, knum=args.knum)
+        lengthoftl= len(tl)
+        logging.info("Checking guides for restriction enzymes")
+        tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
+        logging.info("Number of guides removed after checking for restriction enzymes: %d", (lengthoftl - len(tl)))
         logging.info("Identifing guides that are unique near the PAM site")
         tl.find_unique_near_pam()
+        logging.info("Number of guides removed after checking for unique PAM: %d", (len(tl) - len(tl.unique_targets)))
         logging.info("Indexing all potential guide sites: %s. This is the longest step." % len(tl.targets))
         tl.create_index(num_threads=args.threads)
         logging.info("Identifying guides that have a hamming distance <= %s to all other potential guides", str(args.dist))
@@ -144,7 +142,7 @@ def main(args=None):
         logging.info("PAM sequence: %s" % args.pamseq)
         logging.info("PAM orientation: %s" % args.pam_orientation)
         logging.info("Genome strand(s) searched: %s" % args.strand)
-        logging.info("Total PAM sites considered: %d" % len(tl.targets))
+        logging.info("Total PAM sites considered: %d" % lengthoftl)
         logging.info("Guide RNA candidates found: %d" % len(prettydf))
 
     except Exception as e:
