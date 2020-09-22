@@ -249,7 +249,8 @@ class TargetList:
         extend_list= list()
         for record in set(restriction_enzyme_list):
             extend_list.append(list(map("".join, product(*map(dna_dict.get, record)))))
-        element_to_exclude = frozenset(sum(extend_list, []))
+        element_to_exclude = frozenset(sum(extend_list, [])) # flat out the compount list and make frozenset
+        # retrive targets if doesnot contain the strings specify in the restriction enzyme list
         self.targets = [x for x in  self.targets if not any(restenzyme in x.seq for restenzyme in element_to_exclude)]
 
 
