@@ -86,20 +86,6 @@ class Pam:
     def __str__(self) -> str:
         return "A PAM object: {self.pam}".format(self=self)
     
-    
-    def target_as_fasta(self, targets: list, tempdir=None):
-        """Convert target list as fasta file
-    
-        Args:
-            targets (list) : Target list
-        Returns: None
-            
-        """
-        fastpath = os.path.join(tempdir, "targets.fasta")
-        seqrecord_list = [SeqRecord(Seq(record.seq), 
-                            id=record.targetid,
-                            description="", name="") for record in targets]
-        SeqIO.write(seqrecord_list, fastpath, "fasta")
 
 
     def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
@@ -151,7 +137,6 @@ class Pam:
                               strand=strand,
                               pam_orientation=self.pam_orientation,
                               seqid=seqrecord.id,
-                              targetid=''.join([random.choice(string.ascii_letters + string.digits) for n in range(32)]),
                               start=start,
                               stop=stop)
 
@@ -187,13 +172,12 @@ class Target:
     adjacent to PAM sites.
     """
     def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
-                 seqid: str,targetid: str, start: int, stop: int) -> object:
+                 seqid: str, start: int, stop: int) -> object:
         self.seq: str = seq
         self.exact_pam: str = exact_pam
         self.strand: str = strand
         self.pam_orientation: str = pam_orientation
         self.seqid: str = seqid
-        self.targetid: str = targetid
         self.start: int = start
         self.stop: int = stop
         self.md5: str = hashlib.md5(seq.encode()).hexdigest()
@@ -314,7 +298,7 @@ class TargetList:
         Returns:
             None (but writes NMSLIB index to self)
         """
-        bintargets = self._one_hot_encode(self.unique_targets) # this has to be unique targets
+        bintargets = self._one_hot_encode(self.targets) # this has to be unique targets -- nop targets, as they are the part of the genome. 
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
@@ -682,79 +666,6 @@ def get_fastas(filelist, tempdir=None):
 
 
 
-
-
-class bowtie2:
-    """BOWTIE2 class with functions to run bowtie2 in python """
-        
-    def build(tempdir=None, threads=2):
-        """
-        Construct bowtie2 indices (.bt2 files)
-        
-        Args:
-        
-            fasta (str): A fasta file containing reference sequences
-            
-        Return: 
-            bt (index): A bowtie indices
-        """
-        try:
-            subprocess.check_output(['bowtie2-build', '-h'])
-        except OSError:
-            raise RuntimeError('bowtie2-build not found')
-        
-        fasta = os.path.join(tempdir, "forward.fasta")
-        subprocess.check_call(['bowtie2-build', '-f', fasta, fasta, "threads", str(threads),"--quiet"])
-    
-    
-    def align(tempdir=None, threads=2):
-        """Align fasta with index genome 
-        
-        Args:
-            threads(int): Number of threads 
-        
-        Returns:
-            fasta_header(list): a list with header of targets
-            
-        """
-    
-        # check that we have access to bowtie2
-        try:
-            subprocess.check_output(['bowtie2', '-h'])
-        except OSError:
-            raise RuntimeError('bowtie2 not found')
-        
-        gindexpath = os.path.join(tempdir, "forward.fasta")
-        samfile = os.path.join(tempdir, "forward.sam")
-        targetsfile = os.path.join(tempdir, "targets.fasta")
-        
-        ###
-        
-        bowtie_args = ['bowtie2', '-p', str(threads), '-x', gindexpath, '-f',
-                       targetsfile,'-S', samfile]
-        
-        # run bowtie align
-        
-        subprocess.check_call(bowtie_args)
-        
-        ## retrive only the fasta header for target that aligned exactly 1 time
-        p1 = subprocess.Popen(["grep", "-E", "@|NM:", samfile], stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(["grep", "-v", "XS:"], stdin=p1.stdout, stdout=subprocess.PIPE)
-        p3 = subprocess.Popen(["grep", "-v", "^@"], stdin=p2.stdout, stdout=subprocess.PIPE)
-        p4 = subprocess.Popen(["cut", "-f1"], stdin=p3.stdout, stdout=subprocess.PIPE)
-        outfile = p4.communicate()[0] # outfile is bytes
-        mapped_target_header = outfile.decode()
-        mapped_target_header_set = set(mapped_target_header.split('\n')) # make it set, loop over set is faster than list
-        return(mapped_target_header_set)
-        
-     
-    
-        
-        
-        
-        
-        
-        
         
         
         
