@@ -88,7 +88,7 @@ class Pam:
     
 
 
-    def find_targets(self, fastafile: object, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
+    def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
         """Find all targets on a sequence that match for the PAM on the requested strand(s)
 
         Args:
