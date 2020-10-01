@@ -140,8 +140,9 @@ class Pam:
                               start=start,
                               stop=stop)
             
-        def applyfunction(seqrecord):
-            target_list = deque()
+        # Create iterable of PAM length windows across the sequence
+        target_list = deque()
+        for seqrecord in seq_record_iter:
             kmer_iter = window(str(seqrecord.seq), len(self.pam))
             for i, kmer in enumerate(kmer_iter):
                 hitset = None
@@ -161,22 +162,7 @@ class Pam:
                                          i=i)
                 if tar:
                     target_list.append(tar)
-            return pickle.dumps(target_list)
-        
-        # import multiprocessing
-            
-        # for seqrecord in seq_record_iter:
-        #     jobs = []
-        #     p = multiprocessing.Process(target=applyfunction(seqrecord=seqrecord))
-        #     jobs.append(p)
-        #     p.start()
-            
-        # for seqrecord in seq_record_iter:
-        #     return(applyfunction(seqrecord=seqrecord))
-        from multiprocessing import Pool
-        with open(fastafile) as fd , Pool(2) as pool:
-            pamtargets_list = pool.map(applyfunction,(seq for seq in SeqIO.parse(fd, 'fasta')),chunksize=2,)
-        return(pamtargets_list)
+        return list(target_list)
 
 
 
