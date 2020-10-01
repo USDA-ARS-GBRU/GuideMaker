@@ -17,9 +17,7 @@ import nmslib
 from pybedtools import BedTool
 import pandas as pd
 from Bio.SeqRecord import SeqRecord
-import subprocess
-import string
-import random
+import gc
 
 
 logger = logging.getLogger('guidemaker.core')
@@ -162,6 +160,7 @@ class Pam:
                                          i=i)
                 if tar:
                     target_list.append(tar)
+            gc.collect() # clear memory after each chromosome
         return list(target_list)
         
 
