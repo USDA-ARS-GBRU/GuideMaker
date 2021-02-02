@@ -22,7 +22,7 @@ def myparser():
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]" ,help='Length of the guide sequence')
     parser.add_argument('--strand', '-s', choices=['forward','reverse', 'both'], default='both', help='Strand of DNA to search')
     parser.add_argument('--lcp', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of the guide closest to  the PAM required to be unique')
-    parser.add_argument('--dist', type=int, choices=range(1, 6, 1),  metavar="[1-5]", default=2, help='Minimum hamming distance from any other potential guide')
+    parser.add_argument('--dist', type=int, choices=range(0, 6, 1),  metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far in front of a feature')
     parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1),metavar="[1-500]",
