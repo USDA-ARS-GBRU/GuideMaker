@@ -263,9 +263,15 @@ class TargetList:
         """
         def _get_prox(target):
             if target.pam_orientation == "5prime":
-                return target.seq[0:self.lcp]
+            	if self.lcp == 0:
+            		return target.seq
+            	else:
+            		return target.seq[0:self.lcp]
             elif target.pam_orientation == "3prime":
-                return target.seq[(len(target) - self.lcp):]
+            	if self.lcp == 0:
+            		return target.seq
+            	else:
+                	return target.seq[(len(target) - self.lcp):]
         lcp_dict ={}
         for target in self.targets:
             proximal = _get_prox(target)
