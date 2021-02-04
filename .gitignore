@@ -33,3 +33,13 @@ Arabidopsis_thaliana.fasta
 *.sam
 *.sketch
 /bowtie
+data.db
+introduction.md
+paramter_dictionary.md
+streamlit.py
+xx.py
+yy.py
+.vscode/
+zz.py
+za.py
+*.png

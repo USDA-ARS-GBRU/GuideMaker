@@ -95,13 +95,13 @@ def test_target():
     assert tl.seq == "ATGCACATGCACTGCTCCA"
 
 
-targets = [guidemaker.core.Target(seq="ATGCACATGCACTGCTGGAT",
+targets = [guidemaker.Target(seq="ATGCACATGCACTGCTGGAT",
                                    exact_pam="NGG", strand="forward",
                                    pam_orientation="5prime",
                                    seqid="NC_002516",
                                    start=410,
                                    stop=430),
-          guidemaker.core.Target(seq="ATGCAAATTCTTGTGCTCCA",
+          guidemaker.Target(seq="ATGCAAATTCTTGTGCTCCA",
                                   exact_pam="NGG",
                                   strand="forward",
                                   pam_orientation="5prime",
@@ -156,12 +156,12 @@ def test_export_bed():
 # Annotation class tests
 
 
-tl = guidemaker.core.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
+tl = guidemaker.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
 tl.find_unique_near_pam()
 tl.create_index()
 tl.get_neighbors()
 tf_df = tl.export_bed()
-anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"],
+anno = guidemaker.Annotation(genbank_list=["test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"],
                                            target_bed_df=tf_df)
 
 def test_get_genbank_features():
