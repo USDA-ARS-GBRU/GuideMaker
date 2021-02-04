@@ -125,6 +125,8 @@ def main(args=None):
         anno._get_qualifiers()
         logging.info("Format the output")
         prettydf = anno._format_guide_table(tl)
+        fd_zero = prettydf['Feature distance'] == 0).sum()
+        logging.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", (fd_zero))
         if not os.path.exists(args.outdir):
             os.makedirs(args.outdir)
         csvpath = os.path.join(args.outdir, "targets.csv")
