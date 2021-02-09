@@ -16,6 +16,7 @@ from Bio.SeqUtils import GC
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
+import re
 
 logger = logging.getLogger('guidemaker.core')
 
@@ -40,26 +41,8 @@ class Pam:
             (frozenset): all possible sequences given an ambiguous DNA input
 
         """
-        pamseq = Seq(pam)
-        dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
-                  'M': 'AC', 'R': 'AG', 'W': 'AT', 'S': 'CG',
-                  'Y': 'CT', 'K': 'GT', 'V': 'ACG', 'H': 'ACT',
-                  'D': 'AGT', 'B': 'CGT', 'X': 'GATC', 'N': 'GATC'}
-        dnalist = []
-        for i in product(*[dnaval[j] for j in pamseq]):
-            dnalist.append("".join(i))
-        return frozenset(dnalist)
 
-    def reverse_complement(self) -> object:
-        """reverse complement of the PAM sequence
-        Args:
-            None
-        Returns:
-            str: a pam sequence, reverse complemented
 
-        """
-        pamseq = Seq(self.pam)
-        return str(pamseq.reverse_complement())
 
     def __init__(self, pam: str, pam_orientation: str) -> None:
         """Pam __init__
@@ -75,12 +58,9 @@ class Pam:
         assert pam_orientation in ["3prime", "5prime"]
         self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
-        self.fset = self.extend_ambiguous_dna(self.pam)
-        self.rset = self.extend_ambiguous_dna(self.reverse_complement())
 
     def __str__(self) -> str:
         return "A PAM object: {self.pam}".format(self=self)
-
 
 
     def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
@@ -94,70 +74,105 @@ class Pam:
             list: A list of Target class instances
 
         """
+        target_list = []
 
-        def window(iterable, size):
-            iters = tee(iterable, size)
-            for i in range(1, size):
-                for each in iters[i:]:
-                    next(each, None)
-            return zip(*iters)
-#                5prime means the order is 5'-[pam][target]-3'
-#                3prime means the order is 5'-[target][pam]-3'
-        def compute_seq_coords(self, hitset, strand, target_len, seqrecord, i):
-            if hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "3prime":
-                start = i - target_len
-                stop = i
-                seq = str(seqrecord[start:stop].seq)
-                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq)
-            elif hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "5prime":
-                start = i + len(self.pam)
-                stop = i + len(self.pam) + target_len
-                seq = str(seqrecord[start:stop].seq)
-                exact_pam = str(seqrecord[start - len(self.pam):start].seq)
-            elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "3prime":
-                start = i + len(self.pam)
-                stop = i + len(self.pam) + target_len
-                seq = str(seqrecord[start:stop].seq.reverse_complement())
-                exact_pam = str(seqrecord[start - len(self.pam):start].seq.reverse_complement())
-            elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "5prime":
-                start = i - target_len
-                stop = i
-                seq = str(seqrecord[start:stop].seq.reverse_complement())
-                exact_pam =str(seqrecord[stop:stop + len(self.pam)].seq.reverse_complement())
-            else:
-                return None
-            if 0 <= start <= len(seqrecord) and 0 <= stop <= len(seqrecord):
-                return Target(seq=seq,
-                              exact_pam=exact_pam,
-                              strand=strand,
-                              pam_orientation=self.pam_orientation,
-                              seqid=seqrecord.id,
-                              start=start,
-                              stop=stop)
+        def reverse_complement(seq: str) -> object:
+            """reverse complement of the PAM sequence
+            """
+            pamseq = Seq(seq)
+            return str(pamseq.reverse_complement())
 
-        # Create iterable of PAM length windows across the sequence
-        target_list = deque()
-        for seqrecord in seq_record_iter:
-            kmer_iter = window(str(seqrecord.seq), len(self.pam))
-            for i, kmer in enumerate(kmer_iter):
-                hitset = None
-                kmerstr = ''.join(kmer)
-                if strand in ["forward", "both"] and kmerstr in self.fset:
-                    hitset = "fset"
-                    gstrand = "forward"
-                elif strand in ["reverse", "both"] and kmerstr in self.rset:
-                    hitset = "rset"
-                    gstrand = "reverse"
-                else:
-                    continue
-                tar = compute_seq_coords(self, hitset=hitset,
-                                         strand=gstrand,
-                                         target_len=target_len,
-                                         seqrecord=seqrecord,
-                                         i=i)
-                if tar:
-                    target_list.append(tar)
-        return list(target_list)
+
+        def pam2re(pam) -> str:
+            """Convert an IUPAC anbigous PAM to a Regex expression
+
+            """
+            dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
+                      'M': '[A|C]', 'R': '[A|G]', 'W': '[A|T]', 'S': '[C|G]',
+                      'Y': '[C|T]', 'K': '[G|T]', 'V': '[A|C|G]', 'H': '[A|C|T]',
+                      'D': '[A|G|T]', 'B': '[C|G|T]', 'X': '[G|A|T|C]', 'N': '[G|A|T|C]'}
+            return "".join([dnaval[base] for base in pam])
+
+        #                5prime means the order is 5'-[pam][target]-3'
+        #                3prime means the order is 5'-[target][pam]-3'
+
+        def check_target(seq, target_len):
+            if len(seq) == target_len:
+                return True
+            return False
+
+        def run_for_5p(pamregex):
+            for match_obj in re.finditer(pamregex, seq):
+                target_seq = seq[match_obj.end() : match_obj.end() + target_len]
+                if check_target(target_seq, target_len):
+                    target_list.append(Target(seq=target_seq,
+                                              exact_pam=match_obj.group(0),
+                                              strand="forward",
+                                              pam_orientation="5prime",
+                                              seqid=id,
+                                              start=match_obj.end(),
+                                              stop=match_obj.end() + target_len))
+            print("f5p: " + str(len(target_list)))
+
+        def run_for_3p(pamregex):
+            for match_obj in re.finditer(pamregex, seq):
+                target_seq = seq[match_obj.start() - target_len : match_obj.start()]
+                if check_target(target_seq, target_len):
+                    target_list.append(Target(seq=target_seq,
+                                              exact_pam=match_obj.group(0),
+                                              strand="forward",
+                                              pam_orientation="3prime",
+                                              seqid=id,
+                                              start=match_obj.start() - target_len,
+                                              stop=match_obj.start()))
+            print("f3p: " + str(len(target_list)))
+
+        def run_rev_5p(pamregex):
+            for match_obj in re.finditer(pamregex, seq):
+                target_seq = reverse_complement(seq[match_obj.start() - target_len : match_obj.start()])
+                if check_target(target_seq, target_len):
+                    target_list.append(Target(seq=target_seq,
+                                              exact_pam=reverse_complement(match_obj.group(0)),
+                                                strand="forward",
+                                                pam_orientation="5prime",
+                                                seqid=id,
+                                                start=match_obj.start() - target_len,
+                                                stop=match_obj.start()))
+            print("r5p: " + str(len(target_list)))
+
+        def run_rev_3p(pamregex):
+            for match_obj in re.finditer(pamregex, seq):
+                target_seq = reverse_complement(seq[match_obj.end() : match_obj.end() + target_len])
+                if check_target(target_seq, target_len):
+                    target_list.append(Target(seq=target_seq,
+                                              exact_pam=reverse_complement(match_obj.group(0)),
+                                              strand="forward",
+                                              pam_orientation="5prime",
+                                              seqid=id,
+                                              start=match_obj.end(),
+                                              stop=match_obj.end() + target_len))
+            print("r3p: " + str(len(target_list)))
+
+        for record in seq_record_iter:
+            id = record.id
+            seq =str(record.seq)
+            if self.pam_orientation == "5prime":
+                if strand == "forward":
+                    run_for_5p(pam2re(self.pam))
+                if strand == "reverse":
+                    run_rev_5p(pam2re(reverse_complement(self.pam)))
+                if strand == "both":
+                    run_for_5p(pam2re(self.pam))
+                    run_rev_5p(pam2re(reverse_complement(self.pam)))
+            elif self.pam_orientation == "3prime":
+                if strand == "forward":
+                    run_for_3p(pam2re(self.pam))
+                if strand == "reverse":
+                    run_rev_3p(pam2re(reverse_complement(self.pam)))
+                if strand == "both":
+                    run_for_3p(pam2re(self.pam))
+                    run_rev_3p(pam2re(reverse_complement(self.pam)))
+        return target_list
 
 
 class Target:
