@@ -54,7 +54,7 @@ class Pam:
                 3prime means the order is 5'-[target][pam]-3'
         """
         for letter in pam.upper():
-            assert letter in ['G', 'A', 'T', 'C', 'N' ]
+            assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
         assert pam_orientation in ["3prime", "5prime"]
         self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
@@ -84,7 +84,7 @@ class Pam:
 
 
         def pam2re(pam) -> str:
-            """Convert an IUPAC anbigous PAM to a Regex expression
+            """Convert an IUPAC ambiguous PAM to a Regex expression
 
             """
             dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
@@ -133,7 +133,7 @@ class Pam:
                 if check_target(target_seq, target_len):
                     target_list.append(Target(seq=target_seq,
                                               exact_pam=reverse_complement(match_obj.group(0)),
-                                                strand="forward",
+                                                strand="reverse",
                                                 pam_orientation="5prime",
                                                 seqid=id,
                                                 start=match_obj.start() - target_len,
@@ -146,7 +146,7 @@ class Pam:
                 if check_target(target_seq, target_len):
                     target_list.append(Target(seq=target_seq,
                                               exact_pam=reverse_complement(match_obj.group(0)),
-                                              strand="forward",
+                                              strand="reverse",
                                               pam_orientation="5prime",
                                               seqid=id,
                                               start=match_obj.end(),
@@ -227,6 +227,7 @@ class TargetList:
     def __len__(self):
         return len(self.targets)
 
+
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
 
@@ -268,7 +269,7 @@ class TargetList:
         self.unique_targets = list(filteredlist)
 
 
-    def create_index(self, M: int=16, num_threads=2, efC: int=64, post=1) -> None:
+    def create_index(self, M: int=16, num_threads=2, efC: int=10, post=1) -> None:
         """Create nmslib index
 
         Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
@@ -286,7 +287,10 @@ class TargetList:
         Returns:
             None (but writes NMSLIB index to self)
         """
-        bintargets = self._one_hot_encode(self.targets)
+
+        unitarg = self._make_full_unique_targets()
+        logging.info("unique targets for index: %s" % len(unitarg))
+        bintargets = self._one_hot_encode(unitarg)
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
@@ -296,7 +300,7 @@ class TargetList:
         index.createIndex(index_params, print_progress=True)
         self.nmslib_index = index
 
-    def get_neighbors(self, ef=256, num_threads=2) -> None:
+    def get_neighbors(self, ef=9, num_threads=2) -> None:
         """Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
