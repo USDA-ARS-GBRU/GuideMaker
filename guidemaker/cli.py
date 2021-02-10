@@ -69,14 +69,13 @@ def _logger_setup(logfile):
         raise e
 
 
-def main(args=None):
+def main(arglist: list=None):
     """Run The complete GuideMaker workflow.
 
     """
     # Set up logging
     parser = myparser()
-    if not args:
-        args = parser.parse_args()
+    args = parser.parse_args(arglist)
     parserval(args)
 
     _logger_setup(args.log)

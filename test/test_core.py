@@ -25,16 +25,6 @@ def test_pam_orientation():
 pamobj = guidemaker.core.Pam("NGG", "5prime")
 
 
-def test_pam_rc():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
-    assert pamobj.reverse_complement() == "CCN"
-
-
-def test_pam_extend_ambiguous_dna():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
-    exset = pamobj.extend_ambiguous_dna(pamobj.pam)
-    assert exset == frozenset(["AGG", "CGG", "GGG", "TGG"])
-
 
 def test_pam_find_targets_3f():
     pamobj = guidemaker.core.Pam("NGG", "3prime")
@@ -181,6 +171,9 @@ def test_get_nearby_features(tmp_path):
     pamobj = guidemaker.core.Pam("NGG", "5prime")
     gb = SeqIO.parse("test/test_data/Pseudomonas_aeruginosa_PAO1_107.sample.fasta", "fasta")
     targets = pamobj.find_targets(seq_record_iter=gb, strand="forward", target_len=20)
+    for tar in targets:
+        if len(tar.seq) < 20:
+            print(str(tar.start) + ", " + str(tar.stop) + ", " + tar.seq)
     tl = guidemaker.core.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
     tl.find_unique_near_pam()
     tl.create_index()
@@ -224,4 +217,3 @@ def test_get_fastas(tmp_path):
     gbfiles = ["test/test_data/Burkholderia_thailandensis_E264__ATCC_700388_133.gbk.gz",
                "test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"]
     guidemaker.core.get_fastas(gbfiles, tmp_path)
-
