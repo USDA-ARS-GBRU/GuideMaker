@@ -643,7 +643,6 @@ class Annotation:
         locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
         return(locus_count)
 
-
         
 def get_fastas(filelist, tempdir=None):
     """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
