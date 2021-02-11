@@ -288,9 +288,9 @@ class TargetList:
             None (but writes NMSLIB index to self)
         """
 
-        unitarg = self._make_full_unique_targets()
-        logging.info("unique targets for index: %s" % len(unitarg))
-        bintargets = self._one_hot_encode(unitarg)
+
+        logging.info("unique targets for index: %s" % len(self.targets))
+        bintargets = self._one_hot_encode(self.targets)
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
