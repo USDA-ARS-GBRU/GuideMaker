@@ -17,6 +17,7 @@ import nmslib
 from pybedtools import BedTool
 import pandas as pd
 import re
+import gc
 
 logger = logging.getLogger('guidemaker.core')
 
@@ -84,7 +85,7 @@ class Pam:
 
 
         def pam2re(pam) -> str:
-            """Convert an IUPAC anbigous PAM to a Regex expression
+            """Convert an IUPAC ambiguous PAM to a Regex expression
 
             """
             dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
@@ -133,7 +134,7 @@ class Pam:
                 if check_target(target_seq, target_len):
                     target_list.append(Target(seq=target_seq,
                                               exact_pam=reverse_complement(match_obj.group(0)),
-                                                strand="forward",
+                                                strand="reverse",
                                                 pam_orientation="5prime",
                                                 seqid=id,
                                                 start=match_obj.start() - target_len,
@@ -146,79 +147,34 @@ class Pam:
                 if check_target(target_seq, target_len):
                     target_list.append(Target(seq=target_seq,
                                               exact_pam=reverse_complement(match_obj.group(0)),
-                                              strand="forward",
+                                              strand="reverse",
                                               pam_orientation="5prime",
                                               seqid=id,
                                               start=match_obj.end(),
                                               stop=match_obj.end() + target_len))
             print("r3p: " + str(len(target_list)))
 
-        def window(iterable, size):
-            iters = tee(iterable, size)
-            for i in range(1, size):
-                for each in iters[i:]:
-                    next(each, None)
-            return zip(*iters)
-#                5prime means the order is 5'-[pam][target]-3'
-#                3prime means the order is 5'-[target][pam]-3'
-        def compute_seq_coords(self, hitset, strand, target_len, seqrecord, i):
-            if hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "3prime":
-                start = i - target_len
-                stop = i
-                seq = str(seqrecord[start:stop].seq)
-                exact_pam = str(seqrecord[stop:(stop + len(self.pam))].seq)
-            elif hitset == "fset" and strand in ("forward", "both") and self.pam_orientation == "5prime":
-                start = i + len(self.pam)
-                stop = i + len(self.pam) + target_len
-                seq = str(seqrecord[start:stop].seq)
-                exact_pam = str(seqrecord[start - len(self.pam):start].seq)
-            elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "3prime":
-                start = i + len(self.pam)
-                stop = i + len(self.pam) + target_len
-                seq = str(seqrecord[start:stop].seq.reverse_complement())
-                exact_pam = str(seqrecord[start - len(self.pam):start].seq.reverse_complement())
-            elif hitset == "rset" and strand in ("reverse", "both") and self.pam_orientation == "5prime":
-                start = i - target_len
-                stop = i
-                seq = str(seqrecord[start:stop].seq.reverse_complement())
-                exact_pam =str(seqrecord[stop:stop + len(self.pam)].seq.reverse_complement())
-            else:
-                return None
-            if 0 <= start <= len(seqrecord) and 0 <= stop <= len(seqrecord) and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
-                return Target(seq=seq,
-                              exact_pam=exact_pam,
-                              strand=strand,
-                              pam_orientation=self.pam_orientation,
-                              seqid=seqrecord.id,
-                              start=start,
-                              stop=stop)
-
-        # Create iterable of PAM length windows across the sequence
-        target_list = deque()
-        for seqrecord in seq_record_iter:
-            kmer_iter = window(str(seqrecord.seq), len(self.pam))
-            for i, kmer in enumerate(kmer_iter):
-                hitset = None
-                kmerstr = ''.join(kmer)
-                if strand in ["forward", "both"] and kmerstr in self.fset:
-                    hitset = "fset"
-                    gstrand = "forward"
-                elif strand in ["reverse", "both"] and kmerstr in self.rset:
-                    hitset = "rset"
-                    gstrand = "reverse"
-                else:
-                    continue
-                tar = compute_seq_coords(self, hitset=hitset,
-                                         strand=gstrand,
-                                         target_len=target_len,
-                                         seqrecord=seqrecord,
-                                         i=i)
-                if tar:
-                    target_list.append(tar)
-            gc.collect() # clear memory after each chromosome
-        return list(target_list)
-        
-
+        for record in seq_record_iter:
+                id = record.id
+                seq =str(record.seq)
+                if self.pam_orientation == "5prime":
+                    if strand == "forward":
+                        run_for_5p(pam2re(self.pam))
+                    if strand == "reverse":
+                        run_rev_5p(pam2re(reverse_complement(self.pam)))
+                    if strand == "both":
+                        run_for_5p(pam2re(self.pam))
+                        run_rev_5p(pam2re(reverse_complement(self.pam)))
+                elif self.pam_orientation == "3prime":
+                    if strand == "forward":
+                        run_for_3p(pam2re(self.pam))
+                    if strand == "reverse":
+                        run_rev_3p(pam2re(reverse_complement(self.pam)))
+                    if strand == "both":
+                        run_for_3p(pam2re(self.pam))
+                        run_rev_3p(pam2re(reverse_complement(self.pam)))
+        gc.collect() # clear memory after each chromosome
+        return target_list
 
 class Target:
     """A class representing a candidate target sequence for a PAM
@@ -293,7 +249,6 @@ class TargetList:
         self.targets = [x for x in  self.targets if not any(restenzyme in x.seq for restenzyme in element_to_exclude)]
 
 
-
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
 
@@ -340,6 +295,13 @@ class TargetList:
                 filteredlist.append(lval[0])
         self.unique_targets = list(filteredlist)
 
+    def _make_full_unique_targets(self):
+        full_targerts= []
+        for unq_target in self.unique_targets:
+            full_targerts.append(str(unq_target.seq))
+        full_unique = set(full_targerts)
+        return full_unique
+        
 
     def create_index(self, M: int=16, num_threads=2, efC: int=10, post=1) -> None:
         """Create nmslib index
@@ -359,7 +321,10 @@ class TargetList:
         Returns:
             None (but writes NMSLIB index to self)
         """
-        bintargets = self._one_hot_encode(self.targets) # this has to be unique targets -- nop targets, as they are the part of the genome. 
+
+        unitarg = self._make_full_unique_targets()
+        logging.info("unique targets for index: %s" % len(unitarg))
+        bintargets = self._one_hot_encode(unitarg)
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
