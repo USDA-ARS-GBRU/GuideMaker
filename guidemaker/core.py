@@ -158,21 +158,11 @@ class Pam:
                 id = record.id
                 seq =str(record.seq)
                 if self.pam_orientation == "5prime":
-                    if strand == "forward":
-                        run_for_5p(pam2re(self.pam))
-                    if strand == "reverse":
-                        run_rev_5p(pam2re(reverse_complement(self.pam)))
-                    if strand == "both":
-                        run_for_5p(pam2re(self.pam))
-                        run_rev_5p(pam2re(reverse_complement(self.pam)))
+                    run_for_3p(pam2re(self.pam))
+                    run_rev_3p(pam2re(reverse_complement(self.pam)))
                 elif self.pam_orientation == "3prime":
-                    if strand == "forward":
-                        run_for_3p(pam2re(self.pam))
-                    if strand == "reverse":
-                        run_rev_3p(pam2re(reverse_complement(self.pam)))
-                    if strand == "both":
-                        run_for_3p(pam2re(self.pam))
-                        run_rev_3p(pam2re(reverse_complement(self.pam)))
+                    run_for_3p(pam2re(self.pam))
+                    run_rev_3p(pam2re(reverse_complement(self.pam)))
         gc.collect() # clear memory after each chromosome
         return target_list
 

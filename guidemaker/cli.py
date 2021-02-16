@@ -20,7 +20,6 @@ def myparser():
     parser.add_argument('--outdir', '-o', type=str, required=True, help='The directory for data output')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime', help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]" ,help='Length of the guide sequence')
-    parser.add_argument('--strand', '-s', choices=['forward','reverse', 'both'], default='both', help='Strand of DNA to search')
     parser.add_argument('--lcp', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of the guide closest to  the PAM required to be unique')
     parser.add_argument('--dist', type=int, choices=range(0, 6, 1),  metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
@@ -142,7 +141,7 @@ def main(arglist: list=None):
         logging.info("guidemaker completed, results are at %s" % args.outdir)
         logging.info("PAM sequence: %s" % args.pamseq)
         logging.info("PAM orientation: %s" % args.pam_orientation)
-        logging.info("Genome strand(s) searched: %s" % args.strand)
+        logging.info("Genome strand(s) searched: %s" % "both")
         logging.info("Total PAM sites considered: %d" % lengthoftl)
         logging.info("Guide RNA candidates found: %d" % len(prettydf))
 
