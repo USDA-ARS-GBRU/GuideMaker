@@ -20,7 +20,7 @@ def myparser():
     parser.add_argument('--outdir', '-o', type=str, required=True, help='The directory for data output')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime', help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]" ,help='Length of the guide sequence')
-    parser.add_argument('--lcp', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of the guide closest to  the PAM required to be unique')
+    parser.add_argument('--lu', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of a unique zone near the PAM site required to be unique')
     parser.add_argument('--dist', type=int, choices=range(0, 6, 1),  metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far in front of a feature')
@@ -37,9 +37,9 @@ def myparser():
     return parser
 
 def parserval(args):
-    assert(args.lcp <= args.guidelength), "The length of sequence near the PAM the is unique (lcp) must be less than the guide length"
+    assert(args.lu <= args.guidelength), "The length of sequence near the PAM the is unique (lu) must be less than the guide length"
     # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
-    assert(1 < len(args.pamseq) < 9 ), "The length of the PAM sequence must be between 2-6"
+    assert(1 < len(args.pamseq) < 9 ), "The length of the PAM sequence must be between 2-8"
 
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
@@ -95,7 +95,7 @@ def main(arglist: list=None):
         pamobj = guidemaker.core.Pam(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, strand="both", target_len=args.guidelength)
-        tl = guidemaker.core.TargetList(targets=pamtargets, lcp=args.lcp, hammingdist=args.dist, knum=args.knum)
+        tl = guidemaker.core.TargetList(targets=pamtargets, lu=args.lu, hammingdist=args.dist, knum=args.knum)
         lengthoftl= len(tl)
         logging.info("Checking guides for restriction enzymes")
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)

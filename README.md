@@ -18,7 +18,7 @@
 
 GuideMaker can be installed from:
 
-1. The Github repository: https://github.com/USDA-ARS-GBRU/guidemaker
+1. The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
@@ -59,19 +59,18 @@ optional arguments:
                         Cas9 is 3prime
   --guidelength [10-27], -l [10-27]
                         Length of the guide sequence
-  --strand {forward,reverse,both}, -s {forward,reverse,both}
-                        Strand of DNA to search
-  --lcp [0-27]          Length of the guide closest to the PAM required to be
-                        unique
-  --dist [1-5]          Minimum hamming distance from any other potential
-                        guide
+  --lu [0-27]           Length of a unique zone near the PAM site required to be unique
+  --dist [0-5]          Minimum hamming distance from any other potential
+                        guide. Default dist is >= 2.
   --before [1-500]      keep guides this far in front of a feature
   --into [1-500]        keep guides this far inside (past the start site)of a
                         feature
-  --knum [2-20]         how many sequences similar to the guide to report
-  --controls CONTROLS   The number or random control RNAs to generate
-  --threads THREADS     The number of cpu threads to use
+  --knum [2-20]         Number of sequences similar to the guide to report
+  --controls CONTROLS   Number or random control RNAs to generate
+  --threads THREADS     Number of cpu threads to use
+  --restriction_enzyme_list List of sequence representing restriction enzymes
   --log LOG             Log file
+  --keeptemp            Option to keep intermediate files
   --tempdir TEMPDIR     The temp file directory
   -V, --version         show program's version number and exit
 ```
@@ -79,16 +78,17 @@ optional arguments:
 ## Examples
 
 
-Use case: Retrieving target sequence for a given PAM motif in the forward and reverse strands, where length of guide sequence is 20 base pair.
-12 base pair close to PAM motif is conserved ,i.e. unique and the full sequence has a hamming distance of more than 2.
-Here the number of used threads is 2
-Return a table of pam sites and associated data, at in current folder.
+Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide sequence is 20 base pair. 11 base pair close to PAM motif is conserved ,i.e. unique  zone. 
 
 ```
-		guidemaker -i test/test_data/Burkholderia_thailandensis_E264_ATCC_700388_133.gbk \
-		--pamseq AGG  --outdir OUTDIR --pam_orientation 5prime \
-		--guidelength 20 --strand both --lcp 10 --dist 3 --before 100 \
-		--into  100 --knum 10 --controls 10  --log logfile.txt --threads 2
+    guidemaker \
+    -i test/test_data/Carsonella_ruddii.gbk \
+    -p NGG \
+    --pam_orientation 3prime \
+    --guidelength 20 \
+    --lu 11 \
+    -o OUTDIR \
+    --threads 2
 
 ```
 

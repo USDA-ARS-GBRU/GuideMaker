@@ -202,9 +202,9 @@ class TargetList:
     the region near the PAM, and a dict with edit distances for sequences.
 
     """
-    def __init__(self, targets: List, lcp: int, hammingdist: int=2, knum: int=2) -> None:
+    def __init__(self, targets: List, lu: int, hammingdist: int=2, knum: int=2) -> None:
         self.targets: List = targets
-        self.lcp: int = lcp
+        self.lu: int = lu
         self.hammingdist: int = hammingdist
         self.knum: int = knum
         self.unique_targets: dict = {}
@@ -256,31 +256,31 @@ class TargetList:
 
         The function filters a list of Target objects for targets that
         are unique in the region closest to the PAM. The region length is defined
-        by the lcp.
+        by the lu (length of unique zone).
 
         Args:
-            lcp (int): Length of conserved sequence close to PAM
+            lu (int): Length of conserved sequence close to PAM
         """
         def _get_prox(target):
             if target.pam_orientation == "5prime":
-            	if self.lcp == 0:
+            	if self.lu == 0:
             		return target.seq
             	else:
-            		return target.seq[0:self.lcp]
+            		return target.seq[0:self.lu]
             elif target.pam_orientation == "3prime":
-            	if self.lcp == 0:
+            	if self.lu == 0:
             		return target.seq
             	else:
-                	return target.seq[(len(target) - self.lcp):]
-        lcp_dict ={}
+                	return target.seq[(len(target) - self.lu):]
+        lu_dict ={}
         for target in self.targets:
             proximal = _get_prox(target)
-            if proximal in lcp_dict.keys():
-                lcp_dict[proximal].append(target)
+            if proximal in lu_dict.keys():
+                lu_dict[proximal].append(target)
             else:
-                lcp_dict[proximal] = [target]
+                lu_dict[proximal] = [target]
         filteredlist = deque()
-        for lkey, lval in lcp_dict.items():
+        for lkey, lval in lu_dict.items():
             if len(lval) == 1:
                 filteredlist.append(lval[0])
         self.unique_targets = list(filteredlist)

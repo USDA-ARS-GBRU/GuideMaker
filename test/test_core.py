@@ -104,7 +104,7 @@ targets = [guidemaker.Target(seq="ATGCACATGCACTGCTGGAT",
 
 def test_find_unique_near_pam():
     tl = guidemaker.core.TargetList(targets=targets,
-                                     lcp=10,
+                                     lu=10,
                                      hammingdist=2,
                                      knum=2)
     tl.find_unique_near_pam()
@@ -113,7 +113,7 @@ def test_find_unique_near_pam():
 
 def test_create_index():
     tl = guidemaker.core.TargetList(targets=targets,
-                                     lcp=10,
+                                     lu=10,
                                      hammingdist=2,
                                      knum=2)
     tl.find_unique_near_pam()
@@ -122,7 +122,7 @@ def test_create_index():
 
 def test_get_neighbors():
     tl = guidemaker.core.TargetList(targets=targets,
-                                     lcp=10,
+                                     lu=10,
                                      hammingdist=2,
                                      knum=2)
     tl.find_unique_near_pam()
@@ -134,7 +134,7 @@ def test_get_neighbors():
 
 def test_export_bed():
     tl = guidemaker.core.TargetList(targets=targets,
-                                     lcp=10,
+                                     lu=10,
                                      hammingdist=2,
                                      knum=2)
     tl.find_unique_near_pam()
@@ -146,7 +146,7 @@ def test_export_bed():
 # Annotation class tests
 
 
-tl = guidemaker.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
+tl = guidemaker.TargetList(targets=targets, lu=10, hammingdist=2, knum=2)
 tl.find_unique_near_pam()
 tl.create_index()
 tl.get_neighbors()
@@ -174,7 +174,7 @@ def test_get_nearby_features(tmp_path):
     for tar in targets:
         if len(tar.seq) < 20:
             print(str(tar.start) + ", " + str(tar.stop) + ", " + tar.seq)
-    tl = guidemaker.core.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
+    tl = guidemaker.core.TargetList(targets=targets, lu=10, hammingdist=2, knum=2)
     tl.find_unique_near_pam()
     tl.create_index()
     tl.get_neighbors()
@@ -189,7 +189,7 @@ def test_get_control_seqs():
     pamobj = guidemaker.core.Pam("NGG", "5prime")
     gb = SeqIO.parse("test/test_data/Pseudomonas_aeruginosa_PAO1_107.sample.fasta", "fasta")
     targets = pamobj.find_targets(seq_record_iter=gb, strand="forward", target_len=20)
-    tl = guidemaker.core.TargetList(targets=targets, lcp=10, hammingdist=2, knum=2)
+    tl = guidemaker.core.TargetList(targets=targets, lu=10, hammingdist=2, knum=2)
     tl.find_unique_near_pam()
     tl.create_index()
     gb = SeqIO.parse("test/test_data/Pseudomonas_aeruginosa_PAO1_107.sample.fasta", "fasta")
@@ -199,7 +199,7 @@ def test_filter_features():
     pamobj = guidemaker.core.Pam("NGG", "5prime")
     gb = SeqIO.parse("test/test_data/Pseudomonas_aeruginosa_PAO1_107.sample.fasta", "fasta")
     pamtargets = pamobj.find_targets(seq_record_iter=gb, strand="both", target_len=20)
-    tl = guidemaker.core.TargetList(targets=pamtargets, lcp=10, hammingdist=2, knum=2)
+    tl = guidemaker.core.TargetList(targets=pamtargets, lu=10, hammingdist=2, knum=2)
     tl.find_unique_near_pam()
     tl.create_index()
     tl.get_neighbors()
