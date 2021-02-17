@@ -83,9 +83,10 @@ class Pam:
             return  frozenset(list(map("".join, product(*map(dna_dict.get, seq)))))
 
         def check_target(seq, target_len):
-            if len(seq) == target_len:
+            if len(seq) == target_len and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
                 return True
             return False
+
 
         #https://stackoverflow.com/questions/18933711/find-all-occurrences-of-a-substring-including-overlap
         def findall(pam, seq):
