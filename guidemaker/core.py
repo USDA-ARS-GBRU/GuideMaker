@@ -4,13 +4,13 @@
 import os
 from typing import List, Dict, Tuple
 import logging
-from itertools import product, tee
+from itertools import product
 import gzip
 import hashlib
 import statistics
-from collections import deque
+from collections import Counter
 import numpy as np
-from Bio.Seq import Seq
+#from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.SeqUtils import GC
 import nmslib
@@ -18,6 +18,9 @@ from pybedtools import BedTool
 import pandas as pd
 import re
 import gc
+from Bio import Seq
+from collections import deque
+
 
 logger = logging.getLogger('guidemaker.core')
 
@@ -33,17 +36,6 @@ class Pam:
     """A Class representing a Protospacer Adjacent Motif (PAM)
 
     """
-
-    def extend_ambiguous_dna(self, pam) -> None:
-        """convert ambiguous DNA input to return frozen set of all sequences
-        Args:
-            pam (str): a pam seq (all caps)
-        Returns:
-            (frozenset): all possible sequences given an ambiguous DNA input
-
-        """
-
-
 
     def __init__(self, pam: str, pam_orientation: str) -> None:
         """Pam __init__
@@ -80,91 +72,123 @@ class Pam:
         def reverse_complement(seq: str) -> object:
             """reverse complement of the PAM sequence
             """
-            pamseq = Seq(seq)
+            pamseq = Seq.Seq(seq)
             return str(pamseq.reverse_complement())
 
 
-        def pam2re(pam) -> str:
-            """Convert an IUPAC ambiguous PAM to a Regex expression
-
+        def extend_ambiguous_dna(seq):
+            """return list of all possible sequences given an ambiguous DNA input
             """
-            dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
-                      'M': '[A|C]', 'R': '[A|G]', 'W': '[A|T]', 'S': '[C|G]',
-                      'Y': '[C|T]', 'K': '[G|T]', 'V': '[A|C|G]', 'H': '[A|C|T]',
-                      'D': '[A|G|T]', 'B': '[C|G|T]', 'X': '[G|A|T|C]', 'N': '[G|A|T|C]'}
-            return "".join([dnaval[base] for base in pam])
-
-        #                5prime means the order is 5'-[pam][target]-3'
-        #                3prime means the order is 5'-[target][pam]-3'
+            dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
+            return  frozenset(list(map("".join, product(*map(dna_dict.get, seq)))))
 
         def check_target(seq, target_len):
             if len(seq) == target_len:
                 return True
             return False
 
-        def run_for_5p(pamregex):
-            for match_obj in re.finditer(pamregex, seq):
-                target_seq = seq[match_obj.end() : match_obj.end() + target_len]
-                if check_target(target_seq, target_len):
-                    target_list.append(Target(seq=target_seq,
-                                              exact_pam=match_obj.group(0),
-                                              strand="forward",
-                                              pam_orientation="5prime",
-                                              seqid=id,
-                                              start=match_obj.end(),
-                                              stop=match_obj.end() + target_len))
+        #https://stackoverflow.com/questions/18933711/find-all-occurrences-of-a-substring-including-overlap
+        def findall(pam, seq):
+            """ Find occurrence of substring(PAM) in a string(sequence)
+            """
+            i = 0
+            try:
+                while True:
+                    i = seq.index(pam, i)
+                    yield i
+                    i += 1
+            except ValueError:
+                pass
+            
+
+        # run_for_5p
+        def run_for_5p(expandpam, seq):
+            for eachpam in expandpam:
+                exact_pam = eachpam
+                matches_g = findall(exact_pam, seq)
+                for i in matches_g:
+                    start = i + len(self.pam)
+                    stop = i + len(self.pam) + target_len
+                    target_seq = seq[start:stop]
+                    if check_target(target_seq, target_len):
+                        target_list.append(Target(seq=target_seq,
+                                                        exact_pam=exact_pam,
+                                                        strand="forward",
+                                                        pam_orientation="5prime",
+                                                        seqid=id,
+                                                        start = start,
+                                                        stop=stop))
             print("f5p: " + str(len(target_list)))
 
-        def run_for_3p(pamregex):
-            for match_obj in re.finditer(pamregex, seq):
-                target_seq = seq[match_obj.start() - target_len : match_obj.start()]
-                if check_target(target_seq, target_len):
-                    target_list.append(Target(seq=target_seq,
-                                              exact_pam=match_obj.group(0),
-                                              strand="forward",
-                                              pam_orientation="3prime",
-                                              seqid=id,
-                                              start=match_obj.start() - target_len,
-                                              stop=match_obj.start()))
+
+        def run_for_3p(expandpam, seq):
+            for eachpam in expandpam:
+                exact_pam = eachpam
+                matches_g = findall(exact_pam, seq)
+                for i in matches_g:
+                    start = i - target_len
+                    stop = i 
+                    target_seq = seq[start:stop]
+                    if check_target(target_seq, target_len):
+                        target_list.append(Target(seq=target_seq,
+                                                        exact_pam=exact_pam,
+                                                        strand="forward",
+                                                        pam_orientation="3prime",
+                                                        seqid=id,
+                                                        start = start,
+                                                        stop=stop))
             print("f3p: " + str(len(target_list)))
 
-        def run_rev_5p(pamregex):
-            for match_obj in re.finditer(pamregex, seq):
-                target_seq = reverse_complement(seq[match_obj.start() - target_len : match_obj.start()])
-                if check_target(target_seq, target_len):
-                    target_list.append(Target(seq=target_seq,
-                                              exact_pam=reverse_complement(match_obj.group(0)),
-                                                strand="reverse",
-                                                pam_orientation="5prime",
-                                                seqid=id,
-                                                start=match_obj.start() - target_len,
-                                                stop=match_obj.start()))
+
+        def run_rev_5p(expandpam, seq):
+            for eachpam in expandpam:
+                exact_pam = eachpam
+                matches_g = findall(exact_pam, seq)
+                for i in matches_g:
+                    start = i - target_len
+                    stop = i
+                    target_seq = reverse_complement(seq[start:stop])
+                    if check_target(target_seq, target_len):
+                        target_list.append(Target(seq=target_seq,
+                                                        exact_pam=reverse_complement(exact_pam),
+                                                        strand="reverse",
+                                                        pam_orientation="5prime",
+                                                        seqid=id,
+                                                        start = start,
+                                                        stop=stop))
             print("r5p: " + str(len(target_list)))
 
-        def run_rev_3p(pamregex):
-            for match_obj in re.finditer(pamregex, seq):
-                target_seq = reverse_complement(seq[match_obj.end() : match_obj.end() + target_len])
-                if check_target(target_seq, target_len):
-                    target_list.append(Target(seq=target_seq,
-                                              exact_pam=reverse_complement(match_obj.group(0)),
-                                              strand="reverse",
-                                              pam_orientation="5prime",
-                                              seqid=id,
-                                              start=match_obj.end(),
-                                              stop=match_obj.end() + target_len))
+        def run_rev_3p(expandpam, seq):
+            for eachpam in expandpam:
+                exact_pam = eachpam
+                matches_g = findall(exact_pam, seq)
+                for i in matches_g:
+                    start = i + len(self.pam)
+                    stop = i + len(self.pam) + target_len
+                    target_seq = reverse_complement(seq[start : stop])
+                    if check_target(target_seq, target_len):
+                        target_list.append(Target(seq=target_seq,
+                                                        exact_pam=reverse_complement(exact_pam),
+                                                        strand="reverse",
+                                                        pam_orientation="3prime",
+                                                        seqid=id,
+                                                        start = start,
+                                                        stop=stop))
             print("r3p: " + str(len(target_list)))
+
 
         for record in seq_record_iter:
                 id = record.id
                 seq =str(record.seq)
                 if self.pam_orientation == "5prime":
-                    run_for_3p(pam2re(self.pam))
-                    run_rev_3p(pam2re(reverse_complement(self.pam)))
+                    run_for_5p(extend_ambiguous_dna(self.pam), seq)
+                    run_rev_5p(extend_ambiguous_dna(reverse_complement(self.pam)), seq)
                 elif self.pam_orientation == "3prime":
-                    run_for_3p(pam2re(self.pam))
-                    run_rev_3p(pam2re(reverse_complement(self.pam)))
+                    run_for_3p(extend_ambiguous_dna(self.pam), seq)
+                    run_rev_3p(extend_ambiguous_dna(reverse_complement(self.pam)), seq)
         gc.collect() # clear memory after each chromosome
         return target_list
+
 
 class Target:
     """A class representing a candidate target sequence for a PAM
@@ -182,11 +206,9 @@ class Target:
         self.start: int = start
         self.stop: int = stop
         self.md5: str = hashlib.md5(seq.encode()).hexdigest()
-
     def __str__(self) -> str:
         return "A Target object: {self.seq} on sequence {self.seqid} \
                 position {self.start}".format(self=self)
-
     def __eq__(self, other):
         return other == self.seq
     def __ne__(self, other):
@@ -678,27 +700,3 @@ def get_fastas(filelist, tempdir=None):
     except Exception as e:
         print("An error occurred in input genbank file %s" % file)
         raise e
-
-
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-
-
-
-
-
-
