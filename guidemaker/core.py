@@ -2,6 +2,7 @@
 
 """
 import os
+import yaml
 from typing import List, Dict, Tuple
 import logging
 from itertools import product
@@ -25,34 +26,17 @@ from collections import deque
 logger = logging.getLogger('guidemaker.core')
 
 
-########################################
-import sys
-from types import ModuleType, FunctionType
-from gc import get_referents
 
-# Custom objects know their class.
-# Function objects seem to know way too much, including modules.
-# Exclude modules as well.
-BLACKLIST = type, ModuleType, FunctionType
+def load_parameters(yaml_file):
+    """load yaml file with global variables and hyper paramteres
+    """
+    with open(yaml_file, "r") as f:
+        y = yaml.load(stream=f, Loader=yaml.FullLoader)
+        return y
 
 
-def getsize(obj):
-    """sum size of object & members."""
-    if isinstance(obj, BLACKLIST):
-        raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
-    seen_ids = set()
-    size = 0
-    objects = [obj]
-    while objects:
-        need_referents = []
-        for obj in objects:
-            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
-                seen_ids.add(id(obj))
-                size += sys.getsizeof(obj)
-                need_referents.append(obj)
-        objects = get_referents(*need_referents)
-    return size
-##############################################################################
+# load Global variable from paramters.yaml
+yaml_dict = load_parameters("parameters.yaml")
 
 def is_gzip(filename):
     try:
@@ -151,7 +135,7 @@ class Pam:
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("f5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
+            #print("f5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
 
 
         def run_for_3p(expandpam, seq):
@@ -172,7 +156,7 @@ class Pam:
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("f3p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
+            #print("f3p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
 
 
         def run_rev_5p(expandpam, seq):
@@ -193,7 +177,7 @@ class Pam:
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("r5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
+            #print("r5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
 
         def run_rev_3p(expandpam, seq):
             for eachpam in expandpam:
@@ -213,7 +197,7 @@ class Pam:
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("r3p: " + str(len(target_list)), getsize(target_list)/1e+9 ,"GB")
+            #print("r3p: " + str(len(target_list)), getsize(target_list)/1e+9 ,"GB")
 
 
         for record in seq_record_iter:
@@ -266,7 +250,7 @@ class TargetList:
     """
     def __init__(self, targets: List, lu: int, hammingdist: int=2, knum: int=2) -> None:
         self.targets: List = targets
-        self.lu: int = lu
+        self.lu: int = lu # lenght of unique zone
         self.hammingdist: int = hammingdist
         self.knum: int = knum
         self.unique_targets: dict = {}
@@ -355,7 +339,7 @@ class TargetList:
         return full_unique
         
 
-    def create_index(self, M: int=16, num_threads=2, efC: int=10, post=1) -> None:
+    def create_index(self, M: int=yaml_dict['NMSLIB']['M'], num_threads=2, efC: int=yaml_dict['NMSLIB']['efc'], post: int=yaml_dict['NMSLIB']['post']) -> None:
         """Create nmslib index
 
         Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
@@ -386,7 +370,7 @@ class TargetList:
         index.createIndex(index_params, print_progress=True)
         self.nmslib_index = index
 
-    def get_neighbors(self, ef=9, num_threads=2) -> None:
+    def get_neighbors(self, ef: int=yaml_dict['NMSLIB']['ef'], num_threads=2) -> None:
         """Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
@@ -468,7 +452,7 @@ class TargetList:
         search_mult = 0
         
         #  search_mult (int): search this times n sequences
-        search_multiple=[10, 100, 1000, 10000]
+        search_multiple = yaml_dict['CONTROL_SEARCH_MULTIPLE']
        
         try:
             while  minimum_hmdist < 7 or search_mult ==  10000:
@@ -571,7 +555,7 @@ class Annotation:
             self.feature_dict = feature_dict
         f.close()
 
-    def _get_qualifiers(self, min_prop: float = 0.5, excluded: List[str] = None) -> object:
+    def _get_qualifiers(self, min_prop: float = yaml_dict['MINIMUM_PROPORTION'], excluded: List[str] = None) -> object:
         """Create a dataframe with features and their qualifier values
 
         Create a dataframe with features and their qualifier values for
