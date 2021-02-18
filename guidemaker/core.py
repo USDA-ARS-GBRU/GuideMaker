@@ -89,13 +89,6 @@ class Pam:
             pamseq = Seq.Seq(seq)
             return str(pamseq.reverse_complement())
 
-
-        def extend_ambiguous_dna(seq):
-            """return list of all possible sequences given an ambiguous DNA input
-            """
-            dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
-            return  frozenset(list(map("".join, product(*map(dna_dict.get, seq)))))
-
         def check_target(seq, target_len):
             if len(seq) == target_len and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
                 return True
@@ -274,16 +267,19 @@ class TargetList:
         Returns:
             None (but restriction enzyme checked tagets to self and targets are updated)
         """
-        from Bio import Seq # somehow if you import these two prior PAM class has eror as [TypeError: 'module' object is not callable]
-        from itertools import product
-        dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
-        extend_list= list()
+        element_to_exclude = []
         for record in set(restriction_enzyme_list):
-            extend_list.append(list(map("".join, product(*map(dna_dict.get, record)))))
-        element_to_exclude = frozenset(sum(extend_list, [])) # flat out the compount list and make frozenset
+            element_to_exclude.append(extend_ambiguous_dna(record))
+        element_to_exclude = sum(element_to_exclude, []) # flatout list of list to list
         # retrive targets if doesnot contain the strings specify in the restriction enzyme list
-        self.targets = [x for x in  self.targets if not any(restenzyme in x.seq for restenzyme in element_to_exclude)]
-
+        #self.targets = [x for x in  self.targets if not any(restenzyme in x.seq for restenzyme in element_to_exclude)]
+        to_delete = []
+        for tobj in self.targets:
+            for restenzyme in element_to_exclude:
+                if restenzyme in tobj.seq:
+                    to_delete.append(tobj)
+        # update self.targets- such that target object if occures in to_delete list, is not selected
+        self.targets = [tobj for tobj in self.targets if tobj not in to_delete]
 
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
@@ -724,3 +720,12 @@ def get_fastas(filelist, tempdir=None):
     except Exception as e:
         print("An error occurred in input genbank file %s" % file)
         raise e
+
+def extend_ambiguous_dna(seq):
+            """return list of all possible sequences given an ambiguous DNA input
+            """
+            dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
+            extend_list = []
+            for i in product(*[dna_dict[j] for j in seq]):
+                extend_list.append("".join(i))
+            return extend_list
