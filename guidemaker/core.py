@@ -24,6 +24,36 @@ from collections import deque
 
 logger = logging.getLogger('guidemaker.core')
 
+
+########################################
+import sys
+from types import ModuleType, FunctionType
+from gc import get_referents
+
+# Custom objects know their class.
+# Function objects seem to know way too much, including modules.
+# Exclude modules as well.
+BLACKLIST = type, ModuleType, FunctionType
+
+
+def getsize(obj):
+    """sum size of object & members."""
+    if isinstance(obj, BLACKLIST):
+        raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
+    seen_ids = set()
+    size = 0
+    objects = [obj]
+    while objects:
+        need_referents = []
+        for obj in objects:
+            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
+                seen_ids.add(id(obj))
+                size += sys.getsizeof(obj)
+                need_referents.append(obj)
+        objects = get_referents(*need_referents)
+    return size
+##############################################################################
+
 def is_gzip(filename):
     try:
         with open(filename, "rb") as f:
@@ -114,12 +144,14 @@ class Pam:
                     if check_target(target_seq, target_len):
                         target_list.append(Target(seq=target_seq,
                                                         exact_pam=exact_pam,
-                                                        strand="forward",
-                                                        pam_orientation="5prime",
+                                                        # forward = 0, reverse =1
+                                                        strand=0,
+                                                        # 5prime =True, 3prime = False
+                                                        pam_orientation=True,
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("f5p: " + str(len(target_list)))
+            print("f5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
 
 
         def run_for_3p(expandpam, seq):
@@ -133,12 +165,14 @@ class Pam:
                     if check_target(target_seq, target_len):
                         target_list.append(Target(seq=target_seq,
                                                         exact_pam=exact_pam,
-                                                        strand="forward",
-                                                        pam_orientation="3prime",
+                                                        # forward = 0, reverse =1
+                                                        strand=0,
+                                                        # 5prime =True, 3prime = False
+                                                        pam_orientation=False,
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("f3p: " + str(len(target_list)))
+            print("f3p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
 
 
         def run_rev_5p(expandpam, seq):
@@ -152,12 +186,14 @@ class Pam:
                     if check_target(target_seq, target_len):
                         target_list.append(Target(seq=target_seq,
                                                         exact_pam=reverse_complement(exact_pam),
-                                                        strand="reverse",
-                                                        pam_orientation="5prime",
+                                                        # forward = 0, reverse =1
+                                                        strand=1,
+                                                        # 5prime =True, 3prime = False
+                                                        pam_orientation=True,
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("r5p: " + str(len(target_list)))
+            print("r5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
 
         def run_rev_3p(expandpam, seq):
             for eachpam in expandpam:
@@ -170,12 +206,14 @@ class Pam:
                     if check_target(target_seq, target_len):
                         target_list.append(Target(seq=target_seq,
                                                         exact_pam=reverse_complement(exact_pam),
-                                                        strand="reverse",
-                                                        pam_orientation="3prime",
+                                                        # forward = 0, reverse =1
+                                                        strand=1,
+                                                        # 5prime =True, 3prime = False
+                                                        pam_orientation=False,
                                                         seqid=id,
                                                         start = start,
                                                         stop=stop))
-            print("r3p: " + str(len(target_list)))
+            print("r3p: " + str(len(target_list)), getsize(target_list)/1e+9 ,"GB")
 
 
         for record in seq_record_iter:
@@ -197,6 +235,7 @@ class Target:
     This is an object for holding data on possible target sequences
     adjacent to PAM sites.
     """
+    __slots__ = ['seq', 'exact_pam','strand','pam_orientation','seqid','start','stop','md5']
     def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
                  seqid: str, start: int, stop: int) -> object:
         self.seq: str = seq
@@ -285,12 +324,12 @@ class TargetList:
             lu (int): Length of conserved sequence close to PAM
         """
         def _get_prox(target):
-            if target.pam_orientation == "5prime":
+            if target.pam_orientation == True: # 5prime = Truem 3prime=False
             	if self.lu == 0:
             		return target.seq
             	else:
             		return target.seq[0:self.lu]
-            elif target.pam_orientation == "3prime":
+            elif target.pam_orientation == False:# 5prime = Truem 3prime=False
             	if self.lu == 0:
             		return target.seq
             	else:
@@ -394,9 +433,9 @@ class TargetList:
             bdict['chromend'].append(rec["target"].stop)
             bdict['name'].append(rec["target"].seq)
             bdict['score'].append(0)
-            if rec["target"].strand == "forward":
+            if rec["target"].strand == 0:
                 bdict['strand'].append("+")
-            elif rec["target"].strand == "reverse":
+            elif rec["target"].strand == 1:
                 bdict['strand'].append("-")
         df = pd.DataFrame.from_dict(bdict)
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)

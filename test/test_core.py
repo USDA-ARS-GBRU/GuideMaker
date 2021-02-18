@@ -98,8 +98,23 @@ targets = [guidemaker.Target(seq="ATGCACATGCACTGCTGGAT",
                                   seqid="NC_002516",
                                   start=1050,
                                   stop=1071)]
+guidemaker.getsize(targets)
 
+targets = [guidemaker.Target(seq="ATGCACATGCACTGCTGGAT",
+                                   exact_pam="NGG", strand=0,
+                                   pam_orientation=True,
+                                   seqid="NC_002516",
+                                   start=410,
+                                   stop=430),
+          guidemaker.Target(seq="ATGCAAATTCTTGTGCTCCA",
+                                  exact_pam="NGG",
+                                  strand=0,
+                                  pam_orientation=True,
+                                  seqid="NC_002516",
+                                  start=1050,
+                                  stop=1071)]
 
+guidemaker.getsize(targets)
 # TargetList Class
 
 def test_find_unique_near_pam():
@@ -217,3 +232,105 @@ def test_get_fastas(tmp_path):
     gbfiles = ["test/test_data/Burkholderia_thailandensis_E264__ATCC_700388_133.gbk.gz",
                "test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"]
     guidemaker.core.get_fastas(gbfiles, tmp_path)
+
+
+def findall(pam, seq):
+            """ Find occurrence of substring(PAM) in a string(sequence)
+            """
+            i = 0
+            try:
+                while True:
+                    i = seq.index(pam, i)
+                    yield i
+                    i += 1
+            except ValueError:
+                pass
+
+
+from multiprocessing.dummy import Pool as ThreadPool
+hay='ATATATATTATTATATTATTATATTATTATATTATTTTTTTTTTTTTTTATATTAT'
+needle="AT"
+aa = findall(needle, hay)
+for i in aa:
+    print(i)
+
+pool = ThreadPool(10)
+results = pool.map(findall(needle, hay))
+
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    executor.map(findall(needle, hay), range(3))
+
+def multi_threads(threads=3):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        aa = executor.map(findall(needle, hay), range(threads))
+        return aa
+
+futures = multi_threads(threads=3)
+
+found=[]
+for future in futures:
+            #print('type(future)=',type(future))
+            for f in future:
+                if f:
+                    try:
+                        found.append(f)
+                    except:
+                        print_exc()
+
+foundsize = len(found)
+
+############
+import concurrent.futures as cf
+import itertools
+from time import time
+from traceback import print_exc
+from itertools import chain
+
+def _findmatch(nmin, nmax, number):
+    '''Function to find the occurrence of number in range nmin to nmax and return
+       the found occurrences in a list.'''
+    print('\n def _findmatch', nmin, nmax, number)
+    start = time()
+    match=[]
+    for n in range(nmin, nmax):
+        if number in str(n):
+            match.append(n)
+    end = time() - start
+    print("found {0} in {1:.4f}sec".format(len(match),end))
+    return match
+
+
+
+def _concurrent_map(nmax, number, workers):
+    '''Function that utilises concurrent.futures.ProcessPoolExecutor.map to
+       find the occurrences of a given number in a number range in a parallelised
+       manner.'''
+    # 1. Local variables
+    chunk = nmax // workers
+    futures = []
+    found =[]
+    #2. Parallelization
+    with cf.ProcessPoolExecutor(max_workers=workers) as executor:
+        # 2.1. Discretise workload and submit to worker pool
+        for i in range(workers):
+            cstart = chunk * i
+            cstop = chunk * (i + 1) if i != workers - 1 else nmax
+            futures.append(executor.submit(_findmatch, cstart, cstop, number))
+    return chain.from_iterable(f.result() for f in cf.as_completed(futures))
+
+
+nmax = int(1E8) # Number range maximum.
+number = str(5) # Number to be found in number range.
+workers = 4     # Pool of workers
+
+start = time()
+a = _concurrent_map(nmax, number, workers)
+end = time() - start
+print('\n main')
+print('workers = ', workers)
+print("found {0} in {1:.4f}sec".format(sum(1 for x in a),end))
+
+
+
+guidemaker.

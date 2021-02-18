@@ -6,6 +6,7 @@
 from ._version import get_versions
 from .core import *
 from .cli import *
+from .getsize import *
 
 __all__ = ["core", "cli"]
 
