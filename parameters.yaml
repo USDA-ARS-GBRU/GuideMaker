@@ -1,0 +1,14 @@
+# hyperparamter for NMSLIB
+NMSLIB:
+  M: 16
+  efc: 10
+  post: 1
+  ef: 9
+  
+# get_control_seqs - search_multiple
+CONTROL_SEARCH_MULTIPLE: [10, 100, 1000, 10000]
+
+#_get_qualifiers - min_prop
+MINIMUM_PROPORTION: 0.5
+  
+
