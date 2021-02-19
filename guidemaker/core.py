@@ -70,12 +70,11 @@ class Pam:
         return "A PAM object: {self.pam}".format(self=self)
     
 
-    def find_targets(self, seq_record_iter: object, strand: str, target_len: int) -> List[object]:
+    def find_targets(self, seq_record_iter: object, target_len: int) -> List[object]:
         """Find all targets on a sequence that match for the PAM on the requested strand(s)
 
         Args:
             seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
-            strand (str): The strand to search choices: ["forward", "reverse", "both"]
             target_len (int): The length of the target sequence
         Returns:
             list: A list of Target class instances
@@ -421,7 +420,7 @@ class TargetList:
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
-    def get_control_seqs(self, seq_record_iter: object, length: int=20, n: int=1000,
+    def get_control_seqs(self, seq_record_iter: object, length: int=20, n: int=10,
                          num_threads: int=2) -> Tuple[float, float, object]:
         """Create random sequences with a specified GC probability and find seqs with the greatest
          distance to any sequence flanking a PAM site
@@ -448,10 +447,10 @@ class TargetList:
         search_mult = 0
         
         #  search_mult (int): search this times n sequences
-        search_multiple = yaml_dict['CONTROL_SEARCH_MULTIPLE']
+        search_multiple = yaml_dict['CONTROL']['CONTROL_SEARCH_MULTIPLE']
        
         try:
-            while  minimum_hmdist < 7 or search_mult ==  10000:
+            while  minimum_hmdist < yaml_dict['CONTROL']['MINIMUM_HMDIST'] or search_mult ==  max(yaml_dict['CONTROL']['CONTROL_SEARCH_MULTIPLE']):
                 # generate random sequences
                 seqs = []
                 search_mult = search_multiple[sm_count]

@@ -96,7 +96,7 @@ def main(arglist: list=None):
         logging.info("Identifying PAM sites in the genome")
         pamobj = guidemaker.core.Pam(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
-        pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, strand="both", target_len=args.guidelength)
+        pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, target_len=args.guidelength)
         target_list_size = guidemaker.getsize(pamtargets)/1e9
         logging.info("Size of target list: %s GB", (target_list_size))
         tl = guidemaker.core.TargetList(targets=pamtargets, lu=args.lu, hammingdist=args.dist, knum=args.knum)
