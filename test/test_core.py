@@ -12,6 +12,8 @@ import guidemaker
 
 
 
+
+
 # yaml loader
 def test_load_parameters():
     yaml_dict_obj = guidemaker.core.load_parameters("test/test_data/parameters.yaml")
@@ -66,13 +68,6 @@ tardict = {'target': ['ATGCACATGCACTGCTGGAT','ATGCAAATTCTTGTGCTCCA','CAAGCACTGCT
         'strand': [True, True, False],   # forward =True, reverse = Fasle
         'pam_orientation': [False,False, False], # 5prime =True, 3prime = Fasle
         'seqid': ['AP009180.1','AP009180.2','AP009180.1']}
-    
-# tardict = {'target': ['ATGCACATGCACTGCTGGAT','ATGCACATGCACTGCTGGAT','ATGCACATGCACTGCTGGAT'],
-#         'exact_pam': ["AGG","TGG","CGG"],
-#         'start': [410, 1050, 1150],
-#         'stop': [430, 1070, 1170],
-#         'strand': [True, True, False],   # forward =True, reverse = Fasle
-#         'pam_orientation': [False,False, False]} # 5prime =True, 3prime = Fasle
     
 
 targets = pd.DataFrame(tardict)

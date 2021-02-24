@@ -101,7 +101,7 @@ class PamTarget:
         #                3prime means the order is 5'-[target][pam]-3'
 
         def check_target(seq, target_len):
-            if len(seq) == target_len:
+            if len(seq) == target_len and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
                 return True
             return False
 
@@ -611,7 +611,7 @@ class Annotation:
         def get_off_target_seqs(seq):
             slist = targetlist.neighbors[seq]["neighbors"]["seqs"]
             return ";".join(slist)
-        pretty_df = self.filtered_df.copy()
+        pretty_df = deepcopy(self.filtered_df)
         pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
         pretty_df['Guide name'] = pretty_df['Guide sequence'].apply(get_guide_hash)
         pretty_df['Target strand'] = np.where(pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
