@@ -268,7 +268,10 @@ class TargetList:
         #             to_delete.append(tobj)
         # # update self.targets- such that target object if occures in to_delete list, is not selected
         # self.targets = [tobj for tobj in self.targets if tobj not in to_delete]
-        self.targets = self.targets.loc[self.targets['target'].str.contains('|'.join(element_to_exclude))==False]
+        if len(element_to_exclude) > 0:
+            self.targets = self.targets.loc[self.targets['target'].str.contains('|'.join(element_to_exclude))==False]
+        else:
+            self.targets
 
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
@@ -376,13 +379,17 @@ class TargetList:
             # this should be 0, not 1.????????????????? talk with adam
             # this should be 1 == b/c each guides will have exact match with itself at 0 poositon. 
             if hammingdist[1] >= 2 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors, ndist = [self.targets['target'].values[x] for x in hitseqidx],[int(x/2) for x in hammingdist]
-                neighbor_dict[queryseq] = ''.join(str(neighbors + ndist))
-        df_neighbour = pd.DataFrame(list(neighbor_dict.items()),columns = ['target','neighbor_dict']) 
+                neighbors = {"seqs": [self.targets['target'].values[x]  for x in hitseqidx], # reverse this?
+                             "dist": [int(x/2) for x in hammingdist]}
+                neighbor_dict[queryseq] = {"target": self.unique_targets[i],
+                                           "neighbors": neighbors}
+                #neighbors, ndist = [self.targets['target'].values[x] for x in hitseqidx],[int(x/2) for x in hammingdist]
+                #neighbor_dict[queryseq] = ''.join(str(neighbors + ndist))
+        #df_neighbour = pd.DataFrame(list(neighbor_dict.items()),columns = ['target','neighbor_dict']) 
         self.neighbors = neighbor_dict
         # update self.targets such that is present in self.beighbout
-        #self.targets = self.targets[self.targets.target.isin(list(self.neighbors.keys()))]
-        self.targets = pd.merge(self.targets, df_neighbour, how="right", on='target')
+        self.targets = self.targets[self.targets.target.isin(list(self.neighbors.keys()))]
+        #self.targets = pd.merge(self.targets, df_neighbour, how="right", on='target')
 
 
     def export_bed(self) -> object:
@@ -407,9 +414,9 @@ class TargetList:
         #         bdict['strand'].append("-")
         df = self.targets.copy()
         df["score"] = 0
-        df = df[["seqid","start","stop","target","score","strand"]]
+        df = df[["seqid","start","stop","target","score","strand","exact_pam"]]
         df['strand']= df['strand'].apply(lambda x: '+' if x ==True else '-')
-        df.columns = ["chrom", "chromstart","chromend","name","score","strand"]
+        df.columns = ["chrom", "chromstart","chromend","name","score","strand","exact_pam"]
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
@@ -599,9 +606,9 @@ class Annotation:
         # get feature upstream of target sequence
         upstream = mapbed.closest(featurebed, d=True, id=True, D="a", t="first")
         headers = {0: "Accession", 1: "Guide start", 2: "Guide end", 3:"Guide sequence",
-                   4: "Score", 5:"Guide strand", 6: "Feature Accession",
-                   7: "Feature start", 8:"Feature end", 9:"Feature id",
-                   10:"Feature score", 11:"Feature strand", 12: "Feature distance"}
+                   4: "Score", 5:"Guide strand", 6: "PAM", 7: "Feature Accession",
+                   8: "Feature start", 9:"Feature end", 10:"Feature id",
+                   11:"Feature score", 12:"Feature strand", 13: "Feature distance"}
         downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
         downstream['direction'] = 'downstream'
         upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
@@ -647,6 +654,8 @@ class Annotation:
 
     def _format_guide_table(self, targetlist: List[object]) -> object :
         """Create guide table for output
+        Args:
+            target- a dataframe with targets from targetclass
 
         """
         def gc(seq):
@@ -655,10 +664,8 @@ class Annotation:
                 if letter in ["G", "C"]:
                     cnt += 1
             return cnt/len(seq)
-        # def get_exact_pam(seq):
-        #     return targetlist.neighbors[seq]["target"].exact_pam
-        # def get_guide_hash(seq):
-        #     return targetlist.neighbors[seq]["target"].md5
+        def get_guide_hash(seq):
+            return hashlib.md5(seq.encode()).hexdigest()
         def get_off_target_score(seq):
             dlist = targetlist.neighbors[seq]["neighbors"]["dist"]
             s = [str(i) for i in dlist]
@@ -668,7 +675,6 @@ class Annotation:
             return ";".join(slist)
         pretty_df = self.filtered_df.copy()
         pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
-        pretty_df['PAM'] = pretty_df['Guide sequence'].apply(get_exact_pam)
         pretty_df['Guide name'] = pretty_df['Guide sequence'].apply(get_guide_hash)
         pretty_df['Target strand'] = np.where(pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
         pretty_df['Similar guide distances'] = pretty_df['Guide sequence'].apply(get_off_target_score)

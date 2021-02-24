@@ -196,23 +196,23 @@ def test_get_nearby_features(tmp_path):
 
 
 def test_filter_features():
-pamobj = guidemaker.core.Pam("NGG", "5prime")
-gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
-pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
-tl = guidemaker.core.TargetList(targets=pamtargets, lu=10, hammingdist=2, knum=2)
-tl.check_restriction_enzymes(['NRAGCA'])
-tl.find_unique_near_pam()
-tl.create_index()
-tl.get_neighbors()
-tf_df = tl.export_bed()
-anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
-                                    target_bed_df=tf_df)
-anno._get_genbank_features()
-anno._get_nearby_features()
-anno._filter_features()
-anno._get_qualifiers()
-prettydf = anno._format_guide_table(tl)
-assert prettydf.shape == (783, 21)
+    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
+    pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+    tl = guidemaker.core.TargetList(targets=pamtargets, lu=10, hammingdist=2, knum=10)
+    tl.check_restriction_enzymes(['NRAGCA'])
+    tl.find_unique_near_pam()
+    tl.create_index()
+    tl.get_neighbors()
+    tf_df = tl.export_bed()
+    anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
+                                        target_bed_df=tf_df)
+    anno._get_genbank_features()
+    anno._get_nearby_features()
+    anno._filter_features()
+    anno._get_qualifiers()
+    prettydf = anno._format_guide_table(tl)
+    assert prettydf.shape == (783, 21)
 
 # Function : get_fastas
 def test_get_fastas(tmp_path):
@@ -228,21 +228,4 @@ def test_extend_ambiguous_dna():
 
 
 
-ef = 9
-unique_bintargets = tl._one_hot_encode(tl.unique_targets)
-tl.nmslib_index.setQueryTimeParams({'efSearch': ef})
-results_list = tl.nmslib_index.knnQueryBatch(unique_bintargets,k=tl.knum, num_threads = 2)
 
-
-neighbor_dict = {}
-for i, entry in enumerate(results_list):
-    queryseq = tl.unique_targets[i]
-    hitseqidx = entry[0].tolist()
-    hammingdist = entry[1].tolist()
-    if hammingdist[0] >= 2 * tl.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-        neighbors, ndist = [tl.targets['target'].values[x] for x in hitseqidx],[int(x/2) for x in hammingdist]
-        neighbor_dict[queryseq] = ''.join(str(neighbors + ndist))
-    df_neighbour = pd.DataFrame(list(neighbor_dict.items()),columns = ['target','neighbor_dict']) 
-
-
-result = pd.merge(tl.targets, df_neighbour, how="right", on="target")
