@@ -24,20 +24,20 @@ def test_load_parameters():
 # Pam Class
 
 def test_pam_pam():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
     assert getattr(pamobj, "pam") == "NGG"
 
 
 def test_pam_orientation():
-    pamobj = guidemaker.core.Pam("GATN", "3prime")
+    pamobj = guidemaker.core.PamTarget("GATN", "3prime")
     assert getattr(pamobj, "pam_orientation") == "3prime"
 
 
-pamobj = guidemaker.core.Pam("NGG", "5prime")
+pamobj = guidemaker.core.PamTarget("NGG", "5prime")
 
 
 def test_pam_find_targets_5p():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
     testseq1 = [SeqRecord(Seq("AATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAA",
                              alphabet=IUPAC.ambiguous_dna), id="testseq1")]
     target = pamobj.find_targets(seq_record_iter=testseq1, target_len=6)
@@ -45,7 +45,7 @@ def test_pam_find_targets_5p():
     assert target['target'][1] == "AGCAGT"
 
 def test_pam_find_targets_3p():
-    pamobj = guidemaker.core.Pam("NGG", "3prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "3prime")
     testseq1 = [SeqRecord(Seq("AATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAA",
                              alphabet=IUPAC.ambiguous_dna), id="testseq1")]
     target = pamobj.find_targets(seq_record_iter=testseq1, target_len=6)
@@ -53,7 +53,7 @@ def test_pam_find_targets_3p():
     assert target['target'][1] == "GCAGCT"
 
 def test_pam_find_targets_fullgenome():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
     #gb = SeqIO.parse("forward.fasta", "fasta")
     gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
     target = pamobj.find_targets(seq_record_iter=gb, target_len=20)
@@ -81,11 +81,12 @@ targets = targets.astype({"target":'str', "exact_pam": 'category', "start": 'uin
 
 
 #guidemaker.getsize(targets)
-# TargetList Class
+
+# TargetProcessor Class
 
 
 def test_check_restriction_enzymes():
-    tl = guidemaker.core.TargetList(targets=targets,
+    tl = guidemaker.core.TargetProcessor(targets=targets,
                                      lu=10,
                                      hammingdist=2,
                                      knum=2)
@@ -94,7 +95,7 @@ def test_check_restriction_enzymes():
 
 
 def test_find_unique_near_pam():
-    tl = guidemaker.core.TargetList(targets=targets,
+    tl = guidemaker.core.TargetProcessor(targets=targets,
                                      lu=10,
                                      hammingdist=2,
                                      knum=2)
@@ -104,7 +105,7 @@ def test_find_unique_near_pam():
 
 
 def test_create_index():
-    tl = guidemaker.core.TargetList(targets=targets,
+    tl = guidemaker.core.TargetProcessor(targets=targets,
                                      lu=10,
                                      hammingdist=2,
                                      knum=2)
@@ -114,7 +115,7 @@ def test_create_index():
 
 
 def test_get_neighbors():
-    tl = guidemaker.core.TargetList(targets=targets,
+    tl = guidemaker.core.TargetProcessor(targets=targets,
                                      lu=10,
                                      hammingdist=2,
                                      knum=2)
@@ -127,7 +128,7 @@ def test_get_neighbors():
 
 
 def test_export_bed():
-    tl = guidemaker.core.TargetList(targets=targets,
+    tl = guidemaker.core.TargetProcessor(targets=targets,
                                      lu=10,
                                      hammingdist=2,
                                      knum=10)
@@ -139,10 +140,10 @@ def test_export_bed():
     assert df.shape == (2, 6)
 
 def test_get_control_seqs():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
     gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
     targets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
-    tl = guidemaker.core.TargetList(targets=targets, lu=10, hammingdist=2, knum=10)
+    tl = guidemaker.core.TargetProcessor(targets=targets, lu=10, hammingdist=2, knum=10)
     tl.check_restriction_enzymes(['NRAGCA'])
     tl.find_unique_near_pam()
     tl.create_index()
@@ -153,7 +154,7 @@ def test_get_control_seqs():
 
 # Annotation class tests
 
-tl = guidemaker.TargetList(targets=targets, lu=10, hammingdist=2, knum=2)
+tl = guidemaker.TargetProcessor(targets=targets, lu=10, hammingdist=2, knum=2)
 tl.check_restriction_enzymes(['NRAGCA'])
 tl.find_unique_near_pam()
 tl.create_index()
@@ -176,13 +177,13 @@ def test_get_qualifiers():
     assert anno.qualifiers.shape == (182, 7)
 
 def test_get_nearby_features(tmp_path):
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
     gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
     targets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
     for tar in targets:
         if len(tar.seq) < 20:
             print(str(tar.start) + ", " + str(tar.stop) + ", " + tar.seq)
-    tl = guidemaker.core.TargetList(targets=targets, lu=10, hammingdist=2, knum=2)
+    tl = guidemaker.core.TargetProcessor(targets=targets, lu=10, hammingdist=2, knum=2)
     tl.check_restriction_enzymes(['NRAGCA'])
     tl.find_unique_near_pam()
     tl.create_index()
@@ -196,10 +197,10 @@ def test_get_nearby_features(tmp_path):
 
 
 def test_filter_features():
-    pamobj = guidemaker.core.Pam("NGG", "5prime")
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
     gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
     pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
-    tl = guidemaker.core.TargetList(targets=pamtargets, lu=10, hammingdist=2, knum=10)
+    tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
     tl.check_restriction_enzymes(['NRAGCA'])
     tl.find_unique_near_pam()
     tl.create_index()

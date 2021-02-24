@@ -2,7 +2,6 @@
 
 """
 import os
-#from test.test_core import test_pam_orientation
 import yaml
 from typing import List, Dict, Tuple
 import logging
@@ -12,7 +11,6 @@ import hashlib
 import statistics
 from collections import Counter
 import numpy as np
-#from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.SeqUtils import GC
 import nmslib
@@ -22,6 +20,7 @@ import regex
 import gc
 from Bio import Seq
 from collections import deque
+from copy import deepcopy
 
 
 logger = logging.getLogger('guidemaker.core')
@@ -48,7 +47,7 @@ def is_gzip(filename):
         logging.error("Could not open the file %s to determine if it was gzipped" % filename)
         raise e
 
-class Pam:
+class PamTarget:
     """A Class representing a Protospacer Adjacent Motif (PAM)
 
     """
@@ -159,10 +158,7 @@ class Pam:
                     strand = False
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-
-        # rev3p = pd.DataFrame(run_rev_3p(pam_pattern, dnaseq, target_len, strand), columns=["target", "exact_pam", "start", "stop","strand"])
-        # rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool'})
-        
+  
         target_list = []
         for record in seq_record_iter:
             id = record.id
@@ -187,41 +183,12 @@ class Pam:
                     rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
                     d3p = pd.concat([for3p,rev3p], axis=0) # 0 if row_wise 
                     target_list.append(d3p)
-                    #data = data.append(dfinal,index=[0], ignore_index=True)
             gc.collect() # clear memory after each chromosome
         dfinal= pd.concat(target_list,ignore_index=True)
         return dfinal
 
 
-# class Target:
-#     """A class representing a candidate target sequence for a PAM
-
-#     This is an object for holding data on possible target sequences
-#     adjacent to PAM sites.
-#     """
-#     __slots__ = ['seq', 'exact_pam','strand','pam_orientation','seqid','start','stop','md5']
-#     def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
-#                  seqid: str, start: int, stop: int) -> object:
-#         self.seq: str = seq
-#         self.exact_pam: str = exact_pam
-#         self.strand: str = strand
-#         self.pam_orientation: str = pam_orientation
-#         self.seqid: str = seqid
-#         self.start: int = start
-#         self.stop: int = stop
-#         self.md5: str = hashlib.md5(seq.encode()).hexdigest()
-#     def __str__(self) -> str:
-#         return "A Target object: {self.seq} on sequence {self.seqid} \
-#                 position {self.start}".format(self=self)
-#     def __eq__(self, other):
-#         return other == self.seq
-#     def __ne__(self, other):
-#         return not self.__eq__(other)
-#     def __len__(self):
-#         return len(self.seq)
-
-
-class TargetList:
+class TargetProcessor:
     """A Class representing a set of guide RNA targets
 
     The class includes all targets in a set, a dict filtered to be unique in
@@ -259,15 +226,6 @@ class TargetList:
         for record in set(restriction_enzyme_list):
             element_to_exclude.append(extend_ambiguous_dna(record))
         element_to_exclude = sum(element_to_exclude, []) # flatout list of list to list
-        # retrive targets if doesnot contain the strings specify in the restriction enzyme list
-        #self.targets = [x for x in  self.targets if not any(restenzyme in x.seq for restenzyme in element_to_exclude)]
-        # to_delete = []
-        # for tobj in self.targets:
-        #     for restenzyme in element_to_exclude:
-        #         if restenzyme in tobj.seq:
-        #             to_delete.append(tobj)
-        # # update self.targets- such that target object if occures in to_delete list, is not selected
-        # self.targets = [tobj for tobj in self.targets if tobj not in to_delete]
         if len(element_to_exclude) > 0:
             self.targets = self.targets.loc[self.targets['target'].str.contains('|'.join(element_to_exclude))==False]
         else:
@@ -305,19 +263,11 @@ class TargetList:
             		return tseq
             	else:
                 	return tseq[(len(tseq) - self.lu):]
-        #self.targets.loc[:, 'seedseq'] = self.targets['target'].apply(_get_prox)
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
         # first get seedseq --> remove duplicates based on seedseq (keep = False) --> drop seedseq column
         self.targets = self.targets.assign(seedseq=self.targets['target'].apply(_get_prox)).drop_duplicates(subset = ['seedseq'],keep = False).drop('seedseq', 1)
         # get a unique targets, which will be used to searched against the indices of all targets. 
         self.unique_targets = list(set(self.targets['target']))
-
-    # def _make_full_unique_targets(self):
-    #     full_targerts= []
-    #     for unq_target in self.unique_targets:
-    #         full_targerts.append(str(unq_target.seq))
-    #     full_unique = set(full_targerts)
-    #     return full_unique
         
 
     def create_index(self, M: int=yaml_dict['NMSLIB']['M'], num_threads=2, efC: int=yaml_dict['NMSLIB']['efc'], post: int=yaml_dict['NMSLIB']['post']) -> None:
@@ -376,20 +326,17 @@ class TargetList:
             hammingdist = entry[1].tolist()
             # here we just check if the first element of hammingist list is >= 2 * self.hammingdist, as list is sorted- if first fails whole fails
             # to close guides.
-            # this should be 0, not 1.????????????????? talk with adam
+            # this should be 0 or 1? 
             # this should be 1 == b/c each guides will have exact match with itself at 0 poositon. 
             if hammingdist[1] >= 2 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
                 neighbors = {"seqs": [self.targets['target'].values[x]  for x in hitseqidx], # reverse this?
                              "dist": [int(x/2) for x in hammingdist]}
                 neighbor_dict[queryseq] = {"target": self.unique_targets[i],
                                            "neighbors": neighbors}
-                #neighbors, ndist = [self.targets['target'].values[x] for x in hitseqidx],[int(x/2) for x in hammingdist]
-                #neighbor_dict[queryseq] = ''.join(str(neighbors + ndist))
-        #df_neighbour = pd.DataFrame(list(neighbor_dict.items()),columns = ['target','neighbor_dict']) 
         self.neighbors = neighbor_dict
-        # update self.targets such that is present in self.beighbout
+        # update self.targets such that is present in self.neighbors
         self.targets = self.targets[self.targets.target.isin(list(self.neighbors.keys()))]
-        #self.targets = pd.merge(self.targets, df_neighbour, how="right", on='target')
+       
 
 
     def export_bed(self) -> object:
@@ -401,18 +348,9 @@ class TargetList:
         Returns:
             (obj): A Pandas Dataframe in Bed format
         """
-        # bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
-        # for rec in self.neighbors.values():
-        #     bdict['chrom'].append(rec["target"].seqid)
-        #     bdict['chromstart'].append(rec["target"].start)
-        #     bdict['chromend'].append(rec["target"].stop)
-        #     bdict['name'].append(rec["target"].seq)
-        #     bdict['score'].append(0)
-        #     if rec["target"].strand == 0:
-        #         bdict['strand'].append("+")
-        #     elif rec["target"].strand == 1:
-        #         bdict['strand'].append("-")
-        df = self.targets.copy()
+        # df = self.targets.copy()
+        # why deepcopy - https://stackoverflow.com/questions/55745948/why-doesnt-deepcopy-of-a-pandas-dataframe-affect-memory-usage
+        df = deepcopy(self.targets)
         df["score"] = 0
         df = df[["seqid","start","stop","target","score","strand","exact_pam"]]
         df['strand']= df['strand'].apply(lambda x: '+' if x ==True else '-')
