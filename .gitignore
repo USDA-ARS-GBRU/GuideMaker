@@ -10,12 +10,12 @@
 docs/source/_static
 docs/source/_templates
 *.pdf
+*.fasta
 *.DS_Store
 *.txt
 testing.py
 *.csv
 *.log
-*.fasta
 /build
 /predictPAM.egg-info
 /dist
@@ -52,5 +52,6 @@ chart.html
 environment.yml
 zb.py
 zc.py
-
+guidemaker/list_memory.py
+test/multiprocess_guide.py
 

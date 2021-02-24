@@ -2,6 +2,7 @@
 
 """
 import os
+#from test.test_core import test_pam_orientation
 import yaml
 from typing import List, Dict, Tuple
 import logging
@@ -17,7 +18,7 @@ from Bio.SeqUtils import GC
 import nmslib
 from pybedtools import BedTool
 import pandas as pd
-import re
+import regex
 import gc
 from Bio import Seq
 from collections import deque
@@ -46,6 +47,7 @@ def is_gzip(filename):
     except IOError as e:
         logging.error("Could not open the file %s to determine if it was gzipped" % filename)
         raise e
+
 class Pam:
     """A Class representing a Protospacer Adjacent Motif (PAM)
 
@@ -71,166 +73,152 @@ class Pam:
     
 
     def find_targets(self, seq_record_iter: object, target_len: int) -> List[object]:
-        """Find all targets on a sequence that match for the PAM on the requested strand(s)
-
+        """Find all targets on a sequence that match for the PAM on both strand(s)
         Args:
             seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
             target_len (int): The length of the target sequence
         Returns:
             list: A list of Target class instances
-
         """
         target_list = []
 
         def reverse_complement(seq: str) -> object:
             """reverse complement of the PAM sequence
             """
-            pamseq = Seq.Seq(seq)
-            return str(pamseq.reverse_complement())
+            bpseq = Seq.Seq(seq)
+            return str(bpseq.reverse_complement())
+
+
+        def pam2re(pam) -> str:
+            """Convert an IUPAC ambiguous PAM to a Regex expression
+            """
+            dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
+                      'M': '[A|C]', 'R': '[A|G]', 'W': '[A|T]', 'S': '[C|G]',
+                      'Y': '[C|T]', 'K': '[G|T]', 'V': '[A|C|G]', 'H': '[A|C|T]',
+                      'D': '[A|G|T]', 'B': '[C|G|T]', 'X': '[G|A|T|C]', 'N': '[G|A|T|C]'}
+            return "".join([dnaval[base] for base in pam])
+
+        #                5prime means the order is 5'-[pam][target]-3'
+        #                3prime means the order is 5'-[target][pam]-3'
 
         def check_target(seq, target_len):
-            if len(seq) == target_len and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
+            if len(seq) == target_len:
                 return True
             return False
 
+        
+        def run_for_5p(pam_pattern, dnaseq, target_len):
+            for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
+                target_seq = dnaseq[match_obj.end() : match_obj.end() + target_len]
+                if check_target(target_seq, target_len):
+                    exact_pam = match_obj.group(0)
+                    start = match_obj.end()
+                    stop = match_obj.end() + target_len
+                    # 5prime =True, 3prime = Fasle
+                    pam_orientation = True
+                    # forward =True, reverse = Fasle
+                    strand = True
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-        #https://stackoverflow.com/questions/18933711/find-all-occurrences-of-a-substring-including-overlap
-        def findall(pam, seq):
-            """ Find occurrence of substring(PAM) in a string(sequence)
-            """
-            i = 0
-            try:
-                while True:
-                    i = seq.index(pam, i)
-                    yield i
-                    i += 1
-            except ValueError:
-                pass
-            
+        def run_for_3p(pam_pattern, dnaseq, target_len):
+            for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
+                target_seq = seq[match_obj.start() - target_len : match_obj.start()]
+                if check_target(target_seq, target_len):
+                    exact_pam = match_obj.group(0)
+                    start=match_obj.start() - target_len
+                    stop=match_obj.start()
+                    # 5prime =True, 3prime = Fasle
+                    pam_orientation = False
+                    # forward =True, reverse = Fasle
+                    strand = True
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-        # run_for_5p
-        def run_for_5p(expandpam, seq):
-            for eachpam in expandpam:
-                exact_pam = eachpam
-                matches_g = findall(exact_pam, seq)
-                for i in matches_g:
-                    start = i + len(self.pam)
-                    stop = i + len(self.pam) + target_len
-                    target_seq = seq[start:stop]
-                    if check_target(target_seq, target_len):
-                        target_list.append(Target(seq=target_seq,
-                                                        exact_pam=exact_pam,
-                                                        # forward = 0, reverse =1
-                                                        strand=0,
-                                                        # 5prime =True, 3prime = False
-                                                        pam_orientation=True,
-                                                        seqid=id,
-                                                        start = start,
-                                                        stop=stop))
-            #print("f5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
+        def run_rev_5p(pam_pattern, dnaseq, target_len):
+            for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
+                target_seq = reverse_complement(dnaseq[match_obj.start() - target_len : match_obj.start()])
+                if check_target(target_seq, target_len):
+                    exact_pam = reverse_complement(match_obj.group(0))
+                    start = match_obj.start() - target_len
+                    stop = match_obj.start()
+                    # 5prime =True, 3prime = Fasle
+                    pam_orientation = True
+                    # forward =True, reverse = Fasle
+                    strand = False
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-
-        def run_for_3p(expandpam, seq):
-            for eachpam in expandpam:
-                exact_pam = eachpam
-                matches_g = findall(exact_pam, seq)
-                for i in matches_g:
-                    start = i - target_len
-                    stop = i 
-                    target_seq = seq[start:stop]
-                    if check_target(target_seq, target_len):
-                        target_list.append(Target(seq=target_seq,
-                                                        exact_pam=exact_pam,
-                                                        # forward = 0, reverse =1
-                                                        strand=0,
-                                                        # 5prime =True, 3prime = False
-                                                        pam_orientation=False,
-                                                        seqid=id,
-                                                        start = start,
-                                                        stop=stop))
-            #print("f3p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
+        def run_rev_3p(pam_pattern, dnaseq, target_len):
+            for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
+                target_seq = reverse_complement(dnaseq[match_obj.end() : match_obj.end() + target_len])
+                if check_target(target_seq, target_len):
+                    exact_pam = reverse_complement(match_obj.group(0))
+                    start = match_obj.end()
+                    stop = match_obj.end() + target_len
+                    # 5prime =True, 3prime = Fasle
+                    pam_orientation = False
+                    # forward =True, reverse = Fasle
+                    strand = False
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
 
-        def run_rev_5p(expandpam, seq):
-            for eachpam in expandpam:
-                exact_pam = eachpam
-                matches_g = findall(exact_pam, seq)
-                for i in matches_g:
-                    start = i - target_len
-                    stop = i
-                    target_seq = reverse_complement(seq[start:stop])
-                    if check_target(target_seq, target_len):
-                        target_list.append(Target(seq=target_seq,
-                                                        exact_pam=reverse_complement(exact_pam),
-                                                        # forward = 0, reverse =1
-                                                        strand=1,
-                                                        # 5prime =True, 3prime = False
-                                                        pam_orientation=True,
-                                                        seqid=id,
-                                                        start = start,
-                                                        stop=stop))
-            #print("r5p: " + str(len(target_list)),getsize(target_list)/1e+9 , "GB")
-
-        def run_rev_3p(expandpam, seq):
-            for eachpam in expandpam:
-                exact_pam = eachpam
-                matches_g = findall(exact_pam, seq)
-                for i in matches_g:
-                    start = i + len(self.pam)
-                    stop = i + len(self.pam) + target_len
-                    target_seq = reverse_complement(seq[start : stop])
-                    if check_target(target_seq, target_len):
-                        target_list.append(Target(seq=target_seq,
-                                                        exact_pam=reverse_complement(exact_pam),
-                                                        # forward = 0, reverse =1
-                                                        strand=1,
-                                                        # 5prime =True, 3prime = False
-                                                        pam_orientation=False,
-                                                        seqid=id,
-                                                        start = start,
-                                                        stop=stop))
-            #print("r3p: " + str(len(target_list)), getsize(target_list)/1e+9 ,"GB")
-
-
+        # rev3p = pd.DataFrame(run_rev_3p(pam_pattern, dnaseq, target_len, strand), columns=["target", "exact_pam", "start", "stop","strand"])
+        # rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool'})
+        
+        target_list = []
         for record in seq_record_iter:
-                id = record.id
-                seq =str(record.seq)
-                if self.pam_orientation == "5prime":
-                    run_for_5p(extend_ambiguous_dna(self.pam), seq)
-                    run_rev_5p(extend_ambiguous_dna(reverse_complement(self.pam)), seq)
-                elif self.pam_orientation == "3prime":
-                    run_for_3p(extend_ambiguous_dna(self.pam), seq)
-                    run_rev_3p(extend_ambiguous_dna(reverse_complement(self.pam)), seq)
-        gc.collect() # clear memory after each chromosome
-        return target_list
+            id = record.id
+            seq =str(record.seq)
+            if self.pam_orientation == "5prime":
+                    for5p = pd.DataFrame(run_for_5p(pam2re(self.pam), seq, target_len), columns=["target", "exact_pam", "start", "stop","strand", "pam_orientation"])
+                    for5p["seqid"] = id
+                    # string to boolean conversion is not straight - as all string were set to Trues- so change the encoding in functions above.
+                    # https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python/715455#715455
+                    for5p = for5p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
+                    rev5p= pd.DataFrame(run_rev_5p(pam2re(reverse_complement(self.pam)),seq, target_len), columns=["target", "exact_pam", "start", "stop","strand", "pam_orientation"])
+                    rev5p["seqid"] = id
+                    rev5p = rev5p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
+                    d5p = pd.concat([for5p,rev5p], axis=0) # 0 if row_wise 
+                    target_list.append(d5p)
+            elif self.pam_orientation == "3prime":
+                    for3p = pd.DataFrame(run_for_3p(pam2re(self.pam), seq, target_len), columns=["target", "exact_pam", "start", "stop","strand","pam_orientation"])
+                    for3p["seqid"] = id
+                    for3p = for3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
+                    rev3p= pd.DataFrame(run_rev_3p(pam2re(reverse_complement(self.pam)),seq, target_len), columns=["target", "exact_pam", "start", "stop","strand","pam_orientation"])
+                    rev3p["seqid"] = id
+                    rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
+                    d3p = pd.concat([for3p,rev3p], axis=0) # 0 if row_wise 
+                    target_list.append(d3p)
+                    #data = data.append(dfinal,index=[0], ignore_index=True)
+            gc.collect() # clear memory after each chromosome
+        dfinal= pd.concat(target_list,ignore_index=True)
+        return dfinal
 
 
-class Target:
-    """A class representing a candidate target sequence for a PAM
+# class Target:
+#     """A class representing a candidate target sequence for a PAM
 
-    This is an object for holding data on possible target sequences
-    adjacent to PAM sites.
-    """
-    __slots__ = ['seq', 'exact_pam','strand','pam_orientation','seqid','start','stop','md5']
-    def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
-                 seqid: str, start: int, stop: int) -> object:
-        self.seq: str = seq
-        self.exact_pam: str = exact_pam
-        self.strand: str = strand
-        self.pam_orientation: str = pam_orientation
-        self.seqid: str = seqid
-        self.start: int = start
-        self.stop: int = stop
-        self.md5: str = hashlib.md5(seq.encode()).hexdigest()
-    def __str__(self) -> str:
-        return "A Target object: {self.seq} on sequence {self.seqid} \
-                position {self.start}".format(self=self)
-    def __eq__(self, other):
-        return other == self.seq
-    def __ne__(self, other):
-        return not self.__eq__(other)
-    def __len__(self):
-        return len(self.seq)
+#     This is an object for holding data on possible target sequences
+#     adjacent to PAM sites.
+#     """
+#     __slots__ = ['seq', 'exact_pam','strand','pam_orientation','seqid','start','stop','md5']
+#     def __init__(self, seq: str, exact_pam: str, strand: str, pam_orientation: str,
+#                  seqid: str, start: int, stop: int) -> object:
+#         self.seq: str = seq
+#         self.exact_pam: str = exact_pam
+#         self.strand: str = strand
+#         self.pam_orientation: str = pam_orientation
+#         self.seqid: str = seqid
+#         self.start: int = start
+#         self.stop: int = stop
+#         self.md5: str = hashlib.md5(seq.encode()).hexdigest()
+#     def __str__(self) -> str:
+#         return "A Target object: {self.seq} on sequence {self.seqid} \
+#                 position {self.start}".format(self=self)
+#     def __eq__(self, other):
+#         return other == self.seq
+#     def __ne__(self, other):
+#         return not self.__eq__(other)
+#     def __len__(self):
+#         return len(self.seq)
 
 
 class TargetList:
@@ -240,8 +228,8 @@ class TargetList:
     the region near the PAM, and a dict with edit distances for sequences.
 
     """
-    def __init__(self, targets: List, lu: int, hammingdist: int=2, knum: int=2) -> None:
-        self.targets: List = targets
+    def __init__(self, targets, lu: int, hammingdist: int=2, knum: int=2) -> None:
+        self.targets = targets # pandas dataframe
         self.lu: int = lu # lenght of unique zone
         self.hammingdist: int = hammingdist
         self.knum: int = knum
@@ -251,6 +239,7 @@ class TargetList:
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
         self.genomesize: float = None
+        self.pam_orientation: bool = targets['pam_orientation'].iat[0]
 
     def __str__(self):
         info = "TargetList: contains a set of {} potential PAM targets".format(len(self.targets))
@@ -272,21 +261,21 @@ class TargetList:
         element_to_exclude = sum(element_to_exclude, []) # flatout list of list to list
         # retrive targets if doesnot contain the strings specify in the restriction enzyme list
         #self.targets = [x for x in  self.targets if not any(restenzyme in x.seq for restenzyme in element_to_exclude)]
-        to_delete = []
-        for tobj in self.targets:
-            for restenzyme in element_to_exclude:
-                if restenzyme in tobj.seq:
-                    to_delete.append(tobj)
-        # update self.targets- such that target object if occures in to_delete list, is not selected
-        self.targets = [tobj for tobj in self.targets if tobj not in to_delete]
+        # to_delete = []
+        # for tobj in self.targets:
+        #     for restenzyme in element_to_exclude:
+        #         if restenzyme in tobj.seq:
+        #             to_delete.append(tobj)
+        # # update self.targets- such that target object if occures in to_delete list, is not selected
+        # self.targets = [tobj for tobj in self.targets if tobj not in to_delete]
+        self.targets = self.targets.loc[self.targets['target'].str.contains('|'.join(element_to_exclude))==False]
 
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
         """One hot encode Target DNA as a binary string representation for LMSLIB
 
         """
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
-        def seq_to_bin(target_obj):
-            seq = target_obj.seq
+        def seq_to_bin(seq):
             charlist = [charmap[letter] for letter in seq]
             return " ".join(charlist)
         return list(map(seq_to_bin, seq_list))
@@ -302,36 +291,30 @@ class TargetList:
         Args:
             lu (int): Length of conserved sequence close to PAM
         """
-        def _get_prox(target):
-            if target.pam_orientation == True: # 5prime = Truem 3prime=False
+        def _get_prox(tseq): # get target sequence as input
+            if self.pam_orientation == True: # 5prime = True 3prime=False
             	if self.lu == 0:
-            		return target.seq
+            		return tseq
             	else:
-            		return target.seq[0:self.lu]
-            elif target.pam_orientation == False:# 5prime = Truem 3prime=False
+            		return tseq[0:self.lu]
+            elif self.pam_orientation == False: # 5prime = Truem 3prime=False
             	if self.lu == 0:
-            		return target.seq
+            		return tseq
             	else:
-                	return target.seq[(len(target) - self.lu):]
-        lu_dict ={}
-        for target in self.targets:
-            proximal = _get_prox(target)
-            if proximal in lu_dict.keys():
-                lu_dict[proximal].append(target)
-            else:
-                lu_dict[proximal] = [target]
-        filteredlist = deque()
-        for lkey, lval in lu_dict.items():
-            if len(lval) == 1:
-                filteredlist.append(lval[0])
-        self.unique_targets = list(filteredlist)
+                	return tseq[(len(tseq) - self.lu):]
+        #self.targets.loc[:, 'seedseq'] = self.targets['target'].apply(_get_prox)
+        # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
+        # first get seedseq --> remove duplicates based on seedseq (keep = False) --> drop seedseq column
+        self.targets = self.targets.assign(seedseq=self.targets['target'].apply(_get_prox)).drop_duplicates(subset = ['seedseq'],keep = False).drop('seedseq', 1)
+        # get a unique targets, which will be used to searched against the indices of all targets. 
+        self.unique_targets = list(set(self.targets['target']))
 
-    def _make_full_unique_targets(self):
-        full_targerts= []
-        for unq_target in self.unique_targets:
-            full_targerts.append(str(unq_target.seq))
-        full_unique = set(full_targerts)
-        return full_unique
+    # def _make_full_unique_targets(self):
+    #     full_targerts= []
+    #     for unq_target in self.unique_targets:
+    #         full_targerts.append(str(unq_target.seq))
+    #     full_unique = set(full_targerts)
+    #     return full_unique
         
 
     def create_index(self, M: int=yaml_dict['NMSLIB']['M'], num_threads=2, efC: int=yaml_dict['NMSLIB']['efc'], post: int=yaml_dict['NMSLIB']['post']) -> None:
@@ -354,8 +337,8 @@ class TargetList:
         """
 
 
-        logging.info("unique targets for index: %s" % len(self.targets))
-        bintargets = self._one_hot_encode(self.targets)
+        logging.info("unique targets for index: %s" % len(self.targets['target']))
+        bintargets = self._one_hot_encode(self.targets['target'])
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
@@ -385,16 +368,22 @@ class TargetList:
                                                k=self.knum, num_threads = num_threads)
         neighbor_dict = {}
         for i, entry in enumerate(results_list):
-
-            queryseq = self.unique_targets[i].seq
-            hitseqidx = list(entry[0])
-            hammingdist = list(entry[1])
+            queryseq = self.unique_targets[i]
+            hitseqidx = entry[0].tolist()
+            hammingdist = entry[1].tolist()
+            # here we just check if the first element of hammingist list is >= 2 * self.hammingdist, as list is sorted- if first fails whole fails
+            # to close guides.
+            # this should be 0, not 1.????????????????? talk with adam
+            # this should be 1 == b/c each guides will have exact match with itself at 0 poositon. 
             if hammingdist[1] >= 2 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors = {"seqs": [self.targets[x].seq for x in hitseqidx], # reverse this?
-                             "dist": [int(x/2) for x in hammingdist]}
-                neighbor_dict[queryseq] = {"target": self.unique_targets[i],
-                                           "neighbors": neighbors}
+                neighbors, ndist = [self.targets['target'].values[x] for x in hitseqidx],[int(x/2) for x in hammingdist]
+                neighbor_dict[queryseq] = ''.join(str(neighbors + ndist))
+        df_neighbour = pd.DataFrame(list(neighbor_dict.items()),columns = ['target','neighbor_dict']) 
         self.neighbors = neighbor_dict
+        # update self.targets such that is present in self.beighbout
+        #self.targets = self.targets[self.targets.target.isin(list(self.neighbors.keys()))]
+        self.targets = pd.merge(self.targets, df_neighbour, how="right", on='target')
+
 
     def export_bed(self) -> object:
         """export the targets in self.neighbors to a bed format file
@@ -405,18 +394,22 @@ class TargetList:
         Returns:
             (obj): A Pandas Dataframe in Bed format
         """
-        bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
-        for rec in self.neighbors.values():
-            bdict['chrom'].append(rec["target"].seqid)
-            bdict['chromstart'].append(rec["target"].start)
-            bdict['chromend'].append(rec["target"].stop)
-            bdict['name'].append(rec["target"].seq)
-            bdict['score'].append(0)
-            if rec["target"].strand == 0:
-                bdict['strand'].append("+")
-            elif rec["target"].strand == 1:
-                bdict['strand'].append("-")
-        df = pd.DataFrame.from_dict(bdict)
+        # bdict = dict(chrom = [], chromstart = [], chromend = [], name = [], score = [], strand = [])
+        # for rec in self.neighbors.values():
+        #     bdict['chrom'].append(rec["target"].seqid)
+        #     bdict['chromstart'].append(rec["target"].start)
+        #     bdict['chromend'].append(rec["target"].stop)
+        #     bdict['name'].append(rec["target"].seq)
+        #     bdict['score'].append(0)
+        #     if rec["target"].strand == 0:
+        #         bdict['strand'].append("+")
+        #     elif rec["target"].strand == 1:
+        #         bdict['strand'].append("-")
+        df = self.targets.copy()
+        df["score"] = 0
+        df = df[["seqid","start","stop","target","score","strand"]]
+        df['strand']= df['strand'].apply(lambda x: '+' if x ==True else '-')
+        df.columns = ["chrom", "chromstart","chromend","name","score","strand"]
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
@@ -662,10 +655,10 @@ class Annotation:
                 if letter in ["G", "C"]:
                     cnt += 1
             return cnt/len(seq)
-        def get_exact_pam(seq):
-            return targetlist.neighbors[seq]["target"].exact_pam
-        def get_guide_hash(seq):
-            return targetlist.neighbors[seq]["target"].md5
+        # def get_exact_pam(seq):
+        #     return targetlist.neighbors[seq]["target"].exact_pam
+        # def get_guide_hash(seq):
+        #     return targetlist.neighbors[seq]["target"].md5
         def get_off_target_score(seq):
             dlist = targetlist.neighbors[seq]["neighbors"]["dist"]
             s = [str(i) for i in dlist]
