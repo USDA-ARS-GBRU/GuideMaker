@@ -3,39 +3,38 @@
 """
 import os
 import yaml
-from typing import List, Dict, Tuple
 import logging
-from itertools import product
 import gzip
 import hashlib
 import statistics
-from collections import Counter
-import numpy as np
-from Bio import SeqIO
-from Bio.SeqUtils import GC
 import nmslib
-from pybedtools import BedTool
-import pandas as pd
 import regex
 import gc
+from typing import List, Dict, Tuple
+from itertools import product
+from collections import Counter
+from Bio import SeqIO
+from Bio.SeqUtils import GC
+from pybedtools import BedTool
 from Bio import Seq
 from collections import deque
 from copy import deepcopy
+import pandas as pd
+import numpy as np
 
 
 logger = logging.getLogger('guidemaker.core')
 
 
-
 def load_parameters(yaml_file):
-    """load yaml file with global variables and hyper paramteres
+    """load yaml file with global variables and hyper parameters
     """
     with open(yaml_file, "r") as f:
         y = yaml.load(stream=f, Loader=yaml.FullLoader)
         return y
 
 
-# load Global variable from paramters.yaml
+# load Global variable from parameter.yaml
 yaml_dict = load_parameters("parameters.yaml")
 
 def is_gzip(filename):
@@ -126,9 +125,9 @@ class PamTarget:
                     exact_pam = match_obj.group(0)
                     start=match_obj.start() - target_len
                     stop=match_obj.start()
-                    # 5prime =True, 3prime = Fasle
+                    # 5prime =True, 3prime = False
                     pam_orientation = False
-                    # forward =True, reverse = Fasle
+                    # forward =True, reverse = False
                     strand = True
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
@@ -139,9 +138,9 @@ class PamTarget:
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.start() - target_len
                     stop = match_obj.start()
-                    # 5prime =True, 3prime = Fasle
+                    # 5prime =True, 3prime = False
                     pam_orientation = True
-                    # forward =True, reverse = Fasle
+                    # forward =True, reverse = False
                     strand = False
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
@@ -152,9 +151,9 @@ class PamTarget:
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.end()
                     stop = match_obj.end() + target_len
-                    # 5prime =True, 3prime = Fasle
+                    # 5prime =True, 3prime = False
                     pam_orientation = False
-                    # forward =True, reverse = Fasle
+                    # forward =True, reverse = False
                     strand = False
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
@@ -164,27 +163,33 @@ class PamTarget:
             id = record.id
             seq =str(record.seq)
             if self.pam_orientation == "5prime":
+                    # forward
                     for5p = pd.DataFrame(run_for_5p(pam2re(self.pam), seq, target_len), columns=["target", "exact_pam", "start", "stop","strand", "pam_orientation"])
                     for5p["seqid"] = id
                     # string to boolean conversion is not straight - as all string were set to Trues- so change the encoding in functions above.
                     # https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python/715455#715455
                     for5p = for5p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
+                    target_list.append(for5p)
+                    # reverse
                     rev5p= pd.DataFrame(run_rev_5p(pam2re(reverse_complement(self.pam)),seq, target_len), columns=["target", "exact_pam", "start", "stop","strand", "pam_orientation"])
                     rev5p["seqid"] = id
                     rev5p = rev5p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
-                    d5p = pd.concat([for5p,rev5p], axis=0) # 0 if row_wise 
-                    target_list.append(d5p)
+                    target_list.append(rev5p)
+                    # Question? Append directly vs. concat then append? https://ravinpoudel.github.io/AppendVsConcat/
             elif self.pam_orientation == "3prime":
+                    # forward
                     for3p = pd.DataFrame(run_for_3p(pam2re(self.pam), seq, target_len), columns=["target", "exact_pam", "start", "stop","strand","pam_orientation"])
                     for3p["seqid"] = id
                     for3p = for3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
+                    target_list.append(for3p)
+                    # reverse
                     rev3p= pd.DataFrame(run_rev_3p(pam2re(reverse_complement(self.pam)),seq, target_len), columns=["target", "exact_pam", "start", "stop","strand","pam_orientation"])
                     rev3p["seqid"] = id
                     rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
-                    d3p = pd.concat([for3p,rev3p], axis=0) # 0 if row_wise 
-                    target_list.append(d3p)
+                    target_list.append(rev3p)
             gc.collect() # clear memory after each chromosome
         dfinal= pd.concat(target_list,ignore_index=True)
+        dfinal = dfinal.assign(seedseq = np.nan, isseedduplicated = np.nan)
         return dfinal
 
 
@@ -197,10 +202,9 @@ class TargetProcessor:
     """
     def __init__(self, targets, lu: int, hammingdist: int=2, knum: int=2) -> None:
         self.targets = targets # pandas dataframe
-        self.lu: int = lu # lenght of unique zone
+        self.lu: int = lu # length of unique zone
         self.hammingdist: int = hammingdist
         self.knum: int = knum
-        self.unique_targets: dict = {}
         self.nmslib_index: object = None
         self.neighbors: dict = {}
         self.ncontrolsearched: int = None
@@ -232,7 +236,7 @@ class TargetProcessor:
             self.targets
 
     def _one_hot_encode(self, seq_list: List[object])-> List[str]:
-        """One hot encode Target DNA as a binary string representation for LMSLIB
+        """One hot encode Target DNA as a binary string representation for NMSLIB
 
         """
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
@@ -258,17 +262,15 @@ class TargetProcessor:
             		return tseq
             	else:
             		return tseq[0:self.lu]
-            elif self.pam_orientation == False: # 5prime = Truem 3prime=False
+            elif self.pam_orientation == False: # 5prime = True 3prime=False
             	if self.lu == 0:
             		return tseq
             	else:
                 	return tseq[(len(tseq) - self.lu):]
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
-        # first get seedseq --> remove duplicates based on seedseq (keep = False) --> drop seedseq column
-        self.targets = self.targets.assign(seedseq=self.targets['target'].apply(_get_prox)).drop_duplicates(subset = ['seedseq'],keep = False).drop('seedseq', 1)
-        # get a unique targets, which will be used to searched against the indices of all targets. 
-        self.unique_targets = list(set(self.targets['target']))
-        
+        self.targets = deepcopy(self.targets)
+        self.targets.loc[:, 'seedseq'] = self.targets.loc[:, 'target'].apply(_get_prox)
+        self.targets.loc[:, 'isseedduplicated'] = self.targets.loc[:, 'seedseq'].duplicated()
 
     def create_index(self, M: int=yaml_dict['NMSLIB']['M'], num_threads=2, efC: int=yaml_dict['NMSLIB']['efc'], post: int=yaml_dict['NMSLIB']['post']) -> None:
         """Create nmslib index
@@ -291,7 +293,7 @@ class TargetProcessor:
 
 
         logging.info("unique targets for index: %s" % len(self.targets['target']))
-        bintargets = self._one_hot_encode(self.targets['target'])
+        bintargets = self._one_hot_encode(self.targets['target']) # index everything
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
@@ -313,31 +315,26 @@ class TargetProcessor:
         Args: None
         Returns: None
         """
-        if not self.unique_targets:
-            self.find_unique_near_pam()
-        unique_bintargets = self._one_hot_encode(self.unique_targets)
+        unique_targets = self.targets.loc[self.targets['isseedduplicated'] == False]['target'].tolist()
+        unique_bintargets = self._one_hot_encode(unique_targets) # search unique seed one
         self.nmslib_index.setQueryTimeParams({'efSearch': ef})
         results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
                                                k=self.knum, num_threads = num_threads)
         neighbor_dict = {}
         for i, entry in enumerate(results_list):
-            queryseq = self.unique_targets[i]
+            queryseq = unique_targets[i]
             hitseqidx = entry[0].tolist()
             hammingdist = entry[1].tolist()
             # here we just check if the first element of hammingist list is >= 2 * self.hammingdist, as list is sorted- if first fails whole fails
             # to close guides.
             # this should be 0 or 1? 
-            # this should be 1 == b/c each guides will have exact match with itself at 0 poositon. 
+            # this should be 1 == b/c each guides will have exact match with itself at 0 position. 
             if hammingdist[1] >= 2 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
                 neighbors = {"seqs": [self.targets['target'].values[x]  for x in hitseqidx], # reverse this?
                              "dist": [int(x/2) for x in hammingdist]}
-                neighbor_dict[queryseq] = {"target": self.unique_targets[i],
+                neighbor_dict[queryseq] = {"target": unique_targets[i],
                                            "neighbors": neighbors}
         self.neighbors = neighbor_dict
-        # update self.targets such that is present in self.neighbors
-        self.targets = self.targets[self.targets.target.isin(list(self.neighbors.keys()))]
-       
-
 
     def export_bed(self) -> object:
         """export the targets in self.neighbors to a bed format file
@@ -350,11 +347,11 @@ class TargetProcessor:
         """
         # df = self.targets.copy()
         # why deepcopy - https://stackoverflow.com/questions/55745948/why-doesnt-deepcopy-of-a-pandas-dataframe-affect-memory-usage
-        df = deepcopy(self.targets)
-        df["score"] = 0
-        df = df[["seqid","start","stop","target","score","strand","exact_pam"]]
-        df['strand']= df['strand'].apply(lambda x: '+' if x ==True else '-')
-        df.columns = ["chrom", "chromstart","chromend","name","score","strand","exact_pam"]
+        # select only guides that are not duplecated in the seedseq
+        df = deepcopy(self.targets.loc[self.targets['isseedduplicated'] == False])
+        df = df[["seqid","start","stop","target","strand"]]
+        df.loc[:, 'strand']= df.loc[:, 'strand'].apply(lambda x: '+' if x ==True else '-')
+        df.columns = ["chrom", "chromstart","chromend","name","strand"]
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
@@ -457,7 +454,7 @@ class Annotation:
         if feature_types is None:
             feature_types = ["CDS"]
         feature_dict = {}
-        pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], score=[], strand=[])
+        pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], strand=[])
         for gbfile in self.genbank_list:
             try:
                 if is_gzip(gbfile):
@@ -478,7 +475,6 @@ class Annotation:
                             pddict["chromStart"].append(record.location.start.position)
                             pddict["chromEnd"].append(record.location.end.position)
                             pddict["name"].append(featid)
-                            pddict["score"].append(0)
                             for qualifier_key, qualifier_val in record.qualifiers.items():
                                 if not qualifier_key in feature_dict:
                                     feature_dict[qualifier_key] = {}
@@ -544,9 +540,8 @@ class Annotation:
         # get feature upstream of target sequence
         upstream = mapbed.closest(featurebed, d=True, id=True, D="a", t="first")
         headers = {0: "Accession", 1: "Guide start", 2: "Guide end", 3:"Guide sequence",
-                   4: "Score", 5:"Guide strand", 6: "PAM", 7: "Feature Accession",
-                   8: "Feature start", 9:"Feature end", 10:"Feature id",
-                   11:"Feature score", 12:"Feature strand", 13: "Feature distance"}
+                   4:"Guide strand", 5: "Feature Accession", 6: "Feature start", 7:"Feature end", 8:"Feature id",
+                   9:"Feature strand", 10: "Feature distance"}
         downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
         downstream['direction'] = 'downstream'
         upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
@@ -590,7 +585,7 @@ class Annotation:
 
         self.filtered_df = filtered_df
 
-    def _format_guide_table(self, targetlist: List[object]) -> object :
+    def _format_guide_table(self, targetprocessor_object) -> object :
         """Create guide table for output
         Args:
             target- a dataframe with targets from targetclass
@@ -605,18 +600,28 @@ class Annotation:
         def get_guide_hash(seq):
             return hashlib.md5(seq.encode()).hexdigest()
         def get_off_target_score(seq):
-            dlist = targetlist.neighbors[seq]["neighbors"]["dist"]
+            dlist = targetprocessor_object.neighbors[seq]["neighbors"]["dist"]
             s = [str(i) for i in dlist]
             return ";".join(s)
         def get_off_target_seqs(seq):
-            slist = targetlist.neighbors[seq]["neighbors"]["seqs"]
+            slist = targetprocessor_object.neighbors[seq]["neighbors"]["seqs"]
             return ";".join(slist)
-        pretty_df = deepcopy(self.filtered_df)
+        pretty_df = deepcopy(self.filtered_df) # anno class object
+        # retrive only guides that are in neighbors keys.
+        pretty_df = pretty_df[pretty_df["Guide sequence"].isin(list(targetprocessor_object.neighbors.keys()))]
         pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
         pretty_df['Guide name'] = pretty_df['Guide sequence'].apply(get_guide_hash)
         pretty_df['Target strand'] = np.where(pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
         pretty_df['Similar guide distances'] = pretty_df['Guide sequence'].apply(get_off_target_score)
         pretty_df['Similar guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
+
+        pretty_df = pd.merge(pretty_df, targetprocessor_object.targets, how = "left",
+         left_on=['Guide sequence','Guide start','Guide end','Accession'],
+         right_on=['target','start','stop','seqid'])
+
+        # rename exact_pam to PAM
+        pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"}) 
+
         pretty_df = pretty_df[['Guide name', "Guide sequence", 'GC', "Accession","Guide start", "Guide end",
                     "Guide strand", 'PAM',  "Feature id",
                     "Feature start", "Feature end", "Feature strand",

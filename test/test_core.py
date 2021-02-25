@@ -6,13 +6,10 @@ from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
+import numpy as np
 import pandas as pd
 from typing import List, Set, Dict, Tuple
 import guidemaker
-
-
-
-
 
 # yaml loader
 def test_load_parameters():
@@ -23,7 +20,7 @@ def test_load_parameters():
     assert(yaml_dict_obj.keys()==expected_dict.keys())
 
 
-# Pam Class
+# PamTarget Class
 
 def test_pam_pam():
     pamobj = guidemaker.core.PamTarget("NGG", "5prime")
@@ -67,7 +64,9 @@ tardict = {'target': ['ATGCACATGCACTGCTGGAT','ATGCAAATTCTTGTGCTCCA','CAAGCACTGCT
         'stop': [430, 1070, 1170],
         'strand': [True, True, False],   # forward =True, reverse = Fasle
         'pam_orientation': [False,False, False], # 5prime =True, 3prime = Fasle
-        'seqid': ['AP009180.1','AP009180.2','AP009180.1']}
+        'seqid': ['AP009180.1','AP009180.2','AP009180.1'],
+        'seedseq': [np.nan, np.nan, np.nan],
+        'isseedduplicated': [np.nan, np.nan, np.nan]}
     
 
 targets = pd.DataFrame(tardict)
@@ -86,7 +85,7 @@ def test_check_restriction_enzymes():
                                      hammingdist=2,
                                      knum=2)
     tl.check_restriction_enzymes(['NRAGCA'])
-    assert tl.targets.shape == (2, 5)
+    assert tl.targets.shape == (2, 9)
 
 
 def test_find_unique_near_pam():
@@ -96,7 +95,7 @@ def test_find_unique_near_pam():
                                      knum=2)
     tl.check_restriction_enzymes(['NRAGCA'])
     tl.find_unique_near_pam()
-    assert len(tl.unique_targets) == 2
+    assert tl.targets[tl.targets['isseedduplicated'] == False].shape == (2,9)
 
 
 def test_create_index():
@@ -132,7 +131,7 @@ def test_export_bed():
     tl.create_index()
     tl.get_neighbors()
     df = tl.export_bed()
-    assert df.shape == (2, 6)
+    assert df.shape == (2, 5)
 
 def test_get_control_seqs():
     pamobj = guidemaker.core.PamTarget("NGG", "5prime")
@@ -208,7 +207,7 @@ def test_filter_features():
     anno._filter_features()
     anno._get_qualifiers()
     prettydf = anno._format_guide_table(tl)
-    assert prettydf.shape == (783, 21)
+    assert prettydf.shape == (883, 21)
 
 # Function : get_fastas
 def test_get_fastas(tmp_path):
@@ -221,7 +220,3 @@ def test_extend_ambiguous_dna():
     extend_seq = guidemaker.core.extend_ambiguous_dna('NGG')
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
-
-
-
-

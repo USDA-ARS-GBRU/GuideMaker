@@ -8,9 +8,6 @@ import tempfile
 import shutil
 import os
 import multiprocessing
-
-
-
 import pybedtools
 from Bio import SeqIO
 
@@ -101,13 +98,13 @@ def main(arglist: list=None):
         target_list_size = guidemaker.getsize(pamtargets)/1e9
         logging.info("Size of target list: %s GB", (target_list_size))
         tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=args.lu, hammingdist=args.dist, knum=args.knum)
-        lengthoftl= len(tl)
+        lengthoftl= len(tl.targets)
         logging.info("Checking guides for restriction enzymes")
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
-        logging.info("Number of guides removed after checking for restriction enzymes: %d", (lengthoftl - len(tl)))
+        logging.info("Number of guides removed after checking for restriction enzymes: %d", (lengthoftl - len(tl.targets)))
         logging.info("Identifing guides that are unique near the PAM site")
         tl.find_unique_near_pam()
-        logging.info("Number of guides removed after checking for unique PAM: %d", (len(tl) - len(tl.unique_targets)))
+        logging.info("Number of guides with non unique seed sequence: %d", (tl.targets.isseedduplicated.sum()))
         logging.info("Indexing all potential guide sites: %s. This is the longest step." % len(tl.targets))
         tl.create_index(num_threads=args.threads)
         logging.info("Identifying guides that have a hamming distance <= %s to all other potential guides", str(args.dist))
