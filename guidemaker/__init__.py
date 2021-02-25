@@ -1,7 +1,10 @@
 """Guidemaker: globally design gRNAs for any CRISPR-Cas system in any genome
 
 """
+import pkg_resources
 
+
+CONFIG_PATH = pkg_resources.resource_filename('guidemaker', 'data/config_default.yaml')
 
 from ._version import get_versions
 from .core import *

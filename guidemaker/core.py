@@ -26,17 +26,6 @@ import numpy as np
 logger = logging.getLogger('guidemaker.core')
 
 
-def load_parameters(yaml_file):
-    """load yaml file with global variables and hyper parameters
-    """
-    with open(yaml_file, "r") as f:
-        y = yaml.load(stream=f, Loader=yaml.FullLoader)
-        return y
-
-
-# load Global variable from parameter.yaml
-yaml_dict = load_parameters("parameters.yaml")
-
 def is_gzip(filename):
     try:
         with open(filename, "rb") as f:
@@ -272,13 +261,14 @@ class TargetProcessor:
         self.targets.loc[:, 'seedseq'] = self.targets.loc[:, 'target'].apply(_get_prox)
         self.targets.loc[:, 'isseedduplicated'] = self.targets.loc[:, 'seedseq'].duplicated()
 
-    def create_index(self, M: int=yaml_dict['NMSLIB']['M'], num_threads=2, efC: int=yaml_dict['NMSLIB']['efc'], post: int=yaml_dict['NMSLIB']['post']) -> None:
+    def create_index(self, configpath:str, num_threads=2):
         """Create nmslib index
 
         Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
 
         Args:
             num_threads (int): cpu threads
+            configpath (str): path to config file
             M (int): Controls the number of bi-directional links created for each element
                 during index construction. Higher values lead to better results at the expense
                 of memory consumption. Typical values are 2 -100, but for most datasets a
@@ -290,9 +280,11 @@ class TargetProcessor:
         Returns:
             None (but writes NMSLIB index to self)
         """
-
-
+        with open(configpath) as cf:
+            config = yaml.safe_load(cf)
         
+        M, efC, post = config['NMSLIB']['M'], config['NMSLIB']['efc'], config['NMSLIB']['post']
+
         notduplicated_targets= list(set(self.targets['target'].tolist()))  # index everything but not duplicates
         #logging.info("unique targets for index: %s" % len(notduplicated_targets))
         bintargets = self._one_hot_encode(notduplicated_targets)
@@ -305,7 +297,7 @@ class TargetProcessor:
         index.createIndex(index_params, print_progress=True)
         self.nmslib_index = index
 
-    def get_neighbors(self, ef: int=yaml_dict['NMSLIB']['ef'], num_threads=2) -> None:
+    def get_neighbors(self, configpath, num_threads=2) -> None:
         """Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
@@ -317,6 +309,11 @@ class TargetProcessor:
         Args: None
         Returns: None
         """
+        with open(configpath) as cf:
+            config = yaml.safe_load(cf)
+
+        ef = config['NMSLIB']['ef']
+
         unique_targets = self.targets.loc[self.targets['isseedduplicated'] == False]['target'].tolist()
         unique_bintargets = self._one_hot_encode(unique_targets) # search unique seed one
         self.nmslib_index.setQueryTimeParams({'efSearch': ef})
@@ -357,7 +354,7 @@ class TargetProcessor:
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
-    def get_control_seqs(self, seq_record_iter: object, length: int=20, n: int=10,
+    def get_control_seqs(self,seq_record_iter: object,configpath,length: int=20, n: int=10,
                          num_threads: int=2) -> Tuple[float, float, object]:
         """Create random sequences with a specified GC probability and find seqs with the greatest
          distance to any sequence flanking a PAM site
@@ -368,6 +365,17 @@ class TargetProcessor:
             n = number of sequences to  return
             num_threads (int) nuer of processor threads
         """
+
+        with open(configpath) as cf:
+            config = yaml.safe_load(cf)
+
+        MINIMUM_HMDIST = config['CONTROL']['MINIMUM_HMDIST'] 
+
+        MAX_CONTROL_SEARCH_MULTIPLE = max(config['CONTROL']['CONTROL_SEARCH_MULTIPLE'])
+
+        #  search_mult (int): search this times n sequences
+        CONTROL_SEARCH_MULTIPLE = config['CONTROL']['CONTROL_SEARCH_MULTIPLE']
+
         # get GC percent
         totlen = 0
         gccnt = 0
@@ -382,15 +390,12 @@ class TargetProcessor:
         minimum_hmdist=0
         sm_count = 0
         search_mult = 0
-        
-        #  search_mult (int): search this times n sequences
-        search_multiple = yaml_dict['CONTROL']['CONTROL_SEARCH_MULTIPLE']
        
         try:
-            while  minimum_hmdist < yaml_dict['CONTROL']['MINIMUM_HMDIST'] or search_mult ==  max(yaml_dict['CONTROL']['CONTROL_SEARCH_MULTIPLE']):
+            while  minimum_hmdist < MINIMUM_HMDIST or search_mult ==  MAX_CONTROL_SEARCH_MULTIPLE:
                 # generate random sequences
                 seqs = []
-                search_mult = search_multiple[sm_count]
+                search_mult = CONTROL_SEARCH_MULTIPLE[sm_count]
                 for i in range(n  * search_mult):
                     seqs.append("".join(np.random.choice(a=["G", "C", "A", "T"], size=length,
                                                          replace=True, p=[gc/2, gc/2, (1 - gc)/2, (1 - gc)/2])))
@@ -486,7 +491,7 @@ class Annotation:
             self.feature_dict = feature_dict
         f.close()
 
-    def _get_qualifiers(self, min_prop: float = yaml_dict['MINIMUM_PROPORTION'], excluded: List[str] = None) -> object:
+    def _get_qualifiers(self, configpath, excluded: List[str] = None) -> object:
         """Create a dataframe with features and their qualifier values
 
         Create a dataframe with features and their qualifier values for
@@ -501,6 +506,11 @@ class Annotation:
             None
 
         """
+        with open(configpath) as cf:
+            config = yaml.safe_load(cf)
+
+        min_prop = config['MINIMUM_PROPORTION']
+
         if excluded is None:
             excluded = ["translation"]
         final_quals = []

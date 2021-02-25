@@ -10,7 +10,7 @@ import os
 import multiprocessing
 import pybedtools
 from Bio import SeqIO
-
+import yaml
 import guidemaker
 
 def myparser():
@@ -33,6 +33,7 @@ def myparser():
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*", help='List of sequence representing restriction enzymes', default=[])
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
+    parser.add_argument('--config', help="path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH,default=guidemaker.CONFIG_PATH)
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
 
@@ -78,6 +79,21 @@ def main(arglist: list=None):
     parserval(args)
 
     _logger_setup(args.log)
+
+    try:
+        with open(args.config) as cf:
+            config = yaml.safe_load(cf)
+    except:
+        print("Could not parse the configuration file.")
+        raise SystemExit(1)
+
+    try:
+        logging.info("Configuration data loaded from {}:".format(args.config))
+        logging.info(config)
+    except:
+        print("Could not set up logging, exiting.")
+        raise SystemExit(1)
+
     try:
 
         if args.tempdir:
@@ -106,9 +122,9 @@ def main(arglist: list=None):
         tl.find_unique_near_pam()
         logging.info("Number of guides with non unique seed sequence: %d", (tl.targets.isseedduplicated.sum()))
         logging.info("Indexing all potential guide sites: %s. This is the longest step." % len(list(set(tl.targets['target'].tolist()))))
-        tl.create_index(num_threads=args.threads)
+        tl.create_index(num_threads=args.threads, configpath= args.config)
         logging.info("Identifying guides that have a hamming distance <= %s to all other potential guides", str(args.dist))
-        tl.get_neighbors(num_threads=args.threads)
+        tl.get_neighbors(num_threads=args.threads, configpath = args.config)
         logging.info("Formatting data for BedTools")
         tf_df = tl.export_bed()
         logging.info("Create GuideMaker Annotation object")
@@ -122,7 +138,7 @@ def main(arglist: list=None):
         logging.info("Select guides that start between +%s and -%s of a feature start" % (args.before, args.into))
         anno._filter_features(before_feat=args.before, after_feat=args.into)
         logging.info("Select description columns")
-        anno._get_qualifiers()
+        anno._get_qualifiers(configpath = args.config)
         logging.info("Format the output")
         prettydf = anno._format_guide_table(tl)
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
@@ -134,7 +150,7 @@ def main(arglist: list=None):
         logging.info("creating random control guides")
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
-        cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, length=args.guidelength, n=args.controls, num_threads=args.threads)
+        cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, configpath = args.config, length=args.guidelength, n=args.controls, num_threads=args.threads)
         logging.info("Number of random control searched: %d" % tl.ncontrolsearched)
         logging.info("Percentage of GC content in the input genome: "+"{:.2f}".format(tl.gc_percent))
         logging.info("Total length of the genome: "+"{:.1f} MB".format(tl.genomesize))
