@@ -188,9 +188,9 @@ class PamTarget:
                     rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
                     target_list.append(rev3p)
             gc.collect() # clear memory after each chromosome
-        dfinal= pd.concat(target_list,ignore_index=True)
-        dfinal = dfinal.assign(seedseq = np.nan, isseedduplicated = np.nan)
-        return dfinal
+        df_targets = pd.concat(target_list,ignore_index=True)
+        df_targets = df_targets.assign(seedseq = np.nan, isseedduplicated = np.nan)
+        return df_targets
 
 
 class TargetProcessor:
@@ -292,8 +292,10 @@ class TargetProcessor:
         """
 
 
-        logging.info("unique targets for index: %s" % len(self.targets['target']))
-        bintargets = self._one_hot_encode(self.targets['target']) # index everything
+        
+        notduplicated_targets= list(set(self.targets['target'].tolist()))  # index everything but not duplicates
+        #logging.info("unique targets for index: %s" % len(notduplicated_targets))
+        bintargets = self._one_hot_encode(notduplicated_targets)
         index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,

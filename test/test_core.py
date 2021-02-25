@@ -191,23 +191,23 @@ def test_get_nearby_features(tmp_path):
 
 
 def test_filter_features():
-    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
-    gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
-    pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
-    tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
-    tl.check_restriction_enzymes(['NRAGCA'])
-    tl.find_unique_near_pam()
-    tl.create_index()
-    tl.get_neighbors()
-    tf_df = tl.export_bed()
-    anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
-                                        target_bed_df=tf_df)
-    anno._get_genbank_features()
-    anno._get_nearby_features()
-    anno._filter_features()
-    anno._get_qualifiers()
-    prettydf = anno._format_guide_table(tl)
-    assert prettydf.shape == (883, 21)
+pamobj = guidemaker.core.PamTarget("NGG", "5prime")
+gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
+pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
+tl.check_restriction_enzymes(['NRAGCA'])
+tl.find_unique_near_pam()
+tl.create_index()
+tl.get_neighbors()
+tf_df = tl.export_bed()
+anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
+                                    target_bed_df=tf_df)
+anno._get_genbank_features()
+anno._get_nearby_features()
+anno._filter_features()
+anno._get_qualifiers()
+prettydf = anno._format_guide_table(tl)
+assert prettydf.shape == (883, 21)
 
 # Function : get_fastas
 def test_get_fastas(tmp_path):
@@ -220,3 +220,6 @@ def test_extend_ambiguous_dna():
     extend_seq = guidemaker.core.extend_ambiguous_dna('NGG')
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
+
+
+
