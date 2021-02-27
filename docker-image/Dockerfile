@@ -15,6 +15,8 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     pandas=1.0.3 \
     pybedtools \
     biopython=1.76 \
+    numpy=1.19.4 \
+    pyyaml==5.3.1 \
     && conda clean -afy
 
 RUN pip install --no-binary :all: nmslib

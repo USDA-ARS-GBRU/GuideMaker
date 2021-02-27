@@ -33,6 +33,7 @@ def myparser():
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*", help='List of sequence representing restriction enzymes', default=[])
     parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
+    parser.add_argument('--plot', help="Should genereate plots?", action='store_true')
     parser.add_argument('--config', help="path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH,default=guidemaker.CONFIG_PATH)
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
@@ -91,7 +92,7 @@ def main(arglist: list=None):
         logging.info("Configuration data loaded from {}:".format(args.config))
         logging.info(config)
     except:
-        print("Could not set up logging, exiting.")
+        print("Could find config file, exiting.")
         raise SystemExit(1)
 
     try:
@@ -162,16 +163,21 @@ def main(arglist: list=None):
         logging.info("Genome strand(s) searched: %s" % "both")
         logging.info("Total PAM sites considered: %d" % lengthoftl)
         logging.info("Guide RNA candidates found: %d" % len(prettydf))
-
     except Exception as e:
         logging.error("GuideMaker terminated with errors. See the log file for details.")
         logging.error(e)
         raise SystemExit(1)
-    finally:
-        try:
-            if not args.keeptemp:
-                shutil.rmtree(tempdir)
-        except UnboundLocalError:
+    try:
+        if args.plot:
+            logging.info("Creating Plots...")
+            guidemaker.core.guidemakerplot(rscript_path=guidemaker.GUIDEMAKER_PLOT, outdir=args.outdir)
+            logging.info("Plots saved at: %s" % (args.outdir))
+    except Exception as e:
             raise SystemExit(1)
-        except AttributeError:
-            raise SystemExit(1)
+    try:
+        if not args.keeptemp:
+            shutil.rmtree(tempdir)
+    except UnboundLocalError:
+        raise SystemExit(1)
+    except AttributeError:
+        raise SystemExit(1)

@@ -222,4 +222,10 @@ def test_extend_ambiguous_dna():
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
 
 
+# def test_guidemakerplot():
+#     rscript_path, outdir
+#     guidemaker.guidemakerplot()
 
+rscript_path = guidemaker.GUIDEMAKER_PLOT
+outdir = "outdir"
+guidemaker.guidemakerplot(rscript_path , outdir )

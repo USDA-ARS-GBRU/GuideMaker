@@ -5,6 +5,9 @@ import pkg_resources
 
 
 CONFIG_PATH = pkg_resources.resource_filename('guidemaker', 'data/config_default.yaml')
+GUIDEMAKER_PLOT = pkg_resources.resource_filename('guidemaker', 'data/GuideMakerPlot.R')
+
+
 
 from ._version import get_versions
 from .core import *

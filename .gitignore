@@ -56,3 +56,4 @@ zc.py
 guidemaker/list_memory.py
 test/multiprocess_guide.py
 
+ guidemaker/data/GuideMakerPlot.R

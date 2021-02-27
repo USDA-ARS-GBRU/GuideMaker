@@ -21,6 +21,8 @@ from collections import deque
 from copy import deepcopy
 import pandas as pd
 import numpy as np
+import subprocess
+
 
 
 logger = logging.getLogger('guidemaker.core')
@@ -682,3 +684,12 @@ def extend_ambiguous_dna(seq):
             for i in product(*[dna_dict[j] for j in seq]):
                 extend_list.append("".join(i))
             return extend_list
+
+
+def guidemakerplot(rscript_path, outdir):
+    parameters0 = ["Rscript",rscript_path, outdir]
+    try:
+        p0 = subprocess.run(parameters0, stderr=subprocess.PIPE)
+        print(p0.stderr.decode('utf-8'))
+    except subprocess.CalledProcessError as e:
+        print(str(e))

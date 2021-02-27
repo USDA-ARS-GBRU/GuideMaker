@@ -26,7 +26,7 @@ setup(
     test_suite='pytest',
     author='Adam Rivers',
     author_email='adam.rivers@usda.gov',
-    install_requires=['biopython>=1.70', 'pybedtools>=0.8.0', 'nmslib>=2.0.4', 'pandas>=1.0.0','pyyaml==5.3.1', 'numpy==1.19.4'],
+    install_requires=['biopython>=1.70', 'pybedtools>=0.8.0', 'nmslib>=2.0.4', 'pandas>=1.0.0','pyyaml==5.3.1', 'numpy==1.19.4', 'regex==2020.11.13'],
     python_requires='>=3.6',
     tests_require=['pytest'],
     include_package_data=True,
