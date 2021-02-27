@@ -71,7 +71,7 @@ pp$ideogramheight <- 15
 
 # https://bernatgel.github.io/karyoploter_tutorial//Tutorial/PlotCoverage/PlotCoverage.html
 kp <- plotKaryotype(plot.type = 2, y, main="GuideMaker Plot", plot.params=pp, cex = 0.5)
-kpAddBaseNumbers(kp, tick.dist = 1000000, add.units = TRUE)
+kpAddBaseNumbers(kp, tick.dist = round(max(chrom_len$max)/5), add.units = TRUE)
 
 #kpAddLabels(kp, labels = "Trait 1", srt=90, pos=3, cex=1.8, label.margin = 0.025)
 #kpText(kp, chr=seqlevels(kp$genome), y=1, x=1,  r0=0.2, r1=0, col="#444444", label="PAM", cex=0.8, pos=2)
