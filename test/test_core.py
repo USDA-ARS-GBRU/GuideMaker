@@ -8,16 +8,8 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 import numpy as np
 import pandas as pd
-from typing import List, Set, Dict, Tuple
+from typing import List, Dict, Tuple, TypeVar, Generator
 import guidemaker
-
-# yaml loader
-def test_load_parameters():
-    yaml_dict_obj = guidemaker.core.load_parameters("test/test_data/parameters.yaml")
-    expected_dict = {'NMSLIB': {'M': 8, 'efc': 64, 'post': 2, 'ef': 256},
-                     'CONTROL': {'MINIMUM_HMDIST': 7,'CONTROL_SEARCH_MULTIPLE': [1, 2, 3, 4]},
-                     'MINIMUM_PROPORTION': 0.5}
-    assert(yaml_dict_obj.keys()==expected_dict.keys())
 
 
 # PamTarget Class
@@ -73,12 +65,7 @@ targets = pd.DataFrame(tardict)
 targets = targets.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
 
 
-
-#guidemaker.getsize(targets)
-
 # TargetProcessor Class
-
-
 def test_check_restriction_enzymes():
     tl = guidemaker.core.TargetProcessor(targets=targets,
                                      lu=10,
@@ -191,23 +178,23 @@ def test_get_nearby_features(tmp_path):
 
 
 def test_filter_features():
-pamobj = guidemaker.core.PamTarget("NGG", "5prime")
-gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
-pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
-tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
-tl.check_restriction_enzymes(['NRAGCA'])
-tl.find_unique_near_pam()
-tl.create_index()
-tl.get_neighbors()
-tf_df = tl.export_bed()
-anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
-                                    target_bed_df=tf_df)
-anno._get_genbank_features()
-anno._get_nearby_features()
-anno._filter_features()
-anno._get_qualifiers()
-prettydf = anno._format_guide_table(tl)
-assert prettydf.shape == (883, 21)
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime")
+    gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
+    pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+    tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
+    tl.check_restriction_enzymes(['NRAGCA'])
+    tl.find_unique_near_pam()
+    tl.create_index()
+    tl.get_neighbors()
+    tf_df = tl.export_bed()
+    anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
+                                        target_bed_df=tf_df)
+    anno._get_genbank_features()
+    anno._get_nearby_features()
+    anno._filter_features()
+    anno._get_qualifiers()
+    prettydf = anno._format_guide_table(tl)
+    assert prettydf.shape == (883, 21)
 
 # Function : get_fastas
 def test_get_fastas(tmp_path):
@@ -220,12 +207,3 @@ def test_extend_ambiguous_dna():
     extend_seq = guidemaker.core.extend_ambiguous_dna('NGG')
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
-
-
-# def test_guidemakerplot():
-#     rscript_path, outdir
-#     guidemaker.guidemakerplot()
-
-rscript_path = guidemaker.GUIDEMAKER_PLOT
-outdir = "outdir"
-guidemaker.guidemakerplot(rscript_path , outdir )

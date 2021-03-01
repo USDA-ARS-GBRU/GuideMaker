@@ -1,6 +1,6 @@
 """GuideMaker: The command line interface
 
-A command line tool to globally design guide RNAs for any CRISPR-Cas system in any genome
+A command line tool to globally design guide RNAs for any CRISPR-Cas system in any small genome
 """
 import logging
 import argparse
@@ -32,9 +32,9 @@ def myparser():
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*", help='List of sequence representing restriction enzymes', default=[])
-    parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
-    parser.add_argument('--plot', help="Should genereate plots?", action='store_true')
-    parser.add_argument('--config', help="path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH,default=guidemaker.CONFIG_PATH)
+    parser.add_argument('--keeptemp' ,help="Option to keep intermediate files be kept", action='store_true')
+    parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
+    parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH,default=guidemaker.CONFIG_PATH)
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
 
@@ -112,8 +112,6 @@ def main(arglist: list=None):
         pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, target_len=args.guidelength)
-        target_list_size = guidemaker.getsize(pamtargets)/1e9
-        logging.info("Size of target list: %s GB", (target_list_size))
         tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=args.lu, hammingdist=args.dist, knum=args.knum)
         lengthoftl= len(tl.targets)
         logging.info("Checking guides for restriction enzymes")

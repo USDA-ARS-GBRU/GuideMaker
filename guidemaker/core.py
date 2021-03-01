@@ -10,7 +10,8 @@ import statistics
 import nmslib
 import regex
 import gc
-from typing import List, Dict, Tuple
+import subprocess
+from typing import List, Dict, Tuple, TypeVar, Generator
 from itertools import product
 from collections import Counter
 from Bio import SeqIO
@@ -21,11 +22,13 @@ from collections import deque
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-import subprocess
+
 
 
 
 logger = logging.getLogger('guidemaker.core')
+PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
+
 
 
 def is_gzip(filename):
@@ -38,10 +41,11 @@ def is_gzip(filename):
         raise e
 
 class PamTarget:
-    """A Class representing a Protospacer Adjacent Motif (PAM)
+    """A Class representing a Protospacer Adjacent Motif (PAM) and targets
+
+    The class includes all targets for given PAM as a dataframe, PAM and target attributes, and methods to find target and control sequences
 
     """
-
     def __init__(self, pam: str, pam_orientation: str) -> None:
         """Pam __init__
 
@@ -50,6 +54,9 @@ class PamTarget:
             pam_orientation (str): [5prime | 3prime ]
                 5prime means the order is 5'-[pam][target]-3'
                 3prime means the order is 5'-[target][pam]-3'
+
+        Returns:
+            None
         """
         for letter in pam.upper():
             assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
@@ -61,25 +68,38 @@ class PamTarget:
         return "A PAM object: {self.pam}".format(self=self)
     
 
-    def find_targets(self, seq_record_iter: object, target_len: int) -> List[object]:
+    def find_targets(self, seq_record_iter: object, target_len: int) -> PandasDataFrame:
         """Find all targets on a sequence that match for the PAM on both strand(s)
+
         Args:
             seq_record_iter (object): A Biopython SeqRecord iterator from SeqIO.parse
             target_len (int): The length of the target sequence
-        Returns:
-            list: A list of Target class instances
-        """
-        target_list = []
 
-        def reverse_complement(seq: str) -> object:
-            """reverse complement of the PAM sequence
+        Returns:
+            PandasDataFrame: A pandas dataframe with of matching targets
+        """
+
+        def reverse_complement(seq: str) -> str:
+            """Reverse complement of the PAM sequence
+
+            Args:
+                seq (str): A DNA string
+
+            Returns:
+                str: A reverse complement of DNA string
             """
             bpseq = Seq.Seq(seq)
             return str(bpseq.reverse_complement())
 
 
-        def pam2re(pam) -> str:
+        def pam2re(pam:str) -> str:
             """Convert an IUPAC ambiguous PAM to a Regex expression
+
+            Args:
+                pam (str): A DNA string
+
+            Returns:
+                str: A Regex expression
             """
             dnaval = {'A': 'A', 'C': 'C', 'G': 'G', 'T': 'T',
                       'M': '[A|C]', 'R': '[A|G]', 'W': '[A|T]', 'S': '[C|G]',
@@ -90,26 +110,55 @@ class PamTarget:
         #                5prime means the order is 5'-[pam][target]-3'
         #                3prime means the order is 5'-[target][pam]-3'
 
-        def check_target(seq, target_len):
+        def check_target(seq:str, target_len:int) -> bool:
+            """Check targets for guidelength and DNA bases
+
+            Args:
+                seq (str): A DNA string
+                target_len(int): Guide length
+
+            Returns:
+                bool: True or False
+            """
             if len(seq) == target_len and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
                 return True
             return False
 
         
-        def run_for_5p(pam_pattern, dnaseq, target_len):
+        def run_for_5p(pam_pattern:str, dnaseq:str, target_len:int) -> Generator:
+            """Search for guides with 5prime pam orientation in the forward strand
+
+            Args:
+                pam_pattern (str): A DNA string representing PAM
+                dnaseq (str): A DNA string representing genome
+                target_len (int): Guide length
+
+            Returns:
+                (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
+            """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = dnaseq[match_obj.end() : match_obj.end() + target_len]
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
                     start = match_obj.end()
                     stop = match_obj.end() + target_len
-                    # 5prime =True, 3prime = Fasle
+                    # 5prime =True, 3prime = False
                     pam_orientation = True
-                    # forward =True, reverse = Fasle
+                    # forward =True, reverse = False
                     strand = True
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-        def run_for_3p(pam_pattern, dnaseq, target_len):
+        def run_for_3p(pam_pattern, dnaseq, target_len) -> Generator:
+            """Search for guides with 3prime pam orientation in the reverse strand
+
+            Args:
+                pam_pattern (str): A DNA string representing PAM
+                dnaseq (str): A DNA string representing genome
+                target_len (int): Guide length
+
+            Returns:
+                (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
+            """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = seq[match_obj.start() - target_len : match_obj.start()]
                 if check_target(target_seq, target_len):
@@ -122,7 +171,17 @@ class PamTarget:
                     strand = True
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-        def run_rev_5p(pam_pattern, dnaseq, target_len):
+        def run_rev_5p(pam_pattern, dnaseq, target_len) -> Generator:
+            """Search for guides with 5prime pam orientation in the reverse strand
+
+            Args:
+                pam_pattern (str): A DNA string representing PAM
+                dnaseq (str): A DNA string representing genome
+                target_len (int): Guide length
+
+            Returns:
+                (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
+            """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = reverse_complement(dnaseq[match_obj.start() - target_len : match_obj.start()])
                 if check_target(target_seq, target_len):
@@ -135,7 +194,17 @@ class PamTarget:
                     strand = False
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-        def run_rev_3p(pam_pattern, dnaseq, target_len):
+        def run_rev_3p(pam_pattern, dnaseq, target_len) -> Generator:
+            """Search for guides with 3prime pam orientation in the reverse strand
+
+            Args:
+                pam_pattern (str): A DNA string representing PAM
+                dnaseq (str): A DNA string representing genome
+                target_len (int): Guide length
+
+            Returns:
+                (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
+            """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = reverse_complement(dnaseq[match_obj.end() : match_obj.end() + target_len])
                 if check_target(target_seq, target_len):
@@ -187,8 +256,7 @@ class PamTarget:
 class TargetProcessor:
     """A Class representing a set of guide RNA targets
 
-    The class includes all targets in a set, a dict filtered to be unique in
-    the region near the PAM, and a dict with edit distances for sequences.
+    The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
     """
     def __init__(self, targets, lu: int, hammingdist: int=2, knum: int=2) -> None:
@@ -211,11 +279,14 @@ class TargetProcessor:
         return len(self.targets)
     
     
-    def check_restriction_enzymes(self, restriction_enzyme_list: list=[]):
+    def check_restriction_enzymes(self, restriction_enzyme_list: list=[]) -> None:
         """Check for restriction enzymes
+
+        Args:
+            restriction_enzyme_list (list): A list with sequence for restriction enzymes
         
         Returns:
-            None (but restriction enzyme checked tagets to self and targets are updated)
+            None
         """
         element_to_exclude = []
         for record in set(restriction_enzyme_list):
@@ -246,6 +317,9 @@ class TargetProcessor:
 
         Args:
             lu (int): Length of conserved sequence close to PAM
+
+        Returns:
+            Nome
         """
         def _get_prox(tseq): # get target sequence as input
             if self.pam_orientation == True: # 5prime = True 3prime=False
@@ -266,16 +340,17 @@ class TargetProcessor:
     def create_index(self, configpath:str, num_threads=2):
         """Create nmslib index
 
-        Converts converts self.targets to binary one hot encoding and returns. NMSLIB index in
+        Converts self.targets to binary one hot encoding and returns NMSLIB index
 
         Args:
             num_threads (int): cpu threads
-            configpath (str): path to config file
-            M (int): Controls the number of bi-directional links created for each element
+            configpath (str): Path to config file which contains hyper parameters for NMSLIB
+                M (int): Controls the number of bi-directional links created for each element
                 during index construction. Higher values lead to better results at the expense
                 of memory consumption. Typical values are 2 -100, but for most datasets a
                 range of 12 -48 is suitable. Can’t be smaller than 2.
-            efC (int): Size of the dynamic list used during construction. A larger value means
+
+                efC (int): Size of the dynamic list used during construction. A larger value means
                    a better quality index, but increases build time. Should be an integer value
                    between 1 and the size of the dataset.
 
@@ -308,8 +383,11 @@ class TargetProcessor:
         Writes a dictionary to self.neighbors:
         self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, ...], dist:[d1, d1,...]}}
 
-        Args: None
-        Returns: None
+        Args: 
+            None
+
+        Returns:
+            None
         """
         with open(configpath) as cf:
             config = yaml.safe_load(cf)
@@ -338,7 +416,7 @@ class TargetProcessor:
         self.neighbors = neighbor_dict
 
     def export_bed(self) -> object:
-        """export the targets in self.neighbors to a bed format file
+        """Export the targets in self.neighbors to a bed format file
 
         Args:
             file (str): the name and location of file to export
@@ -357,15 +435,18 @@ class TargetProcessor:
         return df
 
     def get_control_seqs(self,seq_record_iter: object,configpath,length: int=20, n: int=10,
-                         num_threads: int=2) -> Tuple[float, float, object]:
+                         num_threads: int=2) -> PandasDataFrame:
         """Create random sequences with a specified GC probability and find seqs with the greatest
          distance to any sequence flanking a PAM site
 
         Args:
-            seq_record_iter (Bio.SeqIO): an iterator of Fastas
-            length (int): length of the sequence, must match the index
-            n = number of sequences to  return
-            num_threads (int) nuer of processor threads
+            seq_record_iter (Bio.SeqIO): An iterator of fastas
+            length (int): Length of the sequence, must match the index
+            n (int): Number of sequences to  return
+            num_threads (int): Number of processor threads
+
+        Returns:
+            (PandasDataFrame): A pandas dataframe with control sequence
         """
 
         with open(configpath) as cf:
@@ -440,6 +521,7 @@ class Annotation:
             genbank_list (List[str]): A list of genbank files from a single genome
             target_bed_df (object): A pandas dataframe in Bed format with the
                 locations of targets in the genome
+        
         Returns:
             None
         """
@@ -504,9 +586,9 @@ class Annotation:
             min_prop (float): A float between 0-1 representing the fraction of
             features the qualifier must be present in to be included in the dataframe
             excluded (List(str)): A list of genbank qualifiers to exclude, Default ["translation"]
+
         Returns:
             None
-
         """
         with open(configpath) as cf:
             config = yaml.safe_load(cf)
@@ -541,7 +623,7 @@ class Annotation:
             None
 
         Note:
-            writes a dataframe of nearby features to self.nearby
+            Writes a dataframe of nearby features to self.nearby
         """
         # Import Features and sort by chromosome and then by start position in ascending order
         featurebed = BedTool.from_dataframe(self.genbank_bed_df)
@@ -564,7 +646,7 @@ class Annotation:
         self.nearby = upstream.rename(columns=headers)
 
     def _filter_features(self, before_feat: int=100, after_feat: int=200) -> None:
-        """merge targets with Feature list and filter for guides close enough to interact.
+        """Merge targets with Feature list and filter for guides close enough to interact.
 
         Args:
             before_feat (int): The maximum distance before the start of a feature measured from closest point to guide
@@ -599,11 +681,14 @@ class Annotation:
 
         self.filtered_df = filtered_df
 
-    def _format_guide_table(self, targetprocessor_object) -> object :
+    def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
         """Create guide table for output
+
         Args:
             target- a dataframe with targets from targetclass
 
+        Returns:
+            (PandasDataFrame): A formated pandas dataframe
         """
         def gc(seq):
             cnt = 0
@@ -646,13 +731,23 @@ class Annotation:
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
         return pretty_df
     
-    def locuslen(self):
+    def locuslen(self) -> int:
+        """ Count the number of locus tag in the genebank file
+
+        Args:
+            None
+
+        Returns:
+            (int): Number of locus tag
+        """
+
         locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
         return(locus_count)
 
         
 def get_fastas(filelist, tempdir=None):
     """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
+
     Args:
         filelist (str): Genbank file to process
 
@@ -676,17 +771,32 @@ def get_fastas(filelist, tempdir=None):
         print("An error occurred in input genbank file %s" % file)
         raise e
 
-def extend_ambiguous_dna(seq):
-            """return list of all possible sequences given an ambiguous DNA input
-            """
-            dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
-            extend_list = []
-            for i in product(*[dna_dict[j] for j in seq]):
-                extend_list.append("".join(i))
-            return extend_list
+def extend_ambiguous_dna(seq:str) ->  List[str]:
+    """Return list of all possible sequences given an ambiguous DNA input
+
+    Args:
+        seq(str): A DNA string
+    
+    Return:
+        List[str]: A list of DNA string with expanded ambiguous DNA values
+    """
+    dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
+    extend_list = []
+    for i in product(*[dna_dict[j] for j in seq]):
+        extend_list.append("".join(i))
+    return extend_list
 
 
-def guidemakerplot(rscript_path, outdir):
+def guidemakerplot(rscript_path:str, outdir:str)-> None:
+    """Returns guidemaker plot describing PAM targets
+
+    Args:
+        rscript_path (str): Path to R script
+        outdir (str): Folder to save the plot
+        
+    Return:
+        None
+    """
     parameters0 = ["Rscript",rscript_path, outdir]
     try:
         p0 = subprocess.run(parameters0, stderr=subprocess.PIPE)

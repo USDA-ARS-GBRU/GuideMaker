@@ -1,5 +1,5 @@
 #GuideMaker
-## Globally design gRNAs for any CRISPR-Cas system in any small genome
+## GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
 
 ## Authors
@@ -38,7 +38,7 @@ Following are the required softwares/programs.
 ## Usage
 
 ```
-GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome
+GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
 optional arguments:
 
@@ -70,15 +70,17 @@ optional arguments:
   --threads THREADS     Number of cpu threads to use
   --restriction_enzyme_list List of sequence representing restriction enzymes
   --log LOG             Log file
+  --plot                Option to generate plots
   --keeptemp            Option to keep intermediate files
   --tempdir TEMPDIR     The temp file directory
+  --config CONFIG       Path to YAML formatted configuration file
   -V, --version         show program's version number and exit
 ```
 
 ## Examples
 
 
-Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide sequence is 20 base pair. 11 base pair close to PAM motif is conserved ,i.e. unique  zone. 
+Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide sequence is 20 base pair. Length of unique zone is 11 base pairs.
 
 ```
     guidemaker \
@@ -98,4 +100,4 @@ API documentation for the module can be found [here](/html/guidemaker/index.html
 
 ## License information
 
-As a work of the United State Governemnt this software is available under  CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+As a work of the United State Government this software is available under CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
