@@ -345,6 +345,7 @@ class TargetProcessor:
         Args:
             num_threads (int): cpu threads
             configpath (str): Path to config file which contains hyper parameters for NMSLIB
+            
                 M (int): Controls the number of bi-directional links created for each element
                 during index construction. Higher values lead to better results at the expense
                 of memory consumption. Typical values are 2 -100, but for most datasets a

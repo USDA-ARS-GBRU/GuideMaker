@@ -14,7 +14,7 @@ import yaml
 import guidemaker
 
 def myparser():
-    parser = argparse.ArgumentParser(description='GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome')
+    parser = argparse.ArgumentParser(description='GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any small genome')
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True, help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True, help='The directory for data output')

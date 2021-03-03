@@ -1,4 +1,4 @@
-"""Guidemaker: globally design gRNAs for any CRISPR-Cas system in any genome
+"""Guidemaker: globally design gRNAs for any CRISPR-Cas system in any small genome
 
 """
 import pkg_resources

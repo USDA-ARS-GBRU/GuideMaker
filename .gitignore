@@ -34,26 +34,5 @@ Arabidopsis_thaliana.fasta
 *.sam
 *.sketch
 /bowtie
-data.db
-introduction.md
-paramter_dictionary.md
-streamlit.py
-xx.py
-yy.py
 .vscode/
-zz.py
-za.py
 *.png
-altairPractice.py
-AltairBasics.ipynb
-altairPractice.ipynb
-altairPractice.py
-altaripravtice.ipynb
-chart.html
-environment.yml
-zb.py
-zc.py
-guidemaker/list_memory.py
-test/multiprocess_guide.py
-
- guidemaker/data/GuideMakerPlot.R
