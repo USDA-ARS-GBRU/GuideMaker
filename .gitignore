@@ -37,3 +37,5 @@ GuideMaker_filter_feature_testing.xls
 .vscode/
 *.png
 test/EcoliPrefilter.py
+test/test_data/Ecoli_prefilter_GM.csv
+test/test_data/Escherichia.coli_str_K-12_substr_MG1655.fasta
