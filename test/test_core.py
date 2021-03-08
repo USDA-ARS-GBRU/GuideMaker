@@ -207,3 +207,5 @@ def test_extend_ambiguous_dna():
     extend_seq = guidemaker.core.extend_ambiguous_dna('NGG')
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
+
+

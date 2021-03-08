@@ -728,7 +728,7 @@ class Annotation:
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
-        pretty_df['Guide start'] = pretty_df['Guide start'] + 1
+        pretty_df['Guide start'] = pretty_df['Guide start'] + 1 # to match with the numbering with other tools- offset
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
         return pretty_df
     
@@ -788,7 +788,7 @@ def extend_ambiguous_dna(seq:str) ->  List[str]:
     return extend_list
 
 
-def guidemakerplot(rscript_path:str, outdir:str)-> None:
+def guidemakerplotR(rscript_path:str, outdir:str)-> None:
     """Returns guidemaker plot describing PAM targets
 
     Args:

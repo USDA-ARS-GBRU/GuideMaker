@@ -168,12 +168,12 @@ def main(arglist: list=None):
     try:
         if args.plot:
             logging.info("Creating Plots...")
-            guidemaker.core.guidemakerplot(rscript_path=guidemaker.GUIDEMAKER_PLOT, outdir=args.outdir)
+            guidemaker.core.guidemakerplotR(rscript_path=guidemaker.GUIDEMAKER_PLOT, outdir=args.outdir)
             logging.info("Plots saved at: %s" % (args.outdir))
     except Exception as e:
             raise SystemExit(1)
     try:
-        if not args.keeptemp:
+        if not args.keeptemp
             shutil.rmtree(tempdir)
     except UnboundLocalError:
         raise SystemExit(1)
