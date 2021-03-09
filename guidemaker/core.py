@@ -22,6 +22,7 @@ from collections import deque
 from copy import deepcopy
 import pandas as pd
 import numpy as np
+import altair as alt
 
 
 
@@ -288,6 +289,8 @@ class TargetProcessor:
         Returns:
             None
         """
+        from Bio import Seq # somehow if you import these two prior PAM class has eror as [TypeError: 'module' object is not callable]
+        from itertools import product
         element_to_exclude = []
         for record in set(restriction_enzyme_list):
             element_to_exclude.append(extend_ambiguous_dna(record))
@@ -726,7 +729,7 @@ class Annotation:
                     "Guide strand", 'PAM',  "Feature id",
                     "Feature start", "Feature end", "Feature strand",
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
-        pretty_df: object = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
+        pretty_df = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
         pretty_df['Guide start'] = pretty_df['Guide start'] + 1 # to match with the numbering with other tools- offset
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
@@ -804,3 +807,48 @@ def guidemakerplotR(rscript_path:str, outdir:str)-> None:
         print(p0.stderr.decode('utf-8'))
     except subprocess.CalledProcessError as e:
         print(str(e))
+
+class GuideMakerPlot:
+    def __init__(self, prettydf) -> None:
+        self.prettydf = prettydf
+        self.accession = list(set(self.prettydf['Accession']))
+
+    def singleplot(self, accession):
+        source = self.prettydf[self.prettydf['Accession']== accession]
+        brush = alt.selection(type='interval', encodings=['x'])
+        binNum = int(round(source['Feature end'].max()/200,0))
+        display_info = source.columns.tolist()
+
+        # Feature density
+        densityF = alt.Chart(source).transform_density(
+        'Feature start',
+        as_=['Feature start', 'Feature Density'],
+        extent=[1, source['Feature end'].max()],
+        bandwidth=binNum,
+        ).mark_area(color='black',opacity=0.6).encode(
+        x = alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+        y='Feature Density:Q',
+        ).properties(height=50,width=500)
+
+        # Guide density
+        densityG = alt.Chart(source).transform_density(
+        'Guide start',
+        as_=['Guide start', 'Guide Density'],
+        extent=[1, source['Feature end'].max()],
+        bandwidth=binNum,
+        ).mark_area(color='pink',opacity=0.6).encode(
+        x = alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+        y='Guide Density:Q',
+        ).properties(height=50,width=500).add_selection(brush)
+
+        # locus bar
+        locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+        x='count(locus_tag):Q',
+        y = alt.Y('locus_tag', axis=alt.Axis( title='Locus')),
+        color='PAM:N',
+        tooltip=display_info
+        ).transform_filter(
+        brush
+        ).interactive().properties(height=500, width=500)
+        guidemakerChart = (densityF & densityG & locus)
+        return(guidemakerChart)
