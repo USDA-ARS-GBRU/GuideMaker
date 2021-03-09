@@ -198,7 +198,11 @@ def main(arglist: list=None):
     try:
         if args.plot:
             logging.info(&#34;Creating Plots...&#34;)
-            guidemaker.core.guidemakerplot(rscript_path=guidemaker.GUIDEMAKER_PLOT, outdir=args.outdir)
+            gmplotobj = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
+            for accession in gmplotobj.accession:
+                accession_plot = gmplotobj.singleplot(accession)
+                plot_file_name = f&#34;{args.outdir}/{accession}.html&#34;
+                accession_plot.save(plot_file_name)
             logging.info(&#34;Plots saved at: %s&#34; % (args.outdir))
     except Exception as e:
             raise SystemExit(1)
@@ -325,7 +329,11 @@ def main(arglist: list=None):
     try:
         if args.plot:
             logging.info(&#34;Creating Plots...&#34;)
-            guidemaker.core.guidemakerplot(rscript_path=guidemaker.GUIDEMAKER_PLOT, outdir=args.outdir)
+            gmplotobj = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
+            for accession in gmplotobj.accession:
+                accession_plot = gmplotobj.singleplot(accession)
+                plot_file_name = f&#34;{args.outdir}/{accession}.html&#34;
+                accession_plot.save(plot_file_name)
             logging.info(&#34;Plots saved at: %s&#34; % (args.outdir))
     except Exception as e:
             raise SystemExit(1)

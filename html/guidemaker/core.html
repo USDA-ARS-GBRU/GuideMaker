@@ -51,6 +51,7 @@ from collections import deque
 from copy import deepcopy
 import pandas as pd
 import numpy as np
+import altair as alt
 
 
 
@@ -317,6 +318,8 @@ class TargetProcessor:
         Returns:
             None
         &#34;&#34;&#34;
+        from Bio import Seq # somehow if you import these two prior PAM class has eror as [TypeError: &#39;module&#39; object is not callable]
+        from itertools import product
         element_to_exclude = []
         for record in set(restriction_enzyme_list):
             element_to_exclude.append(extend_ambiguous_dna(record))
@@ -755,9 +758,9 @@ class Annotation:
                     &#34;Guide strand&#34;, &#39;PAM&#39;,  &#34;Feature id&#34;,
                     &#34;Feature start&#34;, &#34;Feature end&#34;, &#34;Feature strand&#34;,
                     &#34;Feature distance&#34;, &#39;Similar guides&#39;, &#39;Similar guide distances&#39;]]
-        pretty_df: object = pretty_df.merge(self.qualifiers, how=&#34;left&#34;, on=&#34;Feature id&#34;)
+        pretty_df = pretty_df.merge(self.qualifiers, how=&#34;left&#34;, on=&#34;Feature id&#34;)
         pretty_df = pretty_df.sort_values(by=[&#39;Accession&#39;, &#39;Feature start&#39;])
-        pretty_df[&#39;Guide start&#39;] = pretty_df[&#39;Guide start&#39;] + 1
+        pretty_df[&#39;Guide start&#39;] = pretty_df[&#39;Guide start&#39;] + 1 # to match with the numbering with other tools- offset
         pretty_df[&#39;Feature start&#39;] = pretty_df[&#39;Feature start&#39;] + 1
         return pretty_df
     
@@ -817,7 +820,7 @@ def extend_ambiguous_dna(seq:str) -&gt;  List[str]:
     return extend_list
 
 
-def guidemakerplot(rscript_path:str, outdir:str)-&gt; None:
+def guidemakerplotR(rscript_path:str, outdir:str)-&gt; None:
     &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
 
     Args:
@@ -832,7 +835,52 @@ def guidemakerplot(rscript_path:str, outdir:str)-&gt; None:
         p0 = subprocess.run(parameters0, stderr=subprocess.PIPE)
         print(p0.stderr.decode(&#39;utf-8&#39;))
     except subprocess.CalledProcessError as e:
-        print(str(e))</code></pre>
+        print(str(e))
+
+class GuideMakerPlot:
+    def __init__(self, prettydf) -&gt; None:
+        self.prettydf = prettydf
+        self.accession = list(set(self.prettydf[&#39;Accession&#39;]))
+
+    def singleplot(self, accession):
+        source = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
+        brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+        binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+        display_info = source.columns.tolist()
+
+        # Feature density
+        densityF = alt.Chart(source).transform_density(
+        &#39;Feature start&#39;,
+        as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+        extent=[1, source[&#39;Feature end&#39;].max()],
+        bandwidth=binNum,
+        ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+        x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+        y=&#39;Feature Density:Q&#39;,
+        ).properties(height=50,width=500)
+
+        # Guide density
+        densityG = alt.Chart(source).transform_density(
+        &#39;Guide start&#39;,
+        as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+        extent=[1, source[&#39;Feature end&#39;].max()],
+        bandwidth=binNum,
+        ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+        x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+        y=&#39;Guide Density:Q&#39;,
+        ).properties(height=50,width=500).add_selection(brush)
+
+        # locus bar
+        locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+        x=&#39;count(locus_tag):Q&#39;,
+        y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+        color=&#39;PAM:N&#39;,
+        tooltip=display_info
+        ).transform_filter(
+        brush
+        ).interactive().properties(height=500, width=500)
+        guidemakerChart = (densityF &amp; densityG &amp; locus)
+        return(guidemakerChart)</code></pre>
 </details>
 </section>
 <section>
@@ -914,8 +962,8 @@ def guidemakerplot(rscript_path:str, outdir:str)-&gt; None:
         raise e</code></pre>
 </details>
 </dd>
-<dt id="guidemaker.core.guidemakerplot"><code class="name flex">
-<span>def <span class="ident">guidemakerplot</span></span>(<span>rscript_path: str, outdir: str) ‑> NoneType</span>
+<dt id="guidemaker.core.guidemakerplotR"><code class="name flex">
+<span>def <span class="ident">guidemakerplotR</span></span>(<span>rscript_path: str, outdir: str) ‑> NoneType</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Returns guidemaker plot describing PAM targets</p>
@@ -932,7 +980,7 @@ def guidemakerplot(rscript_path:str, outdir:str)-&gt; None:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def guidemakerplot(rscript_path:str, outdir:str)-&gt; None:
+<pre><code class="python">def guidemakerplotR(rscript_path:str, outdir:str)-&gt; None:
     &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
 
     Args:
@@ -1206,9 +1254,9 @@ locations of targets in the genome</dd>
                     &#34;Guide strand&#34;, &#39;PAM&#39;,  &#34;Feature id&#34;,
                     &#34;Feature start&#34;, &#34;Feature end&#34;, &#34;Feature strand&#34;,
                     &#34;Feature distance&#34;, &#39;Similar guides&#39;, &#39;Similar guide distances&#39;]]
-        pretty_df: object = pretty_df.merge(self.qualifiers, how=&#34;left&#34;, on=&#34;Feature id&#34;)
+        pretty_df = pretty_df.merge(self.qualifiers, how=&#34;left&#34;, on=&#34;Feature id&#34;)
         pretty_df = pretty_df.sort_values(by=[&#39;Accession&#39;, &#39;Feature start&#39;])
-        pretty_df[&#39;Guide start&#39;] = pretty_df[&#39;Guide start&#39;] + 1
+        pretty_df[&#39;Guide start&#39;] = pretty_df[&#39;Guide start&#39;] + 1 # to match with the numbering with other tools- offset
         pretty_df[&#39;Feature start&#39;] = pretty_df[&#39;Feature start&#39;] + 1
         return pretty_df
     
@@ -1252,6 +1300,115 @@ locations of targets in the genome</dd>
 
     locus_count = len(self.feature_dict[&#39;locus_tag&#39; or &#39;locus&#39;].keys())
     return(locus_count)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="guidemaker.core.GuideMakerPlot"><code class="flex name class">
+<span>class <span class="ident">GuideMakerPlot</span></span>
+<span>(</span><span>prettydf)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GuideMakerPlot:
+    def __init__(self, prettydf) -&gt; None:
+        self.prettydf = prettydf
+        self.accession = list(set(self.prettydf[&#39;Accession&#39;]))
+
+    def singleplot(self, accession):
+        source = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
+        brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+        binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+        display_info = source.columns.tolist()
+
+        # Feature density
+        densityF = alt.Chart(source).transform_density(
+        &#39;Feature start&#39;,
+        as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+        extent=[1, source[&#39;Feature end&#39;].max()],
+        bandwidth=binNum,
+        ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+        x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+        y=&#39;Feature Density:Q&#39;,
+        ).properties(height=50,width=500)
+
+        # Guide density
+        densityG = alt.Chart(source).transform_density(
+        &#39;Guide start&#39;,
+        as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+        extent=[1, source[&#39;Feature end&#39;].max()],
+        bandwidth=binNum,
+        ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+        x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+        y=&#39;Guide Density:Q&#39;,
+        ).properties(height=50,width=500).add_selection(brush)
+
+        # locus bar
+        locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+        x=&#39;count(locus_tag):Q&#39;,
+        y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+        color=&#39;PAM:N&#39;,
+        tooltip=display_info
+        ).transform_filter(
+        brush
+        ).interactive().properties(height=500, width=500)
+        guidemakerChart = (densityF &amp; densityG &amp; locus)
+        return(guidemakerChart)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="guidemaker.core.GuideMakerPlot.singleplot"><code class="name flex">
+<span>def <span class="ident">singleplot</span></span>(<span>self, accession)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def singleplot(self, accession):
+    source = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
+    brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+    binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+    display_info = source.columns.tolist()
+
+    # Feature density
+    densityF = alt.Chart(source).transform_density(
+    &#39;Feature start&#39;,
+    as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+    extent=[1, source[&#39;Feature end&#39;].max()],
+    bandwidth=binNum,
+    ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+    x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+    y=&#39;Feature Density:Q&#39;,
+    ).properties(height=50,width=500)
+
+    # Guide density
+    densityG = alt.Chart(source).transform_density(
+    &#39;Guide start&#39;,
+    as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+    extent=[1, source[&#39;Feature end&#39;].max()],
+    bandwidth=binNum,
+    ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+    x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+    y=&#39;Guide Density:Q&#39;,
+    ).properties(height=50,width=500).add_selection(brush)
+
+    # locus bar
+    locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+    x=&#39;count(locus_tag):Q&#39;,
+    y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+    color=&#39;PAM:N&#39;,
+    tooltip=display_info
+    ).transform_filter(
+    brush
+    ).interactive().properties(height=500, width=500)
+    guidemakerChart = (densityF &amp; densityG &amp; locus)
+    return(guidemakerChart)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1747,6 +1904,8 @@ locations of targets in the genome</dd>
         Returns:
             None
         &#34;&#34;&#34;
+        from Bio import Seq # somehow if you import these two prior PAM class has eror as [TypeError: &#39;module&#39; object is not callable]
+        from itertools import product
         element_to_exclude = []
         for record in set(restriction_enzyme_list):
             element_to_exclude.append(extend_ambiguous_dna(record))
@@ -2000,6 +2159,8 @@ locations of targets in the genome</dd>
     Returns:
         None
     &#34;&#34;&#34;
+    from Bio import Seq # somehow if you import these two prior PAM class has eror as [TypeError: &#39;module&#39; object is not callable]
+    from itertools import product
     element_to_exclude = []
     for record in set(restriction_enzyme_list):
         element_to_exclude.append(extend_ambiguous_dna(record))
@@ -2346,7 +2507,7 @@ None</p>
 <ul class="">
 <li><code><a title="guidemaker.core.extend_ambiguous_dna" href="#guidemaker.core.extend_ambiguous_dna">extend_ambiguous_dna</a></code></li>
 <li><code><a title="guidemaker.core.get_fastas" href="#guidemaker.core.get_fastas">get_fastas</a></code></li>
-<li><code><a title="guidemaker.core.guidemakerplot" href="#guidemaker.core.guidemakerplot">guidemakerplot</a></code></li>
+<li><code><a title="guidemaker.core.guidemakerplotR" href="#guidemaker.core.guidemakerplotR">guidemakerplotR</a></code></li>
 <li><code><a title="guidemaker.core.is_gzip" href="#guidemaker.core.is_gzip">is_gzip</a></code></li>
 </ul>
 </li>
@@ -2356,6 +2517,12 @@ None</p>
 <h4><code><a title="guidemaker.core.Annotation" href="#guidemaker.core.Annotation">Annotation</a></code></h4>
 <ul class="">
 <li><code><a title="guidemaker.core.Annotation.locuslen" href="#guidemaker.core.Annotation.locuslen">locuslen</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="guidemaker.core.GuideMakerPlot" href="#guidemaker.core.GuideMakerPlot">GuideMakerPlot</a></code></h4>
+<ul class="">
+<li><code><a title="guidemaker.core.GuideMakerPlot.singleplot" href="#guidemaker.core.GuideMakerPlot.singleplot">singleplot</a></code></li>
 </ul>
 </li>
 <li>
