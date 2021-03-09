@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, TypeVar, Generator
 import guidemaker
+from Bio import Seq
+import altair as alt
 
 
 # PamTarget Class
@@ -209,3 +211,58 @@ def test_extend_ambiguous_dna():
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
 
 
+
+configpath="guidemaker/data/config_default.yaml"
+pamobj = guidemaker.core.PamTarget("NGGRRTA", "5prime")
+gb = SeqIO.parse("test/test_data/forward.fasta", "fasta")
+pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
+#tl.check_restriction_enzymes(['NRAGCA'])
+tl.find_unique_near_pam()
+tl.create_index(configpath=configpath)
+tl.get_neighbors(configpath=configpath)
+tf_df = tl.export_bed()
+anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"],
+                                    target_bed_df=tf_df)
+anno._get_genbank_features()
+anno._get_nearby_features()
+anno._filter_features()
+anno._get_qualifiers(configpath=configpath)
+prettydf = anno._format_guide_table(tl)
+
+
+glpam = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
+
+
+for xx in glpam.accession:
+    yy = glpam.singleplot(xx)
+    plot_file_name = f"{xx}.html"
+    yy.save(plot_file_name)
+    
+
+
+
+configpath="guidemaker/data/config_default.yaml"
+pamobj = guidemaker.core.PamTarget("NGGRRTA", "5prime")
+gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
+pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=10, hammingdist=2, knum=10)
+#tl.check_restriction_enzymes(['NRAGCA'])
+tl.find_unique_near_pam()
+tl.create_index(configpath=configpath)
+tl.get_neighbors(configpath=configpath)
+tf_df = tl.export_bed()
+anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
+                                    target_bed_df=tf_df)
+anno._get_genbank_features()
+anno._get_nearby_features()
+anno._filter_features()
+anno._get_qualifiers(configpath=configpath)
+prettydf = anno._format_guide_table(tl)
+
+glpam = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
+
+
+for xx in glpam.accession:
+    glpam.singleplot(xx)
+    print(xx)

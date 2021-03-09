@@ -171,7 +171,7 @@ def main(arglist: list=None):
             gmplotobj = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
             for accession in gmplotobj.accession:
                 accession_plot = gmplotobj.singleplot(accession)
-                plot_file_name = f"{accession}.html"
+                plot_file_name = f"{args.outdir}/{accession}.html"
                 accession_plot.save(plot_file_name)
             logging.info("Plots saved at: %s" % (args.outdir))
     except Exception as e:
