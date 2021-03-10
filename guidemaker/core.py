@@ -260,9 +260,9 @@ class TargetProcessor:
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
     """
-    def __init__(self, targets, lu: int, hammingdist: int=2, knum: int=2) -> None:
+    def __init__(self, targets, lsr: int, hammingdist: int=2, knum: int=2) -> None:
         self.targets = targets # pandas dataframe
-        self.lu: int = lu # length of unique zone
+        self.lsr: int = lsr # length of seed region
         self.hammingdist: int = hammingdist
         self.knum: int = knum
         self.nmslib_index: object = None
@@ -316,25 +316,25 @@ class TargetProcessor:
 
         The function filters a list of Target objects for targets that
         are unique in the region closest to the PAM. The region length is defined
-        by the lu (length of unique zone).
+        by the lsr (length of seed region that need to be unique).
 
         Args:
-            lu (int): Length of conserved sequence close to PAM
+            lsr (int): Length of seed region that is close to PAM
 
         Returns:
             Nome
         """
         def _get_prox(tseq): # get target sequence as input
             if self.pam_orientation == True: # 5prime = True 3prime=False
-            	if self.lu == 0:
+            	if self.lsr == 0:
             		return tseq
             	else:
-            		return tseq[0:self.lu]
+            		return tseq[0:self.lsr]
             elif self.pam_orientation == False: # 5prime = True 3prime=False
-            	if self.lu == 0:
+            	if self.lsr == 0:
             		return tseq
             	else:
-                	return tseq[(len(tseq) - self.lu):]
+                	return tseq[(len(tseq) - self.lsr):]
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
         self.targets = deepcopy(self.targets)
         self.targets.loc[:, 'seedseq'] = self.targets.loc[:, 'target'].apply(_get_prox)
@@ -748,66 +748,6 @@ class Annotation:
         locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
         return(locus_count)
 
-        
-def get_fastas(filelist, tempdir=None):
-    """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
-
-    Args:
-        filelist (str): Genbank file to process
-
-    Returns:
-        None
-    """
-    try:
-        fastpath = os.path.join(tempdir, "forward.fasta")
-        with open(fastpath, "w") as f1:
-            for file in filelist:
-                if is_gzip(file):
-                    with gzip.open(file, 'rt') as f:
-                        records = SeqIO.parse(f, "genbank")
-                        SeqIO.write(records, f1, "fasta")
-                else:
-                    with open(file, 'r') as f:
-                        records = (SeqIO.parse(f, "genbank"))
-                        SeqIO.write(records, f1, "fasta")
-        return fastpath
-    except Exception as e:
-        print("An error occurred in input genbank file %s" % file)
-        raise e
-
-def extend_ambiguous_dna(seq:str) ->  List[str]:
-    """Return list of all possible sequences given an ambiguous DNA input
-
-    Args:
-        seq(str): A DNA string
-    
-    Return:
-        List[str]: A list of DNA string with expanded ambiguous DNA values
-    """
-    dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
-    extend_list = []
-    for i in product(*[dna_dict[j] for j in seq]):
-        extend_list.append("".join(i))
-    return extend_list
-
-
-def guidemakerplotR(rscript_path:str, outdir:str)-> None:
-    """Returns guidemaker plot describing PAM targets
-
-    Args:
-        rscript_path (str): Path to R script
-        outdir (str): Folder to save the plot
-        
-    Return:
-        None
-    """
-    parameters0 = ["Rscript",rscript_path, outdir]
-    try:
-        p0 = subprocess.run(parameters0, stderr=subprocess.PIPE)
-        print(p0.stderr.decode('utf-8'))
-    except subprocess.CalledProcessError as e:
-        print(str(e))
-
 class GuideMakerPlot:
     def __init__(self, prettydf: PandasDataFrame, outdir:str) -> None:
         """GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
@@ -875,3 +815,44 @@ class GuideMakerPlot:
                 accession_plot = _singleplot(df)
                 plot_file_name = f"{outdir}/{accession}.html"
                 accession_plot.save(plot_file_name)
+
+def get_fastas(filelist, tempdir=None):
+    """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
+
+    Args:
+        filelist (str): Genbank file to process
+
+    Returns:
+        None
+    """
+    try:
+        fastpath = os.path.join(tempdir, "forward.fasta")
+        with open(fastpath, "w") as f1:
+            for file in filelist:
+                if is_gzip(file):
+                    with gzip.open(file, 'rt') as f:
+                        records = SeqIO.parse(f, "genbank")
+                        SeqIO.write(records, f1, "fasta")
+                else:
+                    with open(file, 'r') as f:
+                        records = (SeqIO.parse(f, "genbank"))
+                        SeqIO.write(records, f1, "fasta")
+        return fastpath
+    except Exception as e:
+        print("An error occurred in input genbank file %s" % file)
+        raise e
+
+def extend_ambiguous_dna(seq:str) ->  List[str]:
+    """Return list of all possible sequences given an ambiguous DNA input
+
+    Args:
+        seq(str): A DNA string
+    
+    Return:
+        List[str]: A list of DNA string with expanded ambiguous DNA values
+    """
+    dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
+    extend_list = []
+    for i in product(*[dna_dict[j] for j in seq]):
+        extend_list.append("".join(i))
+    return extend_list

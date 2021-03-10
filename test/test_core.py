@@ -260,7 +260,8 @@ anno._filter_features()
 anno._get_qualifiers(configpath=configpath)
 prettydf = anno._format_guide_table(tl)
 
-glpam = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
+outdir='test'
+guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=outdir)
 
 
 for xx in glpam.accession:
