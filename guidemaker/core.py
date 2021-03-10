@@ -809,46 +809,69 @@ def guidemakerplotR(rscript_path:str, outdir:str)-> None:
         print(str(e))
 
 class GuideMakerPlot:
-    def __init__(self, prettydf) -> None:
+    def __init__(self, prettydf: PandasDataFrame, outdir:str) -> None:
+        """GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
+
+        Args:
+            prettydf (PandasDataFrame): Final output from GuideMaker
+            outdir (str): Output Directory
+
+        Returns:
+            None
+        """
         self.prettydf = prettydf
         self.accession = list(set(self.prettydf['Accession']))
+        
+        def _singleplot(df):
+            """Returns guidemaker plot describing PAM targets
+            
+            Args:
+                df(PandasDataFrame): Final output from GuideMaker for a single accession
 
-    def singleplot(self, accession):
-        source = self.prettydf[self.prettydf['Accession']== accession]
-        brush = alt.selection(type='interval', encodings=['x'])
-        binNum = int(round(source['Feature end'].max()/200,0))
-        display_info = source.columns.tolist()
+            Return:
+                None
+            """
+            source = df
+            brush = alt.selection(type='interval', encodings=['x'])
+            binNum = int(round(source['Feature end'].max()/200,0))
+            display_info = source.columns.tolist()
 
-        # Feature density
-        densityF = alt.Chart(source).transform_density(
-        'Feature start',
-        as_=['Feature start', 'Feature Density'],
-        extent=[1, source['Feature end'].max()],
-        bandwidth=binNum,
-        ).mark_area(color='black',opacity=0.6).encode(
-        x = alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
-        y='Feature Density:Q',
-        ).properties(height=50,width=500)
+            # Feature density
+            densityF = alt.Chart(source).transform_density(
+            'Feature start',
+            as_=['Feature start', 'Feature Density'],
+            extent=[1, source['Feature end'].max()],
+            bandwidth=binNum,
+            ).mark_area(color='black',opacity=0.6).encode(
+            x = alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+            y='Feature Density:Q',
+            ).properties(height=50,width=500)
 
-        # Guide density
-        densityG = alt.Chart(source).transform_density(
-        'Guide start',
-        as_=['Guide start', 'Guide Density'],
-        extent=[1, source['Feature end'].max()],
-        bandwidth=binNum,
-        ).mark_area(color='pink',opacity=0.6).encode(
-        x = alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
-        y='Guide Density:Q',
-        ).properties(height=50,width=500).add_selection(brush)
+            # Guide density
+            densityG = alt.Chart(source).transform_density(
+            'Guide start',
+            as_=['Guide start', 'Guide Density'],
+            extent=[1, source['Feature end'].max()],
+            bandwidth=binNum,
+            ).mark_area(color='pink',opacity=0.6).encode(
+            x = alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+            y='Guide Density:Q',
+            ).properties(height=50,width=500).add_selection(brush)
 
-        # locus bar
-        locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
-        x='count(locus_tag):Q',
-        y = alt.Y('locus_tag', axis=alt.Axis( title='Locus')),
-        color='PAM:N',
-        tooltip=display_info
-        ).transform_filter(
-        brush
-        ).interactive().properties(height=500, width=500)
-        guidemakerChart = (densityF & densityG & locus)
-        return(guidemakerChart)
+            # locus bar
+            locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+            x='count(locus_tag):Q',
+            y = alt.Y('locus_tag', axis=alt.Axis( title='Locus')),
+            color='PAM:N',
+            tooltip=display_info
+            ).transform_filter(
+            brush
+            ).interactive().properties(height=500, width=500)
+            guidemakerChart = (densityF & densityG & locus)
+            return(guidemakerChart)
+
+        for accession in self.accession:
+                df = self.prettydf[self.prettydf['Accession']== accession]
+                accession_plot = _singleplot(df)
+                plot_file_name = f"{outdir}/{accession}.html"
+                accession_plot.save(plot_file_name)

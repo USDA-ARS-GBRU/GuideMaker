@@ -168,11 +168,7 @@ def main(arglist: list=None):
     try:
         if args.plot:
             logging.info("Creating Plots...")
-            gmplotobj = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
-            for accession in gmplotobj.accession:
-                accession_plot = gmplotobj.singleplot(accession)
-                plot_file_name = f"{args.outdir}/{accession}.html"
-                accession_plot.save(plot_file_name)
+            guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
             logging.info("Plots saved at: %s" % (args.outdir))
     except Exception as e:
             raise SystemExit(1)
