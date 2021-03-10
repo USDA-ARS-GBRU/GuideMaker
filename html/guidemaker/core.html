@@ -289,9 +289,9 @@ class TargetProcessor:
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
     &#34;&#34;&#34;
-    def __init__(self, targets, lu: int, hammingdist: int=2, knum: int=2) -&gt; None:
+    def __init__(self, targets, lsr: int, hammingdist: int=2, knum: int=2) -&gt; None:
         self.targets = targets # pandas dataframe
-        self.lu: int = lu # length of unique zone
+        self.lsr: int = lsr # length of seed region
         self.hammingdist: int = hammingdist
         self.knum: int = knum
         self.nmslib_index: object = None
@@ -345,25 +345,25 @@ class TargetProcessor:
 
         The function filters a list of Target objects for targets that
         are unique in the region closest to the PAM. The region length is defined
-        by the lu (length of unique zone).
+        by the lsr (length of seed region that need to be unique).
 
         Args:
-            lu (int): Length of conserved sequence close to PAM
+            lsr (int): Length of seed region that is close to PAM
 
         Returns:
             Nome
         &#34;&#34;&#34;
         def _get_prox(tseq): # get target sequence as input
             if self.pam_orientation == True: # 5prime = True 3prime=False
-                if self.lu == 0:
+                if self.lsr == 0:
                         return tseq
                 else:
-                        return tseq[0:self.lu]
+                        return tseq[0:self.lsr]
             elif self.pam_orientation == False: # 5prime = True 3prime=False
-                if self.lu == 0:
+                if self.lsr == 0:
                         return tseq
                 else:
-                        return tseq[(len(tseq) - self.lu):]
+                        return tseq[(len(tseq) - self.lsr):]
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
         self.targets = deepcopy(self.targets)
         self.targets.loc[:, &#39;seedseq&#39;] = self.targets.loc[:, &#39;target&#39;].apply(_get_prox)
@@ -777,7 +777,74 @@ class Annotation:
         locus_count = len(self.feature_dict[&#39;locus_tag&#39; or &#39;locus&#39;].keys())
         return(locus_count)
 
+class GuideMakerPlot:
+    def __init__(self, prettydf: PandasDataFrame, outdir:str) -&gt; None:
+        &#34;&#34;&#34;GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
+
+        Args:
+            prettydf (PandasDataFrame): Final output from GuideMaker
+            outdir (str): Output Directory
+
+        Returns:
+            None
+        &#34;&#34;&#34;
+        self.prettydf = prettydf
+        self.accession = list(set(self.prettydf[&#39;Accession&#39;]))
         
+        def _singleplot(df):
+            &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
+            
+            Args:
+                df(PandasDataFrame): Final output from GuideMaker for a single accession
+
+            Return:
+                None
+            &#34;&#34;&#34;
+            source = df
+            brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+            binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+            display_info = source.columns.tolist()
+
+            # Feature density
+            densityF = alt.Chart(source).transform_density(
+            &#39;Feature start&#39;,
+            as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+            extent=[1, source[&#39;Feature end&#39;].max()],
+            bandwidth=binNum,
+            ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+            x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+            y=&#39;Feature Density:Q&#39;,
+            ).properties(height=50,width=500)
+
+            # Guide density
+            densityG = alt.Chart(source).transform_density(
+            &#39;Guide start&#39;,
+            as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+            extent=[1, source[&#39;Feature end&#39;].max()],
+            bandwidth=binNum,
+            ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+            x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+            y=&#39;Guide Density:Q&#39;,
+            ).properties(height=50,width=500).add_selection(brush)
+
+            # locus bar
+            locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+            x=&#39;count(locus_tag):Q&#39;,
+            y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+            color=&#39;PAM:N&#39;,
+            tooltip=display_info
+            ).transform_filter(
+            brush
+            ).interactive().properties(height=500, width=500)
+            guidemakerChart = (densityF &amp; densityG &amp; locus)
+            return(guidemakerChart)
+
+        for accession in self.accession:
+                df = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
+                accession_plot = _singleplot(df)
+                plot_file_name = f&#34;{outdir}/{accession}.html&#34;
+                accession_plot.save(plot_file_name)
+
 def get_fastas(filelist, tempdir=None):
     &#34;&#34;&#34;Saves a Fasta and from 1 or more Genbank files (may be gzipped)
 
@@ -817,70 +884,7 @@ def extend_ambiguous_dna(seq:str) -&gt;  List[str]:
     extend_list = []
     for i in product(*[dna_dict[j] for j in seq]):
         extend_list.append(&#34;&#34;.join(i))
-    return extend_list
-
-
-def guidemakerplotR(rscript_path:str, outdir:str)-&gt; None:
-    &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
-
-    Args:
-        rscript_path (str): Path to R script
-        outdir (str): Folder to save the plot
-        
-    Return:
-        None
-    &#34;&#34;&#34;
-    parameters0 = [&#34;Rscript&#34;,rscript_path, outdir]
-    try:
-        p0 = subprocess.run(parameters0, stderr=subprocess.PIPE)
-        print(p0.stderr.decode(&#39;utf-8&#39;))
-    except subprocess.CalledProcessError as e:
-        print(str(e))
-
-class GuideMakerPlot:
-    def __init__(self, prettydf) -&gt; None:
-        self.prettydf = prettydf
-        self.accession = list(set(self.prettydf[&#39;Accession&#39;]))
-
-    def singleplot(self, accession):
-        source = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
-        brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
-        binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
-        display_info = source.columns.tolist()
-
-        # Feature density
-        densityF = alt.Chart(source).transform_density(
-        &#39;Feature start&#39;,
-        as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
-        extent=[1, source[&#39;Feature end&#39;].max()],
-        bandwidth=binNum,
-        ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
-        x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
-        y=&#39;Feature Density:Q&#39;,
-        ).properties(height=50,width=500)
-
-        # Guide density
-        densityG = alt.Chart(source).transform_density(
-        &#39;Guide start&#39;,
-        as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
-        extent=[1, source[&#39;Feature end&#39;].max()],
-        bandwidth=binNum,
-        ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
-        x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
-        y=&#39;Guide Density:Q&#39;,
-        ).properties(height=50,width=500).add_selection(brush)
-
-        # locus bar
-        locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
-        x=&#39;count(locus_tag):Q&#39;,
-        y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
-        color=&#39;PAM:N&#39;,
-        tooltip=display_info
-        ).transform_filter(
-        brush
-        ).interactive().properties(height=500, width=500)
-        guidemakerChart = (densityF &amp; densityG &amp; locus)
-        return(guidemakerChart)</code></pre>
+    return extend_list</code></pre>
 </details>
 </section>
 <section>
@@ -960,42 +964,6 @@ class GuideMakerPlot:
     except Exception as e:
         print(&#34;An error occurred in input genbank file %s&#34; % file)
         raise e</code></pre>
-</details>
-</dd>
-<dt id="guidemaker.core.guidemakerplotR"><code class="name flex">
-<span>def <span class="ident">guidemakerplotR</span></span>(<span>rscript_path: str, outdir: str) ‑> NoneType</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns guidemaker plot describing PAM targets</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>rscript_path</code></strong> :&ensp;<code>str</code></dt>
-<dd>Path to R script</dd>
-<dt><strong><code>outdir</code></strong> :&ensp;<code>str</code></dt>
-<dd>Folder to save the plot</dd>
-</dl>
-<h2 id="return">Return</h2>
-<p>None</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def guidemakerplotR(rscript_path:str, outdir:str)-&gt; None:
-    &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
-
-    Args:
-        rscript_path (str): Path to R script
-        outdir (str): Folder to save the plot
-        
-    Return:
-        None
-    &#34;&#34;&#34;
-    parameters0 = [&#34;Rscript&#34;,rscript_path, outdir]
-    try:
-        p0 = subprocess.run(parameters0, stderr=subprocess.PIPE)
-        print(p0.stderr.decode(&#39;utf-8&#39;))
-    except subprocess.CalledProcessError as e:
-        print(str(e))</code></pre>
 </details>
 </dd>
 <dt id="guidemaker.core.is_gzip"><code class="name flex">
@@ -1306,112 +1274,91 @@ locations of targets in the genome</dd>
 </dd>
 <dt id="guidemaker.core.GuideMakerPlot"><code class="flex name class">
 <span>class <span class="ident">GuideMakerPlot</span></span>
-<span>(</span><span>prettydf)</span>
+<span>(</span><span>prettydf: ~pandas.core.frame.DataFrame, outdir: str)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>prettydf</code></strong> :&ensp;<code>PandasDataFrame</code></dt>
+<dd>Final output from GuideMaker</dd>
+<dt><strong><code>outdir</code></strong> :&ensp;<code>str</code></dt>
+<dd>Output Directory</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>None</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GuideMakerPlot:
-    def __init__(self, prettydf) -&gt; None:
+    def __init__(self, prettydf: PandasDataFrame, outdir:str) -&gt; None:
+        &#34;&#34;&#34;GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
+
+        Args:
+            prettydf (PandasDataFrame): Final output from GuideMaker
+            outdir (str): Output Directory
+
+        Returns:
+            None
+        &#34;&#34;&#34;
         self.prettydf = prettydf
         self.accession = list(set(self.prettydf[&#39;Accession&#39;]))
+        
+        def _singleplot(df):
+            &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
+            
+            Args:
+                df(PandasDataFrame): Final output from GuideMaker for a single accession
 
-    def singleplot(self, accession):
-        source = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
-        brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
-        binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
-        display_info = source.columns.tolist()
+            Return:
+                None
+            &#34;&#34;&#34;
+            source = df
+            brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+            binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+            display_info = source.columns.tolist()
 
-        # Feature density
-        densityF = alt.Chart(source).transform_density(
-        &#39;Feature start&#39;,
-        as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
-        extent=[1, source[&#39;Feature end&#39;].max()],
-        bandwidth=binNum,
-        ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
-        x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
-        y=&#39;Feature Density:Q&#39;,
-        ).properties(height=50,width=500)
+            # Feature density
+            densityF = alt.Chart(source).transform_density(
+            &#39;Feature start&#39;,
+            as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+            extent=[1, source[&#39;Feature end&#39;].max()],
+            bandwidth=binNum,
+            ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+            x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+            y=&#39;Feature Density:Q&#39;,
+            ).properties(height=50,width=500)
 
-        # Guide density
-        densityG = alt.Chart(source).transform_density(
-        &#39;Guide start&#39;,
-        as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
-        extent=[1, source[&#39;Feature end&#39;].max()],
-        bandwidth=binNum,
-        ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
-        x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
-        y=&#39;Guide Density:Q&#39;,
-        ).properties(height=50,width=500).add_selection(brush)
+            # Guide density
+            densityG = alt.Chart(source).transform_density(
+            &#39;Guide start&#39;,
+            as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+            extent=[1, source[&#39;Feature end&#39;].max()],
+            bandwidth=binNum,
+            ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+            x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+            y=&#39;Guide Density:Q&#39;,
+            ).properties(height=50,width=500).add_selection(brush)
 
-        # locus bar
-        locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
-        x=&#39;count(locus_tag):Q&#39;,
-        y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
-        color=&#39;PAM:N&#39;,
-        tooltip=display_info
-        ).transform_filter(
-        brush
-        ).interactive().properties(height=500, width=500)
-        guidemakerChart = (densityF &amp; densityG &amp; locus)
-        return(guidemakerChart)</code></pre>
+            # locus bar
+            locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+            x=&#39;count(locus_tag):Q&#39;,
+            y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+            color=&#39;PAM:N&#39;,
+            tooltip=display_info
+            ).transform_filter(
+            brush
+            ).interactive().properties(height=500, width=500)
+            guidemakerChart = (densityF &amp; densityG &amp; locus)
+            return(guidemakerChart)
+
+        for accession in self.accession:
+                df = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
+                accession_plot = _singleplot(df)
+                plot_file_name = f&#34;{outdir}/{accession}.html&#34;
+                accession_plot.save(plot_file_name)</code></pre>
 </details>
-<h3>Methods</h3>
-<dl>
-<dt id="guidemaker.core.GuideMakerPlot.singleplot"><code class="name flex">
-<span>def <span class="ident">singleplot</span></span>(<span>self, accession)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def singleplot(self, accession):
-    source = self.prettydf[self.prettydf[&#39;Accession&#39;]== accession]
-    brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
-    binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
-    display_info = source.columns.tolist()
-
-    # Feature density
-    densityF = alt.Chart(source).transform_density(
-    &#39;Feature start&#39;,
-    as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
-    extent=[1, source[&#39;Feature end&#39;].max()],
-    bandwidth=binNum,
-    ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
-    x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
-    y=&#39;Feature Density:Q&#39;,
-    ).properties(height=50,width=500)
-
-    # Guide density
-    densityG = alt.Chart(source).transform_density(
-    &#39;Guide start&#39;,
-    as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
-    extent=[1, source[&#39;Feature end&#39;].max()],
-    bandwidth=binNum,
-    ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
-    x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
-    y=&#39;Guide Density:Q&#39;,
-    ).properties(height=50,width=500).add_selection(brush)
-
-    # locus bar
-    locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
-    x=&#39;count(locus_tag):Q&#39;,
-    y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
-    color=&#39;PAM:N&#39;,
-    tooltip=display_info
-    ).transform_filter(
-    brush
-    ).interactive().properties(height=500, width=500)
-    guidemakerChart = (densityF &amp; densityG &amp; locus)
-    return(guidemakerChart)</code></pre>
-</details>
-</dd>
-</dl>
 </dd>
 <dt id="guidemaker.core.PamTarget"><code class="flex name class">
 <span>class <span class="ident">PamTarget</span></span>
@@ -1860,7 +1807,7 @@ locations of targets in the genome</dd>
 </dd>
 <dt id="guidemaker.core.TargetProcessor"><code class="flex name class">
 <span>class <span class="ident">TargetProcessor</span></span>
-<span>(</span><span>targets, lu: int, hammingdist: int = 2, knum: int = 2)</span>
+<span>(</span><span>targets, lsr: int, hammingdist: int = 2, knum: int = 2)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A Class representing a set of guide RNA targets</p>
@@ -1875,9 +1822,9 @@ locations of targets in the genome</dd>
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
     &#34;&#34;&#34;
-    def __init__(self, targets, lu: int, hammingdist: int=2, knum: int=2) -&gt; None:
+    def __init__(self, targets, lsr: int, hammingdist: int=2, knum: int=2) -&gt; None:
         self.targets = targets # pandas dataframe
-        self.lu: int = lu # length of unique zone
+        self.lsr: int = lsr # length of seed region
         self.hammingdist: int = hammingdist
         self.knum: int = knum
         self.nmslib_index: object = None
@@ -1931,25 +1878,25 @@ locations of targets in the genome</dd>
 
         The function filters a list of Target objects for targets that
         are unique in the region closest to the PAM. The region length is defined
-        by the lu (length of unique zone).
+        by the lsr (length of seed region that need to be unique).
 
         Args:
-            lu (int): Length of conserved sequence close to PAM
+            lsr (int): Length of seed region that is close to PAM
 
         Returns:
             Nome
         &#34;&#34;&#34;
         def _get_prox(tseq): # get target sequence as input
             if self.pam_orientation == True: # 5prime = True 3prime=False
-                if self.lu == 0:
+                if self.lsr == 0:
                         return tseq
                 else:
-                        return tseq[0:self.lu]
+                        return tseq[0:self.lsr]
             elif self.pam_orientation == False: # 5prime = True 3prime=False
-                if self.lu == 0:
+                if self.lsr == 0:
                         return tseq
                 else:
-                        return tseq[(len(tseq) - self.lu):]
+                        return tseq[(len(tseq) - self.lsr):]
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
         self.targets = deepcopy(self.targets)
         self.targets.loc[:, &#39;seedseq&#39;] = self.targets.loc[:, &#39;target&#39;].apply(_get_prox)
@@ -2281,11 +2228,11 @@ between 1 and the size of the dataset.</p>
 <div class="desc"><p>identify unique sequences in the target list</p>
 <p>The function filters a list of Target objects for targets that
 are unique in the region closest to the PAM. The region length is defined
-by the lu (length of unique zone).</p>
+by the lsr (length of seed region that need to be unique).</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>lu</code></strong> :&ensp;<code>int</code></dt>
-<dd>Length of conserved sequence close to PAM</dd>
+<dt><strong><code>lsr</code></strong> :&ensp;<code>int</code></dt>
+<dd>Length of seed region that is close to PAM</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Nome</p></div>
@@ -2298,25 +2245,25 @@ by the lu (length of unique zone).</p>
 
     The function filters a list of Target objects for targets that
     are unique in the region closest to the PAM. The region length is defined
-    by the lu (length of unique zone).
+    by the lsr (length of seed region that need to be unique).
 
     Args:
-        lu (int): Length of conserved sequence close to PAM
+        lsr (int): Length of seed region that is close to PAM
 
     Returns:
         Nome
     &#34;&#34;&#34;
     def _get_prox(tseq): # get target sequence as input
         if self.pam_orientation == True: # 5prime = True 3prime=False
-            if self.lu == 0:
+            if self.lsr == 0:
                     return tseq
             else:
-                    return tseq[0:self.lu]
+                    return tseq[0:self.lsr]
         elif self.pam_orientation == False: # 5prime = True 3prime=False
-            if self.lu == 0:
+            if self.lsr == 0:
                     return tseq
             else:
-                    return tseq[(len(tseq) - self.lu):]
+                    return tseq[(len(tseq) - self.lsr):]
     # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
     self.targets = deepcopy(self.targets)
     self.targets.loc[:, &#39;seedseq&#39;] = self.targets.loc[:, &#39;target&#39;].apply(_get_prox)
@@ -2507,7 +2454,6 @@ None</p>
 <ul class="">
 <li><code><a title="guidemaker.core.extend_ambiguous_dna" href="#guidemaker.core.extend_ambiguous_dna">extend_ambiguous_dna</a></code></li>
 <li><code><a title="guidemaker.core.get_fastas" href="#guidemaker.core.get_fastas">get_fastas</a></code></li>
-<li><code><a title="guidemaker.core.guidemakerplotR" href="#guidemaker.core.guidemakerplotR">guidemakerplotR</a></code></li>
 <li><code><a title="guidemaker.core.is_gzip" href="#guidemaker.core.is_gzip">is_gzip</a></code></li>
 </ul>
 </li>
@@ -2521,9 +2467,6 @@ None</p>
 </li>
 <li>
 <h4><code><a title="guidemaker.core.GuideMakerPlot" href="#guidemaker.core.GuideMakerPlot">GuideMakerPlot</a></code></h4>
-<ul class="">
-<li><code><a title="guidemaker.core.GuideMakerPlot.singleplot" href="#guidemaker.core.GuideMakerPlot.singleplot">singleplot</a></code></li>
-</ul>
 </li>
 <li>
 <h4><code><a title="guidemaker.core.PamTarget" href="#guidemaker.core.PamTarget">PamTarget</a></code></h4>

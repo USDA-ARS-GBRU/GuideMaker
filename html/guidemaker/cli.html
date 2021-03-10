@@ -50,7 +50,7 @@ def myparser():
     parser.add_argument(&#39;--outdir&#39;, &#39;-o&#39;, type=str, required=True, help=&#39;The directory for data output&#39;)
     parser.add_argument(&#39;--pam_orientation&#39;, &#39;-r&#39;, choices=[&#39;5prime&#39;, &#39;3prime&#39;], default=&#39;5prime&#39;, help=&#34;PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime&#34;)
     parser.add_argument(&#39;--guidelength&#39;, &#39;-l&#39;, type=int, default=20, choices=range(10, 28, 1), metavar=&#34;[10-27]&#34; ,help=&#39;Length of the guide sequence&#39;)
-    parser.add_argument(&#39;--lu&#39;, type=int, default=10,choices=range(0, 28, 1), metavar=&#34;[0-27]&#34;, help=&#39;Length of a unique zone near the PAM site required to be unique&#39;)
+    parser.add_argument(&#39;--lsr&#39;, type=int, default=10,choices=range(0, 28, 1), metavar=&#34;[0-27]&#34;, help=&#39;Length of a seed region near the PAM site required to be unique&#39;)
     parser.add_argument(&#39;--dist&#39;, type=int, choices=range(0, 6, 1),  metavar=&#34;[0-5]&#34;, default=2, help=&#39;Minimum hamming distance from any other potential guide&#39;)
     parser.add_argument(&#39;--before&#39;, type=int, default=100, choices=range(1, 501, 1), metavar=&#34;[1-500]&#34;,
                         help=&#39;keep guides this far in front of a feature&#39;)
@@ -69,7 +69,7 @@ def myparser():
     return parser
 
 def parserval(args):
-    assert(args.lu &lt;= args.guidelength), &#34;The length of sequence near the PAM the is unique (lu) must be less than the guide length&#34;
+    assert(args.lsr &lt;= args.guidelength), &#34;The length of sequence near the PAM .i.e seed sequence that must be less than the guide length&#34;
     # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
     assert(1 &lt; len(args.pamseq) &lt; 9 ), &#34;The length of the PAM sequence must be between 2-8&#34;
 
@@ -142,7 +142,7 @@ def main(arglist: list=None):
         pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, &#34;fasta&#34;)
         pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, target_len=args.guidelength)
-        tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=args.lu, hammingdist=args.dist, knum=args.knum)
+        tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=args.lsr, hammingdist=args.dist, knum=args.knum)
         lengthoftl= len(tl.targets)
         logging.info(&#34;Checking guides for restriction enzymes&#34;)
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
@@ -198,11 +198,7 @@ def main(arglist: list=None):
     try:
         if args.plot:
             logging.info(&#34;Creating Plots...&#34;)
-            gmplotobj = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
-            for accession in gmplotobj.accession:
-                accession_plot = gmplotobj.singleplot(accession)
-                plot_file_name = f&#34;{args.outdir}/{accession}.html&#34;
-                accession_plot.save(plot_file_name)
+            guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
             logging.info(&#34;Plots saved at: %s&#34; % (args.outdir))
     except Exception as e:
             raise SystemExit(1)
@@ -273,7 +269,7 @@ def main(arglist: list=None):
         pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, &#34;fasta&#34;)
         pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, target_len=args.guidelength)
-        tl = guidemaker.core.TargetProcessor(targets=pamtargets, lu=args.lu, hammingdist=args.dist, knum=args.knum)
+        tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=args.lsr, hammingdist=args.dist, knum=args.knum)
         lengthoftl= len(tl.targets)
         logging.info(&#34;Checking guides for restriction enzymes&#34;)
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
@@ -329,11 +325,7 @@ def main(arglist: list=None):
     try:
         if args.plot:
             logging.info(&#34;Creating Plots...&#34;)
-            gmplotobj = guidemaker.core.GuideMakerPlot(prettydf=prettydf)
-            for accession in gmplotobj.accession:
-                accession_plot = gmplotobj.singleplot(accession)
-                plot_file_name = f&#34;{args.outdir}/{accession}.html&#34;
-                accession_plot.save(plot_file_name)
+            guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
             logging.info(&#34;Plots saved at: %s&#34; % (args.outdir))
     except Exception as e:
             raise SystemExit(1)
@@ -362,7 +354,7 @@ def main(arglist: list=None):
     parser.add_argument(&#39;--outdir&#39;, &#39;-o&#39;, type=str, required=True, help=&#39;The directory for data output&#39;)
     parser.add_argument(&#39;--pam_orientation&#39;, &#39;-r&#39;, choices=[&#39;5prime&#39;, &#39;3prime&#39;], default=&#39;5prime&#39;, help=&#34;PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime&#34;)
     parser.add_argument(&#39;--guidelength&#39;, &#39;-l&#39;, type=int, default=20, choices=range(10, 28, 1), metavar=&#34;[10-27]&#34; ,help=&#39;Length of the guide sequence&#39;)
-    parser.add_argument(&#39;--lu&#39;, type=int, default=10,choices=range(0, 28, 1), metavar=&#34;[0-27]&#34;, help=&#39;Length of a unique zone near the PAM site required to be unique&#39;)
+    parser.add_argument(&#39;--lsr&#39;, type=int, default=10,choices=range(0, 28, 1), metavar=&#34;[0-27]&#34;, help=&#39;Length of a seed region near the PAM site required to be unique&#39;)
     parser.add_argument(&#39;--dist&#39;, type=int, choices=range(0, 6, 1),  metavar=&#34;[0-5]&#34;, default=2, help=&#39;Minimum hamming distance from any other potential guide&#39;)
     parser.add_argument(&#39;--before&#39;, type=int, default=100, choices=range(1, 501, 1), metavar=&#34;[1-500]&#34;,
                         help=&#39;keep guides this far in front of a feature&#39;)
@@ -391,7 +383,7 @@ def main(arglist: list=None):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def parserval(args):
-    assert(args.lu &lt;= args.guidelength), &#34;The length of sequence near the PAM the is unique (lu) must be less than the guide length&#34;
+    assert(args.lsr &lt;= args.guidelength), &#34;The length of sequence near the PAM .i.e seed sequence that must be less than the guide length&#34;
     # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
     assert(1 &lt; len(args.pamseq) &lt; 9 ), &#34;The length of the PAM sequence must be between 2-8&#34;</code></pre>
 </details>
