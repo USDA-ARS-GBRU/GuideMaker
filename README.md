@@ -96,7 +96,7 @@ Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide seque
 
 ## API documentation
 
-API documentation for the module can be found [here](/html/guidemaker/index.html)
+API documentation for the module can be found [here](https://guidemaker.org)
 
 ## License information
 
