@@ -94,7 +94,7 @@ Return a table of pam sites and associated data, at in current folder.
 
 ## API documentation
 
-API documentation for the module can be found [here](/html/guidemaker/index.html)
+API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
 
 ## License information
 
