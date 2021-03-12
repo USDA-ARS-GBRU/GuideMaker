@@ -94,6 +94,14 @@ Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide seque
 
 ```
 
+### Running Web App locally
+
+```{bash}
+
+streamlit run guidemaker/app.py 
+
+```
+
 ## API documentation
 
 API documentation for the module can be found [here](https://guidemaker.org)

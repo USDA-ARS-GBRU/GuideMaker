@@ -1,21 +1,21 @@
 import os
-import sys
 import subprocess
 import base64
 import streamlit as st
 import pandas as pd
-from io import BytesIO
 import pathlib
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 import shutil
-import hashlib
 import pandas as pd
 import numpy as np
 import altair as alt
 from PIL import Image
+import guidemaker
+
+
 
 
 ######
@@ -199,12 +199,12 @@ def main(arglist: list=None):
         pass
 
     # Parameters Dictionary 
-    image = Image.open('data/parameters.png')
+    image = Image.open(guidemaker.APP_PARAMETER_IMG)
     optionals = st.beta_expander("Parameter Dictionary", False)
     optionals.image(image, caption='GuideMaker Parameters',use_column_width=True)
 
     with st.beta_expander("Designing Experiments with GuideMaker Results"):
-        intro_markdown = read_markdown_file("data/PooledCRISPRExperiments.md")
+        intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
         st.markdown(intro_markdown, unsafe_allow_html=True)
         
 
