@@ -104,7 +104,7 @@ streamlit run guidemaker/app.py
 
 ## API documentation
 
-API documentation for the module can be found [here](https://guidemaker.org)
+API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
 
 ## License information
 
