@@ -15,7 +15,6 @@ docs/source/_templates
 *.txt
 testing.py
 *.csv
-*.ipynb
 *.log
 /build
 /predictPAM.egg-info
@@ -40,3 +39,4 @@ test/EcoliPrefilter.py
 test/test_data/Ecoli_prefilter_GM.csv
 test/test_data/Escherichia.coli_str_K-12_substr_MG1655.fasta
 test/test_data/Arabidopsis_thaliana.gbk
+test/EcoliPrefilter.py
