@@ -99,7 +99,7 @@ Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide seque
 ```{bash}
 streamlit run guidemaker/app.py 
 ```
-[![IMAGE ALT TEXT HERE](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/rp01/GuideMakerApp.png)
+![IMAGE ALT TEXT HERE](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/rp01/GuideMakerApp.png)
 
 ## API documentation
 
