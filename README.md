@@ -89,7 +89,7 @@ Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide seque
     -p NGG \
     --pam_orientation 3prime \
     --guidelength 20 \
-    --lu 11 \
+    --lsr 11 \
     -o OUTDIR \
     --threads 2
 
