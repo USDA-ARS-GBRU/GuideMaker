@@ -59,7 +59,8 @@ optional arguments:
                         Cas9 is 3prime
   --guidelength [10-27], -l [10-27]
                         Length of the guide sequence
-  --lu [0-27]           Length of a unique zone near the PAM site required to be unique
+  --lsr [0-27]          Length of a seed region near the PAM site required to
+                        be unique
   --dist [0-5]          Minimum hamming distance from any other potential
                         guide. Default dist is >= 2.
   --before [1-500]      keep guides this far in front of a feature
@@ -68,11 +69,11 @@ optional arguments:
   --knum [2-20]         Number of sequences similar to the guide to report
   --controls CONTROLS   Number or random control RNAs to generate
   --threads THREADS     Number of cpu threads to use
-  --restriction_enzyme_list List of sequence representing restriction enzymes
   --log LOG             Log file
-  --plot                Option to generate plots
-  --keeptemp            Option to keep intermediate files
   --tempdir TEMPDIR     The temp file directory
+  --restriction_enzyme_list List of sequence representing restriction enzymes
+  --keeptemp            Option to keep intermediate files
+  --plot                Option to generate plots
   --config CONFIG       Path to YAML formatted configuration file
   -V, --version         show program's version number and exit
 ```
