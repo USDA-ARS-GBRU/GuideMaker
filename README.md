@@ -1,16 +1,14 @@
-#GuideMaker
-## GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
+
+# GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
 
 ## Authors
 
-* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
+
 * Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
+* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
 * Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
 * Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
-
-
-## Introduction
 
 
 
@@ -27,12 +25,12 @@ GuideMaker can be installed from:
 
 ## Dependencies
 
-Following are the required softwares/programs.
-
 * ``pybedtools``
 * ``NMSLib``
 * ``Biopython``
 * ``Pandas``
+* ``Streamlit for webapp``
+* ``altair for plotting``
 
 
 ## Usage
@@ -81,7 +79,7 @@ optional arguments:
 ## Examples
 
 
-Use case: Retrieving guide sequence for SpCas9 (NGG) where length of guide sequence is 20 base pair. Length of unique zone is 11 base pairs.
+Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in Carsonela ruddii. The length of the seed region near the PAM requred to be unique in each guide is 11 nucleotides.
 
 ```
     guidemaker \
@@ -109,5 +107,5 @@ API documentation for the module can be found [here](https://guidemaker.org/html
 
 ## License information
 
-As a work of the United State Government Department of Agriculture - Agricultural Research Service (USDA-ARS) this software is available under CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service (USDA-ARS)](https://www.ars.usda.gov/) this software is available under [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/)
 
