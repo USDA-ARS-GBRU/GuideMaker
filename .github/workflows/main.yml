@@ -36,11 +36,8 @@ jobs:
       run: |
         pytest
     
-    - uses: actions/checkout@v2 
     - name: Generate a new pdoc html - force to overwrite # https://github.community/t/can-github-actions-directly-edit-files-in-a-repository/17884/6
       run : |
-        pip install pdoc3
-        pip install streamlit
         pdoc guidemaker -f --html
     
     - name: Commit files and Push changes back into the repository
