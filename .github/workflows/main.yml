@@ -1,6 +1,9 @@
 name: Build Tests Docker-Images API-Documentation
 
-on: [push]
+on:
+push:
+    branches:
+      - rp01
 
 jobs:
   build:
