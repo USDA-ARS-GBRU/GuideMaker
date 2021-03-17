@@ -1,4 +1,4 @@
-"""Pytest unit tests for the core module of guidefinder
+"""Pytest unit tests for the core module of guidemaker
 """
 import os
 import pytest

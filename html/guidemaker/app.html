@@ -27,23 +27,23 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">import os
-import sys
 import subprocess
 import base64
 import streamlit as st
 import pandas as pd
-from io import BytesIO
 import pathlib
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 import shutil
-import hashlib
 import pandas as pd
 import numpy as np
 import altair as alt
 from PIL import Image
+import guidemaker
+
+
 
 
 ######
@@ -227,12 +227,12 @@ def main(arglist: list=None):
         pass
 
     # Parameters Dictionary 
-    image = Image.open(&#39;data/parameters.png&#39;)
+    image = Image.open(guidemaker.APP_PARAMETER_IMG)
     optionals = st.beta_expander(&#34;Parameter Dictionary&#34;, False)
     optionals.image(image, caption=&#39;GuideMaker Parameters&#39;,use_column_width=True)
 
     with st.beta_expander(&#34;Designing Experiments with GuideMaker Results&#34;):
-        intro_markdown = read_markdown_file(&#34;data/PooledCRISPRExperiments.md&#34;)
+        intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
         st.markdown(intro_markdown, unsafe_allow_html=True)
         
 
@@ -468,12 +468,12 @@ def genome_connect(db_bytes):
         pass
 
     # Parameters Dictionary 
-    image = Image.open(&#39;data/parameters.png&#39;)
+    image = Image.open(guidemaker.APP_PARAMETER_IMG)
     optionals = st.beta_expander(&#34;Parameter Dictionary&#34;, False)
     optionals.image(image, caption=&#39;GuideMaker Parameters&#39;,use_column_width=True)
 
     with st.beta_expander(&#34;Designing Experiments with GuideMaker Results&#34;):
-        intro_markdown = read_markdown_file(&#34;data/PooledCRISPRExperiments.md&#34;)
+        intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
         st.markdown(intro_markdown, unsafe_allow_html=True)
         
 
