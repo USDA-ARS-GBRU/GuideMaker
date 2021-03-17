@@ -1,0 +1,76 @@
+name: Build Tests Docker-Images API-Documentation
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest # can be run on other OS as well.
+    strategy:
+      matrix:
+        python-version: [3.7] # other version of python can be pass as a list
+
+    steps:
+    - uses: actions/checkout@v2 # Get a copy of code from github
+    - name: Set up Python ${{ matrix.python-version }} # set up python from github
+      uses: actions/setup-python@v2 
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - uses: actions/cache@v2 # https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d
+      with:
+        path: ~/.cache/pip
+        key: ${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+    - name: "Installs and upgrades pip, installs other dependencies and installs the package from setup.py"
+      run: |
+        # Upgrade pip
+        python -m pip install --upgrade pip
+        # Install build deps
+        python -m pip install setuptools wheel twine versioneer
+        pip install --no-binary :all: nmslib
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Install the package from setup.py
+        python setup.py install
+
+    - name: Test with pytest
+      run: |
+        pip install pytest
+        export PYTHONPATH=guidemaker
+        pytest
+    
+    - uses: actions/checkout@v2 
+    - name: Generate a new pdoc html - force to overwrite # https://github.community/t/can-github-actions-directly-edit-files-in-a-repository/17884/6
+      run : |
+        pip install pdoc3
+        pip install streamlit
+        pdoc guidemaker -f --html
+    
+    - name: Commit files and Push changes back into the repository
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: Apply automatic changes
+        push_options: --force
+        token: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Build container image avx
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: ravinpoudel/actiontest/guidemaker-avx
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/avx
+    - name: Build container image nonavx
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: ravinpoudel/actiontest/guidemaker-nonavx
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/nonavx
