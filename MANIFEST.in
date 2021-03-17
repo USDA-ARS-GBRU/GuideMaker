@@ -3,3 +3,4 @@ include guidemaker/_version.py
 include test/test_data/*
 include LICENSE.txt
 include README.md
+include guidemaker/data/*

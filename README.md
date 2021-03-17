@@ -1,16 +1,14 @@
-#GuideMaker
-## Globally design gRNAs for any CRISPR-Cas system in any small genome
 
+# GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
+#
 ## Authors
 
-* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
+
 * Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
+* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
 * Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
 * Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
-
-
-## Introduction
 
 
 
@@ -18,7 +16,7 @@
 
 GuideMaker can be installed from:
 
-1. The Github repository: https://github.com/USDA-ARS-GBRU/guidemaker
+1. The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
@@ -27,18 +25,18 @@ GuideMaker can be installed from:
 
 ## Dependencies
 
-Following are the required softwares/programs.
-
 * ``pybedtools``
 * ``NMSLib``
 * ``Biopython``
 * ``Pandas``
+* ``Streamlit for webapp``
+* ``altair for plotting``
 
 
 ## Usage
 
 ```
-GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome
+GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
 optional arguments:
 
@@ -59,38 +57,49 @@ optional arguments:
                         Cas9 is 3prime
   --guidelength [10-27], -l [10-27]
                         Length of the guide sequence
-  --strand {forward,reverse,both}, -s {forward,reverse,both}
-                        Strand of DNA to search
-  --lcp [0-27]          Length of the guide closest to the PAM required to be
-                        unique
-  --dist [1-5]          Minimum hamming distance from any other potential
-                        guide
+  --lsr [0-27]          Length of a seed region near the PAM site required to
+                        be unique
+  --dist [0-5]          Minimum hamming distance from any other potential
+                        guide. Default dist is >= 2.
   --before [1-500]      keep guides this far in front of a feature
   --into [1-500]        keep guides this far inside (past the start site)of a
                         feature
-  --knum [2-20]         how many sequences similar to the guide to report
-  --controls CONTROLS   The number or random control RNAs to generate
-  --threads THREADS     The number of cpu threads to use
+  --knum [2-20]         Number of sequences similar to the guide to report
+  --controls CONTROLS   Number or random control RNAs to generate
+  --threads THREADS     Number of cpu threads to use
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
+  --restriction_enzyme_list List of sequence representing restriction enzymes
+  --keeptemp            Option to keep intermediate files
+  --plot                Option to generate plots
+  --config CONFIG       Path to YAML formatted configuration file
   -V, --version         show program's version number and exit
 ```
 
 ## Examples
 
 
-Use case: Retrieving target sequence for a given PAM motif in the forward and reverse strands, where length of guide sequence is 20 base pair.
-12 base pair close to PAM motif is conserved ,i.e. unique and the full sequence has a hamming distance of more than 2.
-Here the number of used threads is 2
-Return a table of pam sites and associated data, at in current folder.
+Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in Carsonela ruddii. The length of the seed region near the PAM requred to be unique in each guide is 11 nucleotides.
 
 ```
-		guidemaker -i test/test_data/Burkholderia_thailandensis_E264_ATCC_700388_133.gbk \
-		--pamseq AGG  --outdir OUTDIR --pam_orientation 5prime \
-		--guidelength 20 --strand both --lcp 10 --dist 3 --before 100 \
-		--into  100 --knum 10 --controls 10  --log logfile.txt --threads 2
+    guidemaker \
+    -i test/test_data/Carsonella_ruddii.gbk \
+    -p NGG \
+    --pam_orientation 3prime \
+    --guidelength 20 \
+    --lsr 11 \
+    -o OUTDIR \
+    --threads 2
 
 ```
+
+### Running Web App locally
+
+```{bash}
+streamlit run guidemaker/app.py 
+```
+
+[![IMAGE ALT TEXT HERE](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/rp01/GuideMakerApp.png)](https://guidemaker.org)
 
 ## API documentation
 
@@ -98,4 +107,5 @@ API documentation for the module can be found [here](https://guidemaker.org/html
 
 ## License information
 
-As a work of the United State Governemnt this software is available under  CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service (USDA-ARS)](https://www.ars.usda.gov/) this software is available under [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/)
+

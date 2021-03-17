@@ -1,27 +1,26 @@
 """GuideMaker: The command line interface
 
-A command line tool to globally design guide RNAs for any CRISPR-Cas system in any genome
+A command line tool to globally design guide RNAs for any CRISPR-Cas system in any small genome
 """
 import logging
 import argparse
 import tempfile
 import shutil
 import os
-
+import multiprocessing
 import pybedtools
 from Bio import SeqIO
-
+import yaml
 import guidemaker
 
 def myparser():
-    parser = argparse.ArgumentParser(description='GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome')
+    parser = argparse.ArgumentParser(description='GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any small genome')
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True, help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True, help='The directory for data output')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime', help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]" ,help='Length of the guide sequence')
-    parser.add_argument('--strand', '-s', choices=['forward','reverse', 'both'], default='both', help='Strand of DNA to search')
-    parser.add_argument('--lcp', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of the guide closest to  the PAM required to be unique')
+    parser.add_argument('--lsr', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of a seed region near the PAM site required to be unique')
     parser.add_argument('--dist', type=int, choices=range(0, 6, 1),  metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far in front of a feature')
@@ -33,14 +32,16 @@ def myparser():
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*", help='List of sequence representing restriction enzymes', default=[])
-    parser.add_argument('--keeptemp' ,help="Should intermediate files be kept?", action='store_true')
+    parser.add_argument('--keeptemp' ,help="Option to keep intermediate files be kept", action='store_true')
+    parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
+    parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH,default=guidemaker.CONFIG_PATH)
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
 
 def parserval(args):
-    assert(args.lcp <= args.guidelength), "The length of sequence near the PAM the is unique (lcp) must be less than the guide length"
+    assert(args.lsr <= args.guidelength), "The length of sequence near the PAM .i.e seed sequence that must be less than the guide length"
     # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
-    assert(1 < len(args.pamseq) < 9 ), "The length of the PAM sequence must be between 2-6"
+    assert(1 < len(args.pamseq) < 9 ), "The length of the PAM sequence must be between 2-8"
 
 def _logger_setup(logfile):
     """Set up logging to a logfile and the terminal standard out.
@@ -79,6 +80,21 @@ def main(arglist: list=None):
     parserval(args)
 
     _logger_setup(args.log)
+
+    try:
+        with open(args.config) as cf:
+            config = yaml.safe_load(cf)
+    except:
+        print("Could not parse the configuration file.")
+        raise SystemExit(1)
+
+    try:
+        logging.info("Configuration data loaded from {}:".format(args.config))
+        logging.info(config)
+    except:
+        print("Could find config file, exiting.")
+        raise SystemExit(1)
+
     try:
 
         if args.tempdir:
@@ -93,21 +109,21 @@ def main(arglist: list=None):
         logging.info("Writing fasta file from genbank file(s)")
         fastapath = guidemaker.get_fastas(args.genbank, tempdir=tempdir)
         logging.info("Identifying PAM sites in the genome")
-        pamobj = guidemaker.core.Pam(args.pamseq, args.pam_orientation)
+        pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
-        pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, strand="both", target_len=args.guidelength)
-        tl = guidemaker.core.TargetList(targets=pamtargets, lcp=args.lcp, hammingdist=args.dist, knum=args.knum)
-        lengthoftl= len(tl)
+        pamtargets = pamobj.find_targets(seq_record_iter=seq_record_iter, target_len=args.guidelength)
+        tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=args.lsr, hammingdist=args.dist, knum=args.knum)
+        lengthoftl= len(tl.targets)
         logging.info("Checking guides for restriction enzymes")
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
-        logging.info("Number of guides removed after checking for restriction enzymes: %d", (lengthoftl - len(tl)))
+        logging.info("Number of guides removed after checking for restriction enzymes: %d", (lengthoftl - len(tl.targets)))
         logging.info("Identifing guides that are unique near the PAM site")
         tl.find_unique_near_pam()
-        logging.info("Number of guides removed after checking for unique PAM: %d", (len(tl) - len(tl.unique_targets)))
-        logging.info("Indexing all potential guide sites: %s. This is the longest step." % len(tl.targets))
-        tl.create_index(num_threads=args.threads)
+        logging.info("Number of guides with non unique seed sequence: %d", (tl.targets.isseedduplicated.sum()))
+        logging.info("Indexing all potential guide sites: %s. This is the longest step." % len(list(set(tl.targets['target'].tolist()))))
+        tl.create_index(num_threads=args.threads, configpath= args.config)
         logging.info("Identifying guides that have a hamming distance <= %s to all other potential guides", str(args.dist))
-        tl.get_neighbors(num_threads=args.threads)
+        tl.get_neighbors(num_threads=args.threads, configpath = args.config)
         logging.info("Formatting data for BedTools")
         tf_df = tl.export_bed()
         logging.info("Create GuideMaker Annotation object")
@@ -121,7 +137,7 @@ def main(arglist: list=None):
         logging.info("Select guides that start between +%s and -%s of a feature start" % (args.before, args.into))
         anno._filter_features(before_feat=args.before, after_feat=args.into)
         logging.info("Select description columns")
-        anno._get_qualifiers()
+        anno._get_qualifiers(configpath = args.config)
         logging.info("Format the output")
         prettydf = anno._format_guide_table(tl)
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
@@ -133,7 +149,7 @@ def main(arglist: list=None):
         logging.info("creating random control guides")
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
-        cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, length=args.guidelength, n=args.controls, num_threads=args.threads)
+        cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter, configpath = args.config, length=args.guidelength, n=args.controls, num_threads=args.threads)
         logging.info("Number of random control searched: %d" % tl.ncontrolsearched)
         logging.info("Percentage of GC content in the input genome: "+"{:.2f}".format(tl.gc_percent))
         logging.info("Total length of the genome: "+"{:.1f} MB".format(tl.genomesize))
@@ -142,19 +158,24 @@ def main(arglist: list=None):
         logging.info("guidemaker completed, results are at %s" % args.outdir)
         logging.info("PAM sequence: %s" % args.pamseq)
         logging.info("PAM orientation: %s" % args.pam_orientation)
-        logging.info("Genome strand(s) searched: %s" % args.strand)
+        logging.info("Genome strand(s) searched: %s" % "both")
         logging.info("Total PAM sites considered: %d" % lengthoftl)
         logging.info("Guide RNA candidates found: %d" % len(prettydf))
-
     except Exception as e:
         logging.error("GuideMaker terminated with errors. See the log file for details.")
         logging.error(e)
         raise SystemExit(1)
-    finally:
-        try:
-            if not args.keeptemp:
-                shutil.rmtree(tempdir)
-        except UnboundLocalError:
+    try:
+        if args.plot:
+            logging.info("Creating Plots...")
+            guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
+            logging.info("Plots saved at: %s" % (args.outdir))
+    except Exception as e:
             raise SystemExit(1)
-        except AttributeError:
-            raise SystemExit(1)
+    try:
+        if not args.keeptemp:
+            shutil.rmtree(tempdir)
+    except UnboundLocalError:
+        raise SystemExit(1)
+    except AttributeError:
+        raise SystemExit(1)

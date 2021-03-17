@@ -1,7 +1,7 @@
 FROM continuumio/miniconda3:4.8.2
 LABEL maintainer="Adam R. Rivers"
 LABEL version="0.2.0"
-LABEL Description="GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any genome"
+LABEL Description="GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome"
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -15,6 +15,8 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     pandas=1.0.3 \
     pybedtools \
     biopython=1.76 \
+    numpy=1.19.4 \
+    pyyaml==5.3.1 \
     && conda clean -afy
 
 RUN pip install --no-binary :all: nmslib
