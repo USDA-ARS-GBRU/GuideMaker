@@ -34,6 +34,7 @@ jobs:
 
     - name: Test with pytest
       run: |
+        pip install pytest
         pytest
     
     - name: Generate a new pdoc html - force to overwrite # https://github.community/t/can-github-actions-directly-edit-files-in-a-repository/17884/6
