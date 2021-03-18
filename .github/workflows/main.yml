@@ -47,8 +47,6 @@ jobs:
         push_options: --force
         token: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
 
-    - name: Checkout
-      uses: actions/checkout@v2
     - name: Build container image avx
       uses: docker/build-push-action@v1
       with:
@@ -59,6 +57,7 @@ jobs:
         tag_with_ref: true
         tag_with_sha: true
         path: docker-images/avx
+        
     - name: Build container image nonavx
       uses: docker/build-push-action@v1
       with:
