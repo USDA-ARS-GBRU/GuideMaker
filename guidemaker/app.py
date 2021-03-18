@@ -55,6 +55,8 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     return href
 
 def read_markdown_file(markdown_file):
+    """Read markdown file
+    """
     return Path(markdown_file).read_text()
 
 def GuideMakerPlot(df):

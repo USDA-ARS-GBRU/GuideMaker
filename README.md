@@ -1,3 +1,4 @@
+[![Build Tests Docker-Images API-Documentation](https://github.com/USDA-ARS-GBRU/GuideMaker/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/USDA-ARS-GBRU/GuideMaker/actions/workflows/main.yml)
 
 # GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
