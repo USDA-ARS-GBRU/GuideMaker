@@ -12,7 +12,6 @@ docs/source/_templates
 *.pdf
 *.fasta
 *.DS_Store
-*.txt
 testing.py
 *.csv
 *.log
