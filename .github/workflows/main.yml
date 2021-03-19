@@ -3,7 +3,7 @@ name: Build Tests Docker-Images API-Documentation
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
