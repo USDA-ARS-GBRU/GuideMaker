@@ -223,15 +223,15 @@ def test_export_bed():
 
 # configpath="guidemaker/data/config_default.yaml"
 # pamobj = guidemaker.core.PamTarget("NGGRRTA", "5prime")
-# gb = SeqIO.parse("test/test_data/forward.fasta", "fasta")
+# gb = SeqIO.parse("test/test_data/Carsonella_ruddii.fasta", "fasta")
 # pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
 # tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=10, hammingdist=2, knum=10)
-# #tl.check_restriction_enzymes(['NRAGCA'])
+# tl.check_restriction_enzymes(['NRAGCA'])
 # tl.find_unique_near_pam()
 # tl.create_index(configpath=configpath)
 # tl.get_neighbors(configpath=configpath)
 # tf_df = tl.export_bed()
-# anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Pseudomonas_aeruginosa_PAO1_107.gbk"],
+# anno = guidemaker.core.Annotation(genbank_list=["test/test_data/Carsonella_ruddii.gbk"],
 #                                     target_bed_df=tf_df)
 # anno._get_genbank_features()
 # anno._get_nearby_features()

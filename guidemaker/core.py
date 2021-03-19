@@ -281,7 +281,7 @@ class TargetProcessor:
     
     
     def check_restriction_enzymes(self, restriction_enzyme_list: list=[]) -> None:
-        """Check for restriction enzymes
+        """Check for restriction enzymes and its reverse complement within gRNA sequence
 
         Args:
             restriction_enzyme_list (list): A list with sequence for restriction enzymes
@@ -289,11 +289,13 @@ class TargetProcessor:
         Returns:
             None
         """
-        from Bio import Seq # somehow if you import these two prior PAM class has eror as [TypeError: 'module' object is not callable]
-        from itertools import product
         element_to_exclude = []
         for record in set(restriction_enzyme_list):
-            element_to_exclude.append(extend_ambiguous_dna(record))
+            for letter in record.upper():
+                 assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
+            record_seq = Seq.Seq(record.upper())
+            element_to_exclude.append(extend_ambiguous_dna(str(record_seq)))
+            element_to_exclude.append(extend_ambiguous_dna(str(record_seq.reverse_complement()))) # reverse complement
         element_to_exclude = sum(element_to_exclude, []) # flatout list of list to list
         if len(element_to_exclude) > 0:
             self.targets = self.targets.loc[self.targets['target'].str.contains('|'.join(element_to_exclude))==False]
