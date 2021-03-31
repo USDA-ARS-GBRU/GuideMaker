@@ -21,6 +21,14 @@ GuideMaker can be installed from:
 
 ```{bash}
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
+    cd GuideMaker
+    pip install -e .
+
+    ## check if the installation works
+    guidemaker -h
+
+    ## Web app
+    streamlit run guidemaker/app.py 
 ```
 
 
