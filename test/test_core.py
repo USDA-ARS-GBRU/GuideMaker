@@ -276,11 +276,3 @@ def test_export_bed():
 # for xx in glpam.accession:
 #     glpam.singleplot(xx)
 #     print(xx)
-
-
-
-
-
-
-
-
