@@ -1,5 +1,7 @@
 [![CircleCI](https://img.shields.io/circleci/build/github/ravinpoudel/GuideMaker?token=kGHAS0YLzu5SzOxJYtIaeVBXXC9b0JJ4STVq4aoIIEs)](https://app.circleci.com/pipelines/github/ravinpoudel)
-[![Codacy Analysis CLI](https://github.com/ravinpoudel/GuideMaker/actions/workflows/codacyanalysis.yml/badge.svg?branch=main)](https://github.com/ravinpoudel/GuideMaker/actions/workflows/codacyanalysis.yml)
+[![Codacy grade](https://img.shields.io/codacy/grade/5aa7b8abcc3a4e888f55f223d57e33db)](https://app.codacy.com/gh/ravinpoudel/GuideMaker/dashboard?branch=main)
+[![Codecov](https://img.shields.io/codecov/c/github/ravinpoudel/GuideMaker?logo=codecov)](https://app.codecov.io/gh/ravinpoudel/GuideMaker)
+
 
 
 
