@@ -22,6 +22,7 @@ jobs:
             # conda env create -q || conda env update -q
             # source activate adj
             conda install -qy conda-build anaconda-client pytest pytest-cov
+            conda install conda-verify
             conda config --set auto_update_conda no
             conda config --add channels conda-forge
             conda config --add channels bioconda
