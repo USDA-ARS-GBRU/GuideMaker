@@ -1,6 +1,6 @@
 [![CircleCI](https://img.shields.io/circleci/build/github/USDA-ARS-GBRU/GuideMaker?logo=CircleCi&token=802d114b3ec676d153b4b9fa6a781f9345756fc9)](https://app.circleci.com/pipelines/github/USDA-ARS-GBRU/GuideMaker)
 [![Codacy grade](https://img.shields.io/codacy/grade/5aa7b8abcc3a4e888f55f223d57e33db)](https://app.codacy.com/gh/ravinpoudel/GuideMaker/dashboard?branch=main)
-[![Codecov](https://img.shields.io/codecov/c/github/ravinpoudel/GuideMaker?logo=codecov)](https://app.codecov.io/gh/ravinpoudel/GuideMaker)
+[![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 
 
 
