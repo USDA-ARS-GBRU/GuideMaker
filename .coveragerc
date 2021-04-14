@@ -1,0 +1,7 @@
+[report]
+omit =
+    setup.py
+    guidemaker/__main__.py
+    guidemaker/_version.py
+    versioneer.py
+    tests/*

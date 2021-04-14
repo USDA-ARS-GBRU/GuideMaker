@@ -14,9 +14,7 @@ import numpy as np
 import altair as alt
 from PIL import Image
 import guidemaker
-
-
-
+from streamlit_tags import st_tags_sidebar
 
 ######
 
@@ -128,7 +126,8 @@ def main(arglist: list=None):
     # Define input paramters and widgets
     genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk","gz"])
     pam = st.sidebar.text_input("Input PAM Motif [ E.g. NGG ] ", "NGG")
-    restriction_enzyme_list = st.sidebar.text_input("Restriction Enzymes list [ E.g. NGRT ] ", "NGRT")
+    restriction_enzyme_list = st_tags_sidebar('Restriction Enzymes[E.g. NGRT]:', 'Enter to add more', ['NGRT'])
+    #restriction_enzyme_list= st.sidebar.text_input("Restriction Enzymes list [ E.g. NGRT ] ", "NGRT")
     pam_orientation = st.sidebar.selectbox("PAM Orientation [ Options: 3prime, 5prime ]", ("3prime","5prime"))
     guidelength = st.sidebar.number_input('Guidelength [ Options: 10 - 27 ]', 10, 27)
     lsr = st.sidebar.number_input('Length of seed region[ Options: 0 - 27 ]', 0, 27)
@@ -137,17 +136,6 @@ def main(arglist: list=None):
     into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500)
     threads = st.sidebar.number_input('Number of Threads [ Options: 2, 4, 6, 8]', 2, 8, step = 2)
 
-    # name_cols = st.beta_columns(3)
-    # First_name = name_cols[0].text_input("Name")
-    # Middle_name = name_cols[1].text_input("Middle Name")
-    # Last_name = name_cols[2].text_input("Last Name")
-
-    # name2_cols = st.beta_columns(3)
-    # First_name2 = name2_cols[0].text_input("Name2")
-    # Middle_name2 = name2_cols[1].text_input("Middle Name2")
-    # Last_name2 = name2_cols[2].text_input("Last Name2")
-
-    # st.write(Last_name2)
 
     if genome:
         with genome_connect(genome) as conn:
@@ -163,11 +151,12 @@ def main(arglist: list=None):
             "--log", logfilename,
             "--into",str(into),
             "--before",str(before),
-            "--restriction_enzyme_list", restriction_enzyme_list,
-            "--threads",str(threads)]
+            "--threads",str(threads),
+            "--restriction_enzyme_list"]
+            scriptorun = args + restriction_enzyme_list
             if(st.sidebar.button("SUBMIT")):
                 #st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
-                run_command(args)
+                run_command(scriptorun)
 
     if os.path.exists(sessionID):
         
