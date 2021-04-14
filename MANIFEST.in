@@ -1,6 +1,6 @@
 include versioneer.py
 include guidemaker/_version.py
-include test/test_data/*
+include tests/test_data/*
 include LICENSE.txt
 include README.md
 include guidemaker/data/*

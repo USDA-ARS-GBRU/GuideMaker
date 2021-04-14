@@ -1,0 +1,8 @@
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: false
+  collections: false
+include:
+  - README.md
+theme: jekyll-theme-tactile

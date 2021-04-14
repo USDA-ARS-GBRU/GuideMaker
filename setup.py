@@ -5,8 +5,22 @@
 from setuptools import setup
 import versioneer
 
-version = versioneer.get_version(),
-cmdclass = versioneer.get_cmdclass(),
+requirements = [
+    # package requirements go here
+    'biopython==1.76',
+    'numpy >=1.11',
+    'pybedtools',
+    'nmslib>=2.0.4',
+    'pandas>=1.0.0',
+    'pyyaml==5.4',
+    'regex==2020.11.13',
+    'altair',
+    'streamlit',
+    'pytest>=4.6',
+    'pytest-cov',
+    'streamlit-tags',
+    'pdoc3'
+]
 
 
 setup(
@@ -26,8 +40,8 @@ setup(
     test_suite='pytest',
     author='Adam Rivers',
     author_email='adam.rivers@usda.gov',
-    install_requires=['biopython==1.76', 'pybedtools>=0.8.0', 'nmslib>=2.0.4', 'pandas>=1.0.0','pyyaml==5.3.1', 'numpy==1.19.4', 'regex==2020.11.13'],
-    python_requires='>=3.6',
+    install_requires=requirements,
+    test_suite='pytest',
     tests_require=['pytest'],
     include_package_data=True,
     entry_points={'console_scripts':['guidemaker = guidemaker.cli:main',]},

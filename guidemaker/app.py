@@ -16,7 +16,6 @@ from PIL import Image
 import guidemaker
 from streamlit_tags import st_tags_sidebar
 
-
 ######
 
 @contextmanager
