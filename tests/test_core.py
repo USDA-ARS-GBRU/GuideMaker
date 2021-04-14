@@ -72,7 +72,7 @@ def test_pam_find_targets_fullgenome():
     target = pamobj.find_targets(seq_record_iter=gb, target_len=20)
     assert target['target'][0] == "AAATGGTACGTTATGTGTTA"
 
-tardict = {'target': ['ATGCACATGCACTGCTGGAT','ATGCAAATTCTTGTGCTCCA','CAAGCACTGCTGGATCACTG'],
+tardict = {'target': ['ATGCACATGCACTGCTGGAT','ATGCAAATTCTTGTGATCCA','CAAGCACTGCTGGATCACTG'],
         'exact_pam': ["AGG","TGG","CGG"],
         'start': [410, 1050, 1150],
         'stop': [430, 1070, 1170],
@@ -128,7 +128,7 @@ def test_get_neighbors():
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     print(tl.neighbors)
-    assert tl.neighbors["ATGCAAATTCTTGTGCTCCA"]["neighbors"]["dist"][1] == 12
+    assert tl.neighbors["ATGCAAATTCTTGTGATCCA"]["neighbors"]["dist"][1] == 12
 
 
 def test_export_bed():
@@ -155,7 +155,7 @@ def test_get_control_seqs():
     tl.check_restriction_enzymes(['NRAGCA'])
     tl.find_unique_near_pam()
     tl.create_index(configpath=configpath)
-    gb = SeqIO.parse(filepath, "fasta")
+    gb = SeqIO.parse(file, "fasta")
     data = tl.get_control_seqs(gb,length=20, n=100, num_threads=2, configpath=configpath)
     assert data[2].shape == (100, 3)
 
@@ -201,7 +201,7 @@ def test_get_nearby_features(tmp_path):
                                        target_bed_df=tf_df)
     anno._get_genbank_features()
     anno._get_nearby_features()
-    assert anno.nearby.shape == (6948, 12)
+    assert anno.nearby.shape == (6804, 12)
 
 
 def test_filter_features():
