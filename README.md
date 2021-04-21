@@ -26,6 +26,10 @@ GuideMaker can be installed from:
 1. The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
+    # Create a conda environment and install and pybedtools
+    conda create -n gmenv python=3.7 pybedtools=0.8.2
+    conda activate gmenv
+
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
     cd GuideMaker
     pip install -e .
