@@ -129,11 +129,11 @@ def main(arglist: list=None):
     restriction_enzyme_list = st_tags_sidebar('Restriction Enzymes[E.g. NGRT]:', 'Enter to add more', ['NGRT'])
     #restriction_enzyme_list= st.sidebar.text_input("Restriction Enzymes list [ E.g. NGRT ] ", "NGRT")
     pam_orientation = st.sidebar.selectbox("PAM Orientation [ Options: 3prime, 5prime ]", ("3prime","5prime"))
-    guidelength = st.sidebar.number_input('Guidelength [ Options: 10 - 27 ]', 10, 27)
-    lsr = st.sidebar.number_input('Length of seed region[ Options: 0 - 27 ]', 0, 27)
-    dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5)
-    before = st.sidebar.number_input('Before [Options: 1 - 500 ]', 1, 500)
-    into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500)
+    guidelength = st.sidebar.number_input('Guidelength [ Options: 10 - 27 ]', 10, 27, value=20)
+    lsr = st.sidebar.number_input('Length of seed region[ Options: 0 - 27 ]', 0, 27, value=10)
+    dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5, value =2)
+    before = st.sidebar.number_input('Before [Options: 1 - 500 ]', 1, 500, value=100, step=50)
+    into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500, value =200, step = 50)
     threads = st.sidebar.number_input('Number of Threads [ Options: 2, 4, 6, 8]', 2, 8, step = 2)
 
 
