@@ -33,7 +33,7 @@ def genome_connect(db_bytes):
 @st.cache(suppress_st_warning=True)
 def run_command(args):
     """Run command, transfer stdout/stderr back into Streamlit and manage error"""
-    #st.info(f"Running:: '{' '.join(args)}'")
+    st.info(f"Running:: '{' '.join(args)}'")
     result = subprocess.run(args, capture_output=True, text=True)
     try:
         result.check_returncode()
@@ -105,8 +105,9 @@ def main(arglist: list=None):
     """Run web App
     """
     subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠🧬"
-    st.markdown(f'<h1 style="color: #003087">GuideMaker</h1>',unsafe_allow_html=True)
+    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>',unsafe_allow_html=True)
     st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 18px;color: #FA4616">{subheader}</strong>',unsafe_allow_html=True)
+ 
 
     st.markdown("---")
 
@@ -160,7 +161,7 @@ def main(arglist: list=None):
 
     if os.path.exists(sessionID):
         
-        source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
+        #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
         source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'),low_memory=False)
 
         accession_list = list(set(source['Accession']))
@@ -179,6 +180,7 @@ def main(arglist: list=None):
         control_tab = "✅ [Control Data](downloads/controls.csv)"
         controls = pd.read_csv(os.path.join("./", sessionID,'controls.csv'),low_memory=False)
         controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
+        
 
         # logs
         with st.beta_expander("Results"):
