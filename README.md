@@ -6,10 +6,10 @@
 
 ## Authors
 
-  * Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
-  * Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
-  * Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
-  * Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
+* Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
+* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
+* Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
+* Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
 
 ## Installation
 
@@ -35,12 +35,12 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ## Dependencies
 
-  * ``pybedtools``
-  * ``NMSLib``
-  * ``Biopython``
-  * ``Pandas``
-  * ``Streamlit for webapp``
-  * ``altair for plotting``
+* ``pybedtools``
+* ``NMSLib``
+* ``Biopython``
+* ``Pandas``
+* ``Streamlit for webapp``
+* ``altair for plotting``
 
 
 ## Usage
@@ -110,7 +110,7 @@ unique in each guide is 11 nucleotides.
 streamlit run guidemaker/app.py
 ```
 
-[![IMAGE ALT TEXT HERE](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/rp01/GuideMakerApp.png)](https://guidemaker.org)
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
 
 ## API documentation
 
@@ -120,4 +120,4 @@ API documentation for the module can be found [here](https://guidemaker.org/html
 
 Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
 (USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government this software is available under 
-the [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0)
+the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
