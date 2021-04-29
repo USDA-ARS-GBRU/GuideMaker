@@ -1,22 +1,24 @@
+"""guidemaker/app.py A configuration template fo a streamlit beb application version of Guidemaker
+
+"""
 import os
 import subprocess
 import base64
-import streamlit as st
-import pandas as pd
 import pathlib
-import uuid
-from contextlib import contextmanager
 from pathlib import Path
+import uuid
 from uuid import uuid4
+from contextlib import contextmanager
 import shutil
+
 import pandas as pd
-import numpy as np
 import altair as alt
 from PIL import Image
-import guidemaker
+import streamlit as st
 from streamlit_tags import st_tags_sidebar
 
-######
+import guidemaker
+
 
 @contextmanager
 def genome_connect(db_bytes):
@@ -30,6 +32,7 @@ def genome_connect(db_bytes):
     finally:
         fp.unlink()
 
+
 @st.cache(suppress_st_warning=True)
 def run_command(args):
     """Run command, transfer stdout/stderr back into Streamlit and manage error"""
@@ -37,11 +40,12 @@ def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
     try:
         result.check_returncode()
-        #st.info(result.stdout)
-        #st.text(result.stderr)    
+        # st.info(result.stdout)
+        # st.text(result.stderr)
     except subprocess.CalledProcessError as e:
         st.error(result.stderr)
         raise e
+
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     """Binary file downloader in html format
@@ -52,17 +56,19 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
     return href
 
+
 def read_markdown_file(markdown_file):
     """Read markdown file
     """
     return Path(markdown_file).read_text()
 
-def GuideMakerPlot(df):
+
+def guidemakerplot(df):
     """Returns guidemaker plot describing PAM targets
     """
     source = df
     brush = alt.selection(type='interval', encodings=['x'])
-    binNum = int(round(source['Feature end'].max()/200,0))
+    binnum = int(round(source['Feature end'].max()/200,0))
     display_info = source.columns.tolist()
 
     # Feature density
@@ -70,43 +76,43 @@ def GuideMakerPlot(df):
     'Feature start',
     as_=['Feature start', 'Feature Density'],
     extent=[1, source['Feature end'].max()],
-    bandwidth=binNum,
-    ).mark_area(color='black',opacity=0.6).encode(
-    x = alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+    bandwidth=binnum,
+    ).mark_area(color='black', opacity=0.6).encode(
+    x=alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
     y='Feature Density:Q',
     ).properties(height=50)
 
     # gRNA density
-    densityG = alt.Chart(source).transform_density(
+    densityg = alt.Chart(source).transform_density(
     'Guide start',
     as_=['Guide start', 'Guide Density'],
     extent=[1, source['Feature end'].max()],
-    bandwidth=binNum,
-    ).mark_area(color='pink',opacity=0.6).encode(
+    bandwidth=binnum,
+    ).mark_area(color='pink', opacity=0.6).encode(
     x = alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
     y='Guide Density:Q',
     ).properties(height=50).add_selection(brush)
 
     # locus tag
-    locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+    locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
     x='count(locus_tag):Q',
-    y = alt.Y('locus_tag', axis=alt.Axis( title='Locus')),
+    y = alt.Y('locus_tag', axis=alt.Axis(title='Locus')),
     color='PAM:N',
     tooltip=display_info
     ).transform_filter(
     brush
     ).interactive().properties(height=500)
 
-    gmplot = densityF & densityG & locus
-    return( gmplot)
+    gmplot = densityF & densityg & locus
+    return gmplot
 
 
-def main(arglist: list=None):
+def main(arglist: list = None):
     """Run web App
     """
-    subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠🧬"
-    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>',unsafe_allow_html=True)
-    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 18px;color: #FA4616">{subheader}</strong>',unsafe_allow_html=True)
+    subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠 🧬"
+    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>', unsafe_allow_html=True)
+    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 18px;color: #FA4616">{subheader}</strong>', unsafe_allow_html=True)
  
 
     st.markdown("---")
@@ -124,12 +130,12 @@ def main(arglist: list=None):
     if not DOWNLOADS_PATH.is_dir():
         DOWNLOADS_PATH.mkdir()
 
-    # Define input paramters and widgets
-    genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk","gz"])
+    # Define input parameters and widgets
+    genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"])
     pam = st.sidebar.text_input("Input PAM Motif [ E.g. NGG ] ", "NGG")
-    restriction_enzyme_list = st_tags_sidebar('Restriction Enzymes[E.g. NGRT]:', 'Enter to add more', ['NGRT'])
+    restriction_enzyme_list = st_tags_sidebar('Restriction Enzymes[e.g. NGRT]:', 'Enter to add more', ['NGRT'])
     #restriction_enzyme_list= st.sidebar.text_input("Restriction Enzymes list [ E.g. NGRT ] ", "NGRT")
-    pam_orientation = st.sidebar.selectbox("PAM Orientation [ Options: 3prime, 5prime ]", ("3prime","5prime"))
+    pam_orientation = st.sidebar.selectbox("PAM Orientation [ Options: 3prime, 5prime ]", ("3prime", "5prime"))
     guidelength = st.sidebar.number_input('Guidelength [ Options: 10 - 27 ]', 10, 27, value=20)
     lsr = st.sidebar.number_input('Length of seed region[ Options: 0 - 27 ]', 0, 27, value=10)
     dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5, value =2)
@@ -162,23 +168,23 @@ def main(arglist: list=None):
     if os.path.exists(sessionID):
         
         #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
-        source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'),low_memory=False)
+        source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
 
         accession_list = list(set(source['Accession']))
         for accession in accession_list:
             accession_df = source[source["Accession"] == accession]
             accession_info = f"**Accession:** {accession}"
             st.markdown(accession_info)
-            st.write(GuideMakerPlot(accession_df))
+            st.write(guidemakerplot(accession_df))
 
         # Targets
         target_tab = "✅ [Target Data](downloads/targets.csv)"
-        targets = pd.read_csv(os.path.join("./", sessionID,'targets.csv'),low_memory=False)
+        targets = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
         targets.to_csv(str(DOWNLOADS_PATH / "targets.csv"), index=False)
 
         # Controls
         control_tab = "✅ [Control Data](downloads/controls.csv)"
-        controls = pd.read_csv(os.path.join("./", sessionID,'controls.csv'),low_memory=False)
+        controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv'), low_memory=False)
         controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
         
 
@@ -194,7 +200,7 @@ def main(arglist: list=None):
     # Parameters Dictionary 
     image = Image.open(guidemaker.APP_PARAMETER_IMG)
     optionals = st.beta_expander("Parameter Dictionary", False)
-    optionals.image(image, caption='GuideMaker Parameters',use_column_width=True)
+    optionals.image(image, caption='GuideMaker Parameters', use_column_width=True)
 
     with st.beta_expander("Designing Experiments with GuideMaker Results"):
         intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)

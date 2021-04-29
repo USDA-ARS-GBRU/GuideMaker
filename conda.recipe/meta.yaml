@@ -55,4 +55,4 @@ about:
   home: https://github.com/USDA-ARS-GBRU/GuideMaker.git
   summary: testing cookie cutter for guidemaker
   license: {{ data.get('license') }}
-  license_file: LICENSE
+  license_file: LICENSE.txt

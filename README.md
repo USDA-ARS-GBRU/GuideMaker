@@ -1,29 +1,21 @@
 [![CircleCI](https://img.shields.io/circleci/build/github/USDA-ARS-GBRU/GuideMaker?logo=CircleCi&token=802d114b3ec676d153b4b9fa6a781f9345756fc9)](https://app.circleci.com/pipelines/github/USDA-ARS-GBRU/GuideMaker)
-[![Codacy grade](https://img.shields.io/codacy/grade/5aa7b8abcc3a4e888f55f223d57e33db)](https://app.codacy.com/gh/ravinpoudel/GuideMaker/dashboard?branch=main)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
 [![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 
-
-
-
-
-
 # GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
-#
-### Authors
 
+## Authors
 
-* Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
-* Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
-* Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
-* Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
-
-
+  * Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
+  * Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
+  * Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
+  * Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
 
 ## Installation
 
 GuideMaker can be installed from:
 
-1. The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
+The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
     # Create a conda environment and install and pybedtools
@@ -32,29 +24,28 @@ GuideMaker can be installed from:
 
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
     cd GuideMaker
-    pip install -e .
+    pip install .
 
-    ## check if the installation works
+    # check if the installation works
     guidemaker -h
 
-    ## Web app
-    streamlit run guidemaker/app.py 
+    # To run the Web app
+    streamlit run guidemaker/app.py
 ```
-
 
 ## Dependencies
 
-* ``pybedtools``
-* ``NMSLib``
-* ``Biopython``
-* ``Pandas``
-* ``Streamlit for webapp``
-* ``altair for plotting``
+  * ``pybedtools``
+  * ``NMSLib``
+  * ``Biopython``
+  * ``Pandas``
+  * ``Streamlit for webapp``
+  * ``altair for plotting``
 
 
 ## Usage
 
-```
+```{bash}
 GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
 
 optional arguments:
@@ -97,10 +88,11 @@ optional arguments:
 
 ## Examples
 
+Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in the bacterium
+__Carsonela ruddii__. The length of the seed region near the PAM required to be
+unique in each guide is 11 nucleotides.
 
-Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in Carsonela ruddii. The length of the seed region near the PAM requred to be unique in each guide is 11 nucleotides.
-
-```
+```{bash}
     guidemaker \
     -i test/test_data/Carsonella_ruddii.gbk \
     -p NGG \
@@ -115,7 +107,7 @@ Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in Carsonela ruddi
 ### Running Web App locally
 
 ```{bash}
-streamlit run guidemaker/app.py 
+streamlit run guidemaker/app.py
 ```
 
 [![IMAGE ALT TEXT HERE](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/rp01/GuideMakerApp.png)](https://guidemaker.org)
@@ -126,5 +118,6 @@ API documentation for the module can be found [here](https://guidemaker.org/html
 
 ## License information
 
-Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service (USDA-ARS)](https://www.ars.usda.gov/) this software is available under [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/)
-
+Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
+(USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government this software is available under 
+the [CC0 1.0 Universal (CC0 1.0) Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0)

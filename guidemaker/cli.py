@@ -2,16 +2,19 @@
 
 A command line tool to globally design guide RNAs for any CRISPR-Cas system in any small genome
 """
+
 import logging
 import argparse
 import tempfile
 import shutil
 import os
-import multiprocessing
+import yaml
+
 import pybedtools
 from Bio import SeqIO
-import yaml
+
 import guidemaker
+
 
 def myparser():
     parser = argparse.ArgumentParser(description='GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any small genome')
@@ -19,12 +22,12 @@ def myparser():
     parser.add_argument('--pamseq', '-p', type=str, required=True, help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True, help='The directory for data output')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime', help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime")
-    parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]" ,help='Length of the guide sequence')
-    parser.add_argument('--lsr', type=int, default=10,choices=range(0, 28, 1), metavar="[0-27]", help='Length of a seed region near the PAM site required to be unique')
+    parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10, 28, 1), metavar="[10-27]", help='Length of the guide sequence')
+    parser.add_argument('--lsr', type=int, default=10, choices=range(0, 28, 1), metavar="[0-27]", help='Length of a seed region near the PAM site required to be unique')
     parser.add_argument('--dist', type=int, choices=range(0, 6, 1),  metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far in front of a feature')
-    parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1),metavar="[1-500]",
+    parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far inside (past the start site)of a feature')
     parser.add_argument('--knum', type=int, default=3, choices=range(2, 21, 1), metavar="[2-20]", help='how many sequences similar to the guide to report')
     parser.add_argument('--controls', type=int, default=1000, help='The number or random control RNAs to generate')
@@ -32,23 +35,23 @@ def myparser():
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*", help='List of sequence representing restriction enzymes', default=[])
-    parser.add_argument('--keeptemp' ,help="Option to keep intermediate files be kept", action='store_true')
+    parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
-    parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH,default=guidemaker.CONFIG_PATH)
+    parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " + guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
     parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
 
 def parserval(args):
     assert(args.lsr <= args.guidelength), "The length of sequence near the PAM .i.e seed sequence that must be less than the guide length"
     # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
-    assert(1 < len(args.pamseq) < 9 ), "The length of the PAM sequence must be between 2-8"
+    assert(1 < len(args.pamseq) < 9), "The length of the PAM sequence must be between 2-8"
 
 def _logger_setup(logfile):
-    """Set up logging to a logfile and the terminal standard out.
+    """
+    Set up logging to a logfile and the terminal standard out.
 
     Args:
         logfile (str): Log file
-
     """
     try:
         logging.basicConfig(level=logging.DEBUG,
@@ -169,13 +172,16 @@ def main(arglist: list=None):
         if args.plot:
             logging.info("Creating Plots...")
             guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
-            logging.info("Plots saved at: %s" % (args.outdir))
+            logging.info("Plots saved at: %s" % args.outdir)
     except Exception as e:
-            raise SystemExit(1)
+        logging.error(e)
+        raise SystemExit(1)
     try:
         if not args.keeptemp:
             shutil.rmtree(tempdir)
-    except UnboundLocalError:
+    except UnboundLocalError as e:
+        logging.error(e)
         raise SystemExit(1)
-    except AttributeError:
+    except AttributeError as e:
+        logging.error(e)
         raise SystemExit(1)
