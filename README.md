@@ -93,7 +93,7 @@ unique in each guide is 11 nucleotides.
 
 ```{bash}
     guidemaker \
-    -i test/test_data/Carsonella_ruddii.gbk \
+    -i tests/test_data/Carsonella_ruddii.gbk \
     -p NGG \
     --pam_orientation 3prime \
     --guidelength 20 \

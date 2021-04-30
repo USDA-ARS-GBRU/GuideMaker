@@ -1,4 +1,4 @@
-"""guidemaker/app.py A configuration template fo a streamlit beb application version of Guidemaker."""
+"""guidemaker/app.py A configuration template fo a streamlit web application version of Guidemaker."""
 import os
 import subprocess
 import base64
