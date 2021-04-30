@@ -291,7 +291,7 @@ class TargetProcessor:
             lsr (int): Length of seed region
             hammingdist (int): Hamming distance
             knum (int): Number of negative controls
-                
+
         Returns:
             None
         """
@@ -316,7 +316,6 @@ class TargetProcessor:
         Return:
             None
         """
-
         info = "TargetList: contains a set of {} potential PAM targets".format(len(self.targets))
         return info
 
@@ -359,10 +358,8 @@ class TargetProcessor:
         #     self.targets
 
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
-        """
-        One hot encode Target DNA as a binary string representation for NMSLIB
+        """One hot encode Target DNA as a binary string representation for NMSLIB."""
 
-        """
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
 
         def seq_to_bin(seq):
@@ -451,7 +448,8 @@ class TargetProcessor:
         self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, ...], dist:[d1, d1,...]}}
 
         Args: 
-            None
+            configpath (str): Path to a parameter config file
+            num_threads (int): Number of threads
 
         Returns:
             None
