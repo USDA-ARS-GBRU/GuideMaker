@@ -42,7 +42,6 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 *   ``Streamlit for webapp``
 *   ``altair for plotting``
 
-
 ## Usage
 
 ```{bash}

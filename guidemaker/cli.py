@@ -119,7 +119,7 @@ def main(arglist: list = None):
         if args.tempdir:
             if not os.path.exists(args.tempdir):
                 logging.warning("Specified location for tempfile (%s) does not \
-                                 exist, using default location." % tempdir)
+                                 exist, using default location." % args.tempdir)
                 tempdir = tempfile.mkdtemp(prefix='guidemaker_')
         else:
             tempdir = tempfile.mkdtemp(prefix='guidemaker_', dir=args.tempdir)

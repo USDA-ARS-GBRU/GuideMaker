@@ -10,15 +10,12 @@ import statistics
 import nmslib
 import regex
 import gc
-import subprocess
-from typing import List, Dict, Tuple, TypeVar, Generator
+from typing import List, Dict, TypeVar, Generator
 from itertools import product
-from collections import Counter
 from Bio import SeqIO
 from Bio.SeqUtils import GC
 from pybedtools import BedTool
 from Bio import Seq
-from collections import deque
 from copy import deepcopy
 import pandas as pd
 import numpy as np
@@ -219,13 +216,13 @@ class PamTarget:
 
         target_list = []
         for record in seq_record_iter:
-            id = record.id
+            record_id = record.id
             seq = str(record.seq)
             if self.pam_orientation == "5prime":
                 # forward
                 for5p = pd.DataFrame(run_for_5p(pam2re(self.pam), seq, target_len), columns=[
                                      "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
-                for5p["seqid"] = id
+                for5p["seqid"] = record_id
                 # string to boolean conversion is not straight - as all string were set to Trues- so change the encoding in functions above.
                 # https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python/715455#715455
                 for5p = for5p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
@@ -234,7 +231,7 @@ class PamTarget:
                 # reverse
                 rev5p = pd.DataFrame(run_rev_5p(pam2re(reverse_complement(self.pam)), seq, target_len), columns=[
                                      "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
-                rev5p["seqid"] = id
+                rev5p["seqid"] = record_id
                 rev5p = rev5p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
                 target_list.append(rev5p)
@@ -243,14 +240,14 @@ class PamTarget:
                 # forward
                 for3p = pd.DataFrame(run_for_3p(pam2re(self.pam), seq, target_len), columns=[
                                      "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
-                for3p["seqid"] = id
+                for3p["seqid"] = record_id
                 for3p = for3p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
                 target_list.append(for3p)
                 # reverse
                 rev3p = pd.DataFrame(run_rev_3p(pam2re(reverse_complement(self.pam)), seq, target_len), columns=[
                                      "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
-                rev3p["seqid"] = id
+                rev3p["seqid"] = record_id
                 rev3p = rev3p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
                 target_list.append(rev3p)
