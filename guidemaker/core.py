@@ -35,6 +35,7 @@ def is_gzip(filename: str):
 
 
 class PamTarget:
+
     """A Class representing a Protospacer Adjacent Motif (PAM) and targets. The class
     includes all targets for given PAM as a dataframe,PAM and target attributes,
     and methods to find target and control sequences."""
@@ -263,6 +264,7 @@ class PamTarget:
 
 
 class TargetProcessor:
+
     """A Class representing a set of guide RNA targets
 
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
@@ -289,7 +291,8 @@ class TargetProcessor:
         return len(self.targets)
 
     def check_restriction_enzymes(self, restriction_enzyme_list: list = []) -> None:
-        """Check for restriction enzymes and its reverse complement within gRNA sequence
+        """
+        Check for restriction enzymes and its reverse complement within gRNA sequence
 
         Args:
             restriction_enzyme_list (list): A list with sequence for restriction enzymes
@@ -314,7 +317,8 @@ class TargetProcessor:
             self.targets
 
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
-        """One hot encode Target DNA as a binary string representation for NMSLIB
+        """
+        One hot encode Target DNA as a binary string representation for NMSLIB
 
         """
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
@@ -325,7 +329,8 @@ class TargetProcessor:
         return list(map(seq_to_bin, seq_list))
 
     def find_unique_near_pam(self) -> None:
-        """identify unique sequences in the target list
+        """
+        Identify unique sequences in the target list
 
         The function filters a list of Target objects for targets that
         are unique in the region closest to the PAM. The region length is defined
@@ -354,7 +359,8 @@ class TargetProcessor:
         self.targets.loc[:, 'isseedduplicated'] = self.targets.loc[:, 'seedseq'].duplicated()
 
     def create_index(self, configpath: str, num_threads=2):
-        """Create nmslib index
+        """
+        Create nmslib index
 
         Converts self.targets to binary one hot encoding and returns NMSLIB index
 
@@ -393,7 +399,8 @@ class TargetProcessor:
         self.nmslib_index = index
 
     def get_neighbors(self, configpath, num_threads=2) -> None:
-        """Get nearest neighbors for sequences removing sequences that
+        """
+        Get nearest neighbors for sequences removing sequences that
          have neighbors less than the Hamming distance threshold
 
         For the list of all targets calculate the (knum) nearest neighbors.
@@ -435,7 +442,8 @@ class TargetProcessor:
         self.neighbors = neighbor_dict
 
     def export_bed(self) -> object:
-        """Export the targets in self.neighbors to a bed format file
+        """
+        Export the targets in self.neighbors to a bed format file
 
         Args:
             file (str): the name and location of file to export
@@ -455,8 +463,9 @@ class TargetProcessor:
 
     def get_control_seqs(self, seq_record_iter: object, configpath, length: int = 20, n: int = 10,
                          num_threads: int = 2) -> PandasDataFrame:
-        """Create random sequences with a specified GC probability and find seqs with the greatest
-         distance to any sequence flanking a PAM site
+        """
+        Create random sequences with a specified GC probability and find seqs with the greatest
+        distance to any sequence flanking a PAM site
 
         Args:
             seq_record_iter (Bio.SeqIO): An iterator of fastas
@@ -536,6 +545,7 @@ class TargetProcessor:
 
 class Annotation:
     def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
+
         """Annotation class for data and methods on targets and gene annotations
 
         Args:
@@ -555,7 +565,8 @@ class Annotation:
         self.qualifiers: object = None
 
     def _get_genbank_features(self, feature_types: List[str] = None) -> None:
-        """Parse genbank records into pandas DF/Bed format and dict format saving to self
+        """
+        Parse genbank records into pandas DF/Bed format and dict format saving to self
 
         Args:
             feature_types (List[str]): a list of Genbank feature types to use
@@ -597,7 +608,8 @@ class Annotation:
         f.close()
 
     def _get_qualifiers(self, configpath, excluded: List[str] = None) -> object:
-        """Create a dataframe with features and their qualifier values
+        """
+        Create a dataframe with features and their qualifier values
 
         Create a dataframe with features and their qualifier values for
         all qualifiers over the minimum threshold (except 'translation'). Add
@@ -635,7 +647,8 @@ class Annotation:
         self.qualifiers = qual_df
 
     def _get_nearby_features(self) -> None:
-        """Adds downstream information to the given target sequences and mapping information
+        """
+        Adds downstream information to the given target sequences and mapping information
 
         Args:
             None
@@ -667,7 +680,8 @@ class Annotation:
         self.nearby = upstream.rename(columns=headers)
 
     def _filter_features(self, before_feat: int = 100, after_feat: int = 200) -> None:
-        """Merge targets with Feature list and filter for guides close enough to interact.
+        """
+        Merge targets with Feature list and filter for guides close enough to interact.
 
         Args:
             before_feat (int): The maximum distance before the start of a feature measured from closest point to guide
@@ -704,7 +718,8 @@ class Annotation:
         self.filtered_df = filtered_df
 
     def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
-        """Create guide table for output
+        """
+        Create guide table for output
 
         Args:
             target- a dataframe with targets from targetclass
@@ -761,7 +776,8 @@ class Annotation:
         return pretty_df
 
     def locuslen(self) -> int:
-        """ Count the number of locus tag in the genebank file
+        """
+        Count the number of locus tag in the genebank file
 
         Args:
             None
@@ -776,7 +792,8 @@ class Annotation:
 
 class GuideMakerPlot:
     def __init__(self, prettydf: PandasDataFrame, outdir: str) -> None:
-        """GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
+        """
+        GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
 
         Args:
             prettydf (PandasDataFrame): Final output from GuideMaker
@@ -789,7 +806,8 @@ class GuideMakerPlot:
         self.accession = list(set(self.prettydf['Accession']))
 
         def _singleplot(df):
-            """Returns guidemaker plot describing PAM targets
+            """
+            Returns guidemaker plot describing PAM targets
 
             Args:
                 df(PandasDataFrame): Final output from GuideMaker for a single accession
@@ -844,7 +862,8 @@ class GuideMakerPlot:
 
 
 def get_fastas(filelist, tempdir=None):
-    """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
+    """
+    Saves a Fasta and from 1 or more Genbank files (may be gzipped)
 
     Args:
         filelist (str): Genbank file to process
@@ -871,7 +890,8 @@ def get_fastas(filelist, tempdir=None):
 
 
 def extend_ambiguous_dna(seq: str) -> List[str]:
-    """Return list of all possible sequences given an ambiguous DNA input
+    """
+    Return list of all possible sequences given an ambiguous DNA input
 
     Args:
         seq(str): A DNA string
