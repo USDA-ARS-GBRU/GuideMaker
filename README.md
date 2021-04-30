@@ -38,17 +38,12 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ## Dependencies
 
-*  ``pybedtools``
-
-*  ``NMSLib``
-
-*  ``Biopython``
-
-*  ``Pandas``
-
-*  ``Streamlit for webapp``
-
-*  ``altair for plotting``
+*   ``pybedtools``
+*   ``NMSLib``
+*   ``Biopython``
+*   ``Pandas``
+*   ``Streamlit for webapp``
+*   ``altair for plotting``
 
 
 ## Usage
