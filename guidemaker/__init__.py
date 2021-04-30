@@ -3,6 +3,7 @@ import pkg_resources
 from ._version import get_versions
 from .core import *
 from .cli import *
+from .app import *
 from .definitions import *
 
 CONFIG_PATH = pkg_resources.resource_filename('guidemaker', 'data/config_default.yaml')
