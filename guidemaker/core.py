@@ -38,6 +38,7 @@ class PamTarget:
     """A Class representing a Protospacer Adjacent Motif (PAM) and targets. The class includes all targets for given PAM as a dataframe, PAM and target attributes, and methods to find target and control sequences."""
 
     def __init__(self, pam: str, pam_orientation: str) -> None:
+
         """Pam __init__
 
         Args:
@@ -60,6 +61,7 @@ class PamTarget:
         return "A PAM object: {self.pam}".format(self=self)
 
     def find_targets(self, seq_record_iter: object, target_len: int) -> PandasDataFrame:
+
         """Find all targets on a sequence that match for the PAM on both strand(s)
 
         Args:
@@ -71,6 +73,7 @@ class PamTarget:
         """
 
         def reverse_complement(seq: str) -> str:
+
             """Reverse complement of the PAM sequence
 
             Args:
@@ -83,6 +86,7 @@ class PamTarget:
             return str(bpseq.reverse_complement())
 
         def pam2re(pam: str) -> str:
+
             """Convert an IUPAC ambiguous PAM to a Regex expression
 
             Args:
@@ -101,6 +105,7 @@ class PamTarget:
         #                3prime means the order is 5'-[target][pam]-3'
 
         def check_target(seq: str, target_len: int) -> bool:
+
             """Check targets for guidelength and DNA bases
 
             Args:
@@ -115,6 +120,7 @@ class PamTarget:
             return False
 
         def run_for_5p(pam_pattern: str, dnaseq: str, target_len: int) -> Generator:
+
             """Search for guides with 5prime pam orientation in the forward strand
 
             Args:
@@ -138,6 +144,7 @@ class PamTarget:
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
         def run_for_3p(pam_pattern, dnaseq, target_len) -> Generator:
+
             """Search for guides with 3prime pam orientation in the reverse strand
 
             Args:
@@ -161,6 +168,7 @@ class PamTarget:
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
         def run_rev_5p(pam_pattern, dnaseq, target_len) -> Generator:
+
             """Search for guides with 5prime pam orientation in the reverse strand
 
             Args:
@@ -185,6 +193,7 @@ class PamTarget:
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
         def run_rev_3p(pam_pattern, dnaseq, target_len) -> Generator:
+            
             """Search for guides with 3prime pam orientation in the reverse strand
 
             Args:
