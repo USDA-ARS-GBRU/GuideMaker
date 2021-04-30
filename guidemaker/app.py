@@ -68,7 +68,7 @@ def guidemakerplot(df):
     """
     source = df
     brush = alt.selection(type='interval', encodings=['x'])
-    binnum = int(round(source['Feature end'].max()/200,0))
+    binnum = int(round(source['Feature end'].max() / 200, 0))
     display_info = source.columns.tolist()
 
     # Feature density
@@ -89,14 +89,14 @@ def guidemakerplot(df):
     extent=[1, source['Feature end'].max()],
     bandwidth=binnum,
     ).mark_area(color='pink', opacity=0.6).encode(
-    x = alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+    x=alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
     y='Guide Density:Q',
     ).properties(height=50).add_selection(brush)
 
     # locus tag
     locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
     x='count(locus_tag):Q',
-    y = alt.Y('locus_tag', axis=alt.Axis(title='Locus')),
+    y=alt.Y('locus_tag', axis=alt.Axis(title='Locus')),
     color='PAM:N',
     tooltip=display_info
     ).transform_filter(
@@ -111,16 +111,16 @@ def main(arglist: list = None):
     """Run web App
     """
     subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠 🧬"
-    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>', unsafe_allow_html=True)
-    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 18px;color: #FA4616">{subheader}</strong>', unsafe_allow_html=True)
- 
+    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>',
+                unsafe_allow_html=True)
+    st.markdown(
+        f'<strong style="font-family:Hoefler Text;font-size: 18px;color: #FA4616">{subheader}</strong>', unsafe_allow_html=True)
 
     st.markdown("---")
 
     sessionID = str(uuid.uuid1())
-    #st.write(sessionID)
-    logfilename = sessionID+"_log.txt"
-
+    # st.write(sessionID)
+    logfilename = sessionID + "_log.txt"
 
     # Create a downloads directory within the streamlit static asset directory
     # and write output files to it. Binary downloader as html file  has limited
@@ -133,40 +133,41 @@ def main(arglist: list = None):
     # Define input parameters and widgets
     genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"])
     pam = st.sidebar.text_input("Input PAM Motif [ E.g. NGG ] ", "NGG")
-    restriction_enzyme_list = st_tags_sidebar('Restriction Enzymes[e.g. NGRT]:', 'Enter to add more', ['NGRT'])
+    restriction_enzyme_list = st_tags_sidebar(
+        'Restriction Enzymes[e.g. NGRT]:', 'Enter to add more', ['NGRT'])
     #restriction_enzyme_list= st.sidebar.text_input("Restriction Enzymes list [ E.g. NGRT ] ", "NGRT")
-    pam_orientation = st.sidebar.selectbox("PAM Orientation [ Options: 3prime, 5prime ]", ("3prime", "5prime"))
+    pam_orientation = st.sidebar.selectbox(
+        "PAM Orientation [ Options: 3prime, 5prime ]", ("3prime", "5prime"))
     guidelength = st.sidebar.number_input('Guidelength [ Options: 10 - 27 ]', 10, 27, value=20)
     lsr = st.sidebar.number_input('Length of seed region[ Options: 0 - 27 ]', 0, 27, value=10)
-    dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5, value =2)
+    dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5, value=2)
     before = st.sidebar.number_input('Before [Options: 1 - 500 ]', 1, 500, value=100, step=50)
-    into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500, value =200, step = 50)
-    threads = st.sidebar.number_input('Number of Threads [ Options: 2, 4, 6, 8]', 2, 8, step = 2)
-
+    into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500, value=200, step=50)
+    threads = st.sidebar.number_input('Number of Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
 
     if genome:
         with genome_connect(genome) as conn:
             #st.write("Connection object:", conn)
             args = ["guidemaker",
-            "-i",conn,
-            "-p",pam,
-            "--guidelength",str(guidelength),
-            "--pam_orientation",pam_orientation,
-            "--lsr",str(lsr),
-            "--dist",str(dist),
-            "--outdir", sessionID ,
+            "-i", conn,
+            "-p", pam,
+            "--guidelength", str(guidelength),
+            "--pam_orientation", pam_orientation,
+            "--lsr", str(lsr),
+            "--dist", str(dist),
+            "--outdir", sessionID,
             "--log", logfilename,
-            "--into",str(into),
-            "--before",str(before),
-            "--threads",str(threads),
+            "--into", str(into),
+            "--before", str(before),
+            "--threads", str(threads),
             "--restriction_enzyme_list"]
             scriptorun = args + restriction_enzyme_list
             if(st.sidebar.button("SUBMIT")):
-                #st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
+                # st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
                 run_command(scriptorun)
 
     if os.path.exists(sessionID):
-        
+
         #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
         source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
 
@@ -186,18 +187,18 @@ def main(arglist: list = None):
         control_tab = "✅ [Control Data](downloads/controls.csv)"
         controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv'), low_memory=False)
         controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
-        
 
         # logs
         with st.beta_expander("Results"):
             st.write(target_tab)
             st.write(control_tab)
-            st.write(get_binary_file_downloader_html(logfilename, '✅ Log File'), unsafe_allow_html=True)
-        
+            st.write(get_binary_file_downloader_html(
+                logfilename, '✅ Log File'), unsafe_allow_html=True)
+
     else:
         pass
 
-    # Parameters Dictionary 
+    # Parameters Dictionary
     image = Image.open(guidemaker.APP_PARAMETER_IMG)
     optionals = st.beta_expander("Parameter Dictionary", False)
     optionals.image(image, caption='GuideMaker Parameters', use_column_width=True)
@@ -205,7 +206,6 @@ def main(arglist: list = None):
     with st.beta_expander("Designing Experiments with GuideMaker Results"):
         intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
         st.markdown(intro_markdown, unsafe_allow_html=True)
-        
 
     st.markdown("""
     ##### API documentation 📖
@@ -220,12 +220,13 @@ def main(arglist: list = None):
 
     """)
 
-    ## Check if the output dir exist, if yes, delete so that previous results are not display
+    # Check if the output dir exist, if yes, delete so that previous results are not display
     try:
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
     except FileNotFoundError as e:
         pass
+
 
 if __name__ == "__main__":
     main()

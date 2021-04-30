@@ -25,14 +25,11 @@ import numpy as np
 import altair as alt
 
 
-
-
 logger = logging.getLogger('guidemaker.core')
 PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
 
 
-
-def is_gzip(filename):
+def is_gzip(filename: str):
     try:
         with open(filename, "rb") as f:
             logging.info("check if %s is gzipped" % filename)
@@ -41,12 +38,14 @@ def is_gzip(filename):
         logging.error("Could not open the file %s to determine if it was gzipped" % filename)
         raise e
 
+
 class PamTarget:
     """A Class representing a Protospacer Adjacent Motif (PAM) and targets
 
     The class includes all targets for given PAM as a dataframe, PAM and target attributes, and methods to find target and control sequences
 
     """
+
     def __init__(self, pam: str, pam_orientation: str) -> None:
         """Pam __init__
 
@@ -60,14 +59,14 @@ class PamTarget:
             None
         """
         for letter in pam.upper():
-            assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
+            assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W',
+                'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
         assert pam_orientation in ["3prime", "5prime"]
         self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
 
     def __str__(self) -> str:
         return "A PAM object: {self.pam}".format(self=self)
-    
 
     def find_targets(self, seq_record_iter: object, target_len: int) -> PandasDataFrame:
         """Find all targets on a sequence that match for the PAM on both strand(s)
@@ -92,8 +91,7 @@ class PamTarget:
             bpseq = Seq.Seq(seq)
             return str(bpseq.reverse_complement())
 
-
-        def pam2re(pam:str) -> str:
+        def pam2re(pam: str) -> str:
             """Convert an IUPAC ambiguous PAM to a Regex expression
 
             Args:
@@ -111,7 +109,7 @@ class PamTarget:
         #                5prime means the order is 5'-[pam][target]-3'
         #                3prime means the order is 5'-[target][pam]-3'
 
-        def check_target(seq:str, target_len:int) -> bool:
+        def check_target(seq: str, target_len: int) -> bool:
             """Check targets for guidelength and DNA bases
 
             Args:
@@ -121,12 +119,11 @@ class PamTarget:
             Returns:
                 bool: True or False
             """
-            if len(seq) == target_len and all(letters in ['A','T','C','G'] for letters in seq): # if not ATCG in the target then ignore those targets
+            if len(seq) == target_len and all(letters in ['A', 'T', 'C', 'G'] for letters in seq):  # if not ATCG in the target then ignore those targets
                 return True
             return False
 
-        
-        def run_for_5p(pam_pattern:str, dnaseq:str, target_len:int) -> Generator:
+        def run_for_5p(pam_pattern: str, dnaseq: str, target_len: int) -> Generator:
             """Search for guides with 5prime pam orientation in the forward strand
 
             Args:
@@ -138,7 +135,7 @@ class PamTarget:
                 (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
-                target_seq = dnaseq[match_obj.end() : match_obj.end() + target_len]
+                target_seq = dnaseq[match_obj.end(): match_obj.end() + target_len]
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
                     start = match_obj.end()
@@ -161,11 +158,11 @@ class PamTarget:
                 (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
-                target_seq = seq[match_obj.start() - target_len : match_obj.start()]
+                target_seq = seq[match_obj.start() - target_len: match_obj.start()]
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
-                    start=match_obj.start() - target_len
-                    stop=match_obj.start()
+                    start = match_obj.start() - target_len
+                    stop = match_obj.start()
                     # 5prime =True, 3prime = False
                     pam_orientation = False
                     # forward =True, reverse = False
@@ -184,7 +181,8 @@ class PamTarget:
                 (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
-                target_seq = reverse_complement(dnaseq[match_obj.start() - target_len : match_obj.start()])
+                target_seq = reverse_complement(
+                    dnaseq[match_obj.start() - target_len: match_obj.start()])
                 if check_target(target_seq, target_len):
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.start() - target_len
@@ -207,7 +205,8 @@ class PamTarget:
                 (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
-                target_seq = reverse_complement(dnaseq[match_obj.end() : match_obj.end() + target_len])
+                target_seq = reverse_complement(
+                    dnaseq[match_obj.end(): match_obj.end() + target_len])
                 if check_target(target_seq, target_len):
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.end()
@@ -218,39 +217,46 @@ class PamTarget:
                     strand = False
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation
 
-  
         target_list = []
         for record in seq_record_iter:
             id = record.id
-            seq =str(record.seq)
+            seq = str(record.seq)
             if self.pam_orientation == "5prime":
-                    # forward
-                    for5p = pd.DataFrame(run_for_5p(pam2re(self.pam), seq, target_len), columns=["target", "exact_pam", "start", "stop","strand", "pam_orientation"])
-                    for5p["seqid"] = id
-                    # string to boolean conversion is not straight - as all string were set to Trues- so change the encoding in functions above.
-                    # https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python/715455#715455
-                    for5p = for5p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
-                    target_list.append(for5p)
-                    # reverse
-                    rev5p= pd.DataFrame(run_rev_5p(pam2re(reverse_complement(self.pam)),seq, target_len), columns=["target", "exact_pam", "start", "stop","strand", "pam_orientation"])
-                    rev5p["seqid"] = id
-                    rev5p = rev5p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
-                    target_list.append(rev5p)
-                    # Question? Append directly vs. concat then append? https://ravinpoudel.github.io/AppendVsConcat/
+                # forward
+                for5p = pd.DataFrame(run_for_5p(pam2re(self.pam), seq, target_len), columns=[
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                for5p["seqid"] = id
+                # string to boolean conversion is not straight - as all string were set to Trues- so change the encoding in functions above.
+                # https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python/715455#715455
+                for5p = for5p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
+                                     "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
+                target_list.append(for5p)
+                # reverse
+                rev5p = pd.DataFrame(run_rev_5p(pam2re(reverse_complement(self.pam)), seq, target_len), columns=[
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                rev5p["seqid"] = id
+                rev5p = rev5p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
+                                     "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
+                target_list.append(rev5p)
+                # Question? Append directly vs. concat then append? https://ravinpoudel.github.io/AppendVsConcat/
             elif self.pam_orientation == "3prime":
-                    # forward
-                    for3p = pd.DataFrame(run_for_3p(pam2re(self.pam), seq, target_len), columns=["target", "exact_pam", "start", "stop","strand","pam_orientation"])
-                    for3p["seqid"] = id
-                    for3p = for3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
-                    target_list.append(for3p)
-                    # reverse
-                    rev3p= pd.DataFrame(run_rev_3p(pam2re(reverse_complement(self.pam)),seq, target_len), columns=["target", "exact_pam", "start", "stop","strand","pam_orientation"])
-                    rev3p["seqid"] = id
-                    rev3p = rev3p.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool',"pam_orientation": 'bool',"seqid": 'category'})
-                    target_list.append(rev3p)
-            gc.collect() # clear memory after each chromosome
-        df_targets = pd.concat(target_list,ignore_index=True)
-        df_targets = df_targets.assign(seedseq = np.nan, isseedduplicated = np.nan)
+                # forward
+                for3p = pd.DataFrame(run_for_3p(pam2re(self.pam), seq, target_len), columns=[
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                for3p["seqid"] = id
+                for3p = for3p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
+                                     "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
+                target_list.append(for3p)
+                # reverse
+                rev3p = pd.DataFrame(run_rev_3p(pam2re(reverse_complement(self.pam)), seq, target_len), columns=[
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                rev3p["seqid"] = id
+                rev3p = rev3p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
+                                     "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
+                target_list.append(rev3p)
+            gc.collect()  # clear memory after each chromosome
+        df_targets = pd.concat(target_list, ignore_index=True)
+        df_targets = df_targets.assign(seedseq=np.nan, isseedduplicated=np.nan)
         return df_targets
 
 
@@ -260,9 +266,10 @@ class TargetProcessor:
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
     """
-    def __init__(self, targets, lsr: int, hammingdist: int=2, knum: int=2) -> None:
-        self.targets = targets # pandas dataframe
-        self.lsr: int = lsr # length of seed region
+
+    def __init__(self, targets, lsr: int, hammingdist: int = 2, knum: int = 2) -> None:
+        self.targets = targets  # pandas dataframe
+        self.lsr: int = lsr  # length of seed region
         self.hammingdist: int = hammingdist
         self.knum: int = knum
         self.nmslib_index: object = None
@@ -278,40 +285,42 @@ class TargetProcessor:
 
     def __len__(self):
         return len(self.targets)
-    
-    
-    def check_restriction_enzymes(self, restriction_enzyme_list: list=[]) -> None:
+
+    def check_restriction_enzymes(self, restriction_enzyme_list: list = []) -> None:
         """Check for restriction enzymes and its reverse complement within gRNA sequence
 
         Args:
             restriction_enzyme_list (list): A list with sequence for restriction enzymes
-        
+
         Returns:
             None
         """
         element_to_exclude = []
         for record in set(restriction_enzyme_list):
             for letter in record.upper():
-                 assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W', 'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
+                assert letter in ['A', 'C', 'G', 'T', 'M', 'R', 'W',
+                    'S', 'Y', 'K', 'V', 'H', 'D', 'B', 'X', 'N']
             record_seq = Seq.Seq(record.upper())
             element_to_exclude.append(extend_ambiguous_dna(str(record_seq)))
-            element_to_exclude.append(extend_ambiguous_dna(str(record_seq.reverse_complement()))) # reverse complement
-        element_to_exclude = sum(element_to_exclude, []) # flatout list of list to list
+            element_to_exclude.append(extend_ambiguous_dna(
+                str(record_seq.reverse_complement())))  # reverse complement
+        element_to_exclude = sum(element_to_exclude, [])  # flatout list of list to list
         if len(element_to_exclude) > 0:
-            self.targets = self.targets.loc[self.targets['target'].str.contains('|'.join(element_to_exclude))==False]
+            self.targets = self.targets.loc[self.targets['target'].str.contains(
+                '|'.join(element_to_exclude)) == False]
         else:
             self.targets
 
-    def _one_hot_encode(self, seq_list: List[object])-> List[str]:
+    def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
         """One hot encode Target DNA as a binary string representation for NMSLIB
 
         """
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
+
         def seq_to_bin(seq):
             charlist = [charmap[letter] for letter in seq]
             return " ".join(charlist)
         return list(map(seq_to_bin, seq_list))
-
 
     def find_unique_near_pam(self) -> None:
         """identify unique sequences in the target list
@@ -326,23 +335,23 @@ class TargetProcessor:
         Returns:
             Nome
         """
-        def _get_prox(tseq): # get target sequence as input
-            if self.pam_orientation == True: # 5prime = True 3prime=False
-            	if self.lsr == 0:
-            		return tseq
-            	else:
-            		return tseq[0:self.lsr]
-            elif self.pam_orientation == False: # 5prime = True 3prime=False
-            	if self.lsr == 0:
-            		return tseq
-            	else:
-                	return tseq[(len(tseq) - self.lsr):]
+        def _get_prox(tseq):  # get target sequence as input
+            if self.pam_orientation == True:  # 5prime = True 3prime=False
+                if self.lsr == 0:
+                    return tseq
+                else:
+                    return tseq[0:self.lsr]
+            elif self.pam_orientation == False:  # 5prime = True 3prime=False
+                if self.lsr == 0:
+                    return tseq
+                else:
+                    return tseq[(len(tseq) - self.lsr):]
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
         self.targets = deepcopy(self.targets)
         self.targets.loc[:, 'seedseq'] = self.targets.loc[:, 'target'].apply(_get_prox)
         self.targets.loc[:, 'isseedduplicated'] = self.targets.loc[:, 'seedseq'].duplicated()
 
-    def create_index(self, configpath:str, num_threads=2):
+    def create_index(self, configpath: str, num_threads=2):
         """Create nmslib index
 
         Converts self.targets to binary one hot encoding and returns NMSLIB index
@@ -350,7 +359,7 @@ class TargetProcessor:
         Args:
             num_threads (int): cpu threads
             configpath (str): Path to config file which contains hyper parameters for NMSLIB
-            
+
                 M (int): Controls the number of bi-directional links created for each element
                 during index construction. Higher values lead to better results at the expense
                 of memory consumption. Typical values are 2 -100, but for most datasets a
@@ -365,13 +374,14 @@ class TargetProcessor:
         """
         with open(configpath) as cf:
             config = yaml.safe_load(cf)
-        
+
         M, efC, post = config['NMSLIB']['M'], config['NMSLIB']['efc'], config['NMSLIB']['post']
 
-        notduplicated_targets= list(set(self.targets['target'].tolist()))  # index everything but not duplicates
+        # index everything but not duplicates
+        notduplicated_targets = list(set(self.targets['target'].tolist()))
         #logging.info("unique targets for index: %s" % len(notduplicated_targets))
         bintargets = self._one_hot_encode(notduplicated_targets)
-        index_params = {'M': M, 'indexThreadQty': num_threads,'efConstruction': efC, 'post': post}
+        index_params = {'M': M, 'indexThreadQty': num_threads, 'efConstruction': efC, 'post': post}
         index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
                             data_type=nmslib.DataType.OBJECT_AS_STRING,
@@ -400,11 +410,12 @@ class TargetProcessor:
 
         ef = config['NMSLIB']['ef']
 
-        unique_targets = self.targets.loc[self.targets['isseedduplicated'] == False]['target'].tolist()
-        unique_bintargets = self._one_hot_encode(unique_targets) # search unique seed one
+        unique_targets = self.targets.loc[self.targets['isseedduplicated']
+            == False]['target'].tolist()
+        unique_bintargets = self._one_hot_encode(unique_targets)  # search unique seed one
         self.nmslib_index.setQueryTimeParams({'efSearch': ef})
         results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
-                                               k=self.knum, num_threads = num_threads)
+                                               k=self.knum, num_threads=num_threads)
         neighbor_dict = {}
         for i, entry in enumerate(results_list):
             queryseq = unique_targets[i]
@@ -412,11 +423,11 @@ class TargetProcessor:
             hammingdist = entry[1].tolist()
             # here we just check if the first element of hammingist list is >= 2 * self.hammingdist, as list is sorted- if first fails whole fails
             # to close guides.
-            # this should be 0 or 1? 
-            # this should be 1 == b/c each guides will have exact match with itself at 0 position. 
-            if hammingdist[1] >= 2 * self.hammingdist: # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors = {"seqs": [self.targets['target'].values[x]  for x in hitseqidx], # reverse this?
-                             "dist": [int(x/2) for x in hammingdist]}
+            # this should be 0 or 1?
+            # this should be 1 == b/c each guides will have exact match with itself at 0 position.
+            if hammingdist[1] >= 2 * self.hammingdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
+                neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
+                             "dist": [int(x / 2) for x in hammingdist]}
                 neighbor_dict[queryseq] = {"target": unique_targets[i],
                                            "neighbors": neighbors}
         self.neighbors = neighbor_dict
@@ -434,14 +445,14 @@ class TargetProcessor:
         # why deepcopy - https://stackoverflow.com/questions/55745948/why-doesnt-deepcopy-of-a-pandas-dataframe-affect-memory-usage
         # select only guides that are not duplecated in the seedseq
         df = deepcopy(self.targets.loc[self.targets['isseedduplicated'] == False])
-        df = df[["seqid","start","stop","target","strand"]]
-        df.loc[:, 'strand']= df.loc[:, 'strand'].apply(lambda x: '+' if x ==True else '-')
-        df.columns = ["chrom", "chromstart","chromend","name","strand"]
+        df = df[["seqid", "start", "stop", "target", "strand"]]
+        df.loc[:, 'strand'] = df.loc[:, 'strand'].apply(lambda x: '+' if x == True else '-')
+        df.columns = ["chrom", "chromstart", "chromend", "name", "strand"]
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
 
-    def get_control_seqs(self,seq_record_iter: object,configpath,length: int=20, n: int=10,
-                         num_threads: int=2) -> PandasDataFrame:
+    def get_control_seqs(self, seq_record_iter: object, configpath, length: int = 20, n: int = 10,
+                         num_threads: int = 2) -> PandasDataFrame:
         """Create random sequences with a specified GC probability and find seqs with the greatest
          distance to any sequence flanking a PAM site
 
@@ -458,7 +469,7 @@ class TargetProcessor:
         with open(configpath) as cf:
             config = yaml.safe_load(cf)
 
-        MINIMUM_HMDIST = config['CONTROL']['MINIMUM_HMDIST'] 
+        MINIMUM_HMDIST = config['CONTROL']['MINIMUM_HMDIST']
 
         MAX_CONTROL_SEARCH_MULTIPLE = max(config['CONTROL']['CONTROL_SEARCH_MULTIPLE'])
 
@@ -471,23 +482,23 @@ class TargetProcessor:
         for record in seq_record_iter:
             gccnt += GC(record.seq) * len(record)
             totlen += len(record)
-        gc = gccnt/(totlen*100)
+        gc = gccnt / (totlen * 100)
         #print("Percentage of GC content in the input genome: "+"{:.2f}".format(gc * 100))
         self.gc_percent = gc * 100
         self.genomesize = totlen / (1024 * 1024)
-        
-        minimum_hmdist=0
+
+        minimum_hmdist = 0
         sm_count = 0
         search_mult = 0
-       
+
         try:
-            while  minimum_hmdist < MINIMUM_HMDIST or search_mult ==  MAX_CONTROL_SEARCH_MULTIPLE:
+            while minimum_hmdist < MINIMUM_HMDIST or search_mult == MAX_CONTROL_SEARCH_MULTIPLE:
                 # generate random sequences
                 seqs = []
                 search_mult = CONTROL_SEARCH_MULTIPLE[sm_count]
-                for i in range(n  * search_mult):
+                for i in range(n * search_mult):
                     seqs.append("".join(np.random.choice(a=["G", "C", "A", "T"], size=length,
-                                                         replace=True, p=[gc/2, gc/2, (1 - gc)/2, (1 - gc)/2])))
+                                                         replace=True, p=[gc / 2, gc / 2, (1 - gc) / 2, (1 - gc) / 2])))
                 # one hot encode sequences
                 binseq = []
                 charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
@@ -501,16 +512,17 @@ class TargetProcessor:
                 zipped = list(zip(seqs, distlist))
                 dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
                 sort_seq = [item[0] for item in dist_seqs][0:n]
-                sort_dist = [item[1]/2 for item in dist_seqs][0:n]
+                sort_dist = [item[1] / 2 for item in dist_seqs][0:n]
                 minimum_hmdist = int(min(sort_dist))
                 sm_count += 1
         except IndexError as e:
            # print("Number of random control searched: ", search_mult * n)
             pass
-        
+
         total_ncontrolsearched = search_mult * n
         self.ncontrolsearched = total_ncontrolsearched
-        randomdf = pd.DataFrame(data={"Sequences":sort_seq, "Hamming distance":sort_dist})
+        randomdf = pd.DataFrame(data={"Sequences": sort_seq, "Hamming distance": sort_dist})
+
         def create_name(seq):
             return "Cont-" + hashlib.md5(seq.encode()).hexdigest()
         randomdf['name'] = randomdf["Sequences"].apply(create_name)
@@ -518,6 +530,7 @@ class TargetProcessor:
         return (min(sort_dist),
                 statistics.median(sort_dist),
                 randomdf)
+
 
 class Annotation:
     def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
@@ -527,7 +540,7 @@ class Annotation:
             genbank_list (List[str]): A list of genbank files from a single genome
             target_bed_df (object): A pandas dataframe in Bed format with the
                 locations of targets in the genome
-        
+
         Returns:
             None
         """
@@ -538,7 +551,7 @@ class Annotation:
         self.nearby: object = None
         self.filtered_df: object = None
         self.qualifiers: object = None
-        
+
     def _get_genbank_features(self, feature_types: List[str] = None) -> None:
         """Parse genbank records into pandas DF/Bed format and dict format saving to self
 
@@ -565,7 +578,7 @@ class Annotation:
             for entry in genbank_file:
                 for record in entry.features:
                     if record.type in feature_types:
-                        if record.strand in [1, -1, "+","-"]:
+                        if record.strand in [1, -1, "+", "-"]:
                             pddict["strand"].append("-" if record.strand < 0 else "+")
                             featid = hashlib.md5(str(record).encode()).hexdigest()
                             pddict['chrom'].append(entry.id)
@@ -604,9 +617,9 @@ class Annotation:
         if excluded is None:
             excluded = ["translation"]
         final_quals = []
-        qual_df = pd.DataFrame(data ={"Feature id":[]})
+        qual_df = pd.DataFrame(data={"Feature id": []})
         for quals in self.feature_dict:
-            if len(quals)/len(self.feature_dict) > min_prop:
+            if len(quals) / len(self.feature_dict) > min_prop:
                 final_quals.append(quals)
         for qualifier in final_quals:
             if qualifier not in excluded:
@@ -641,9 +654,9 @@ class Annotation:
         downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
         # get feature upstream of target sequence
         upstream = mapbed.closest(featurebed, d=True, id=True, D="a", t="first")
-        headers = {0: "Accession", 1: "Guide start", 2: "Guide end", 3:"Guide sequence",
-                   4:"Guide strand", 5: "Feature Accession", 6: "Feature start", 7:"Feature end", 8:"Feature id",
-                   9:"Feature strand", 10: "Feature distance"}
+        headers = {0: "Accession", 1: "Guide start", 2: "Guide end", 3: "Guide sequence",
+                   4: "Guide strand", 5: "Feature Accession", 6: "Feature start", 7: "Feature end", 8: "Feature id",
+                   9: "Feature strand", 10: "Feature distance"}
         downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
         downstream['direction'] = 'downstream'
         upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
@@ -651,7 +664,7 @@ class Annotation:
         upstream = upstream.append(downstream)
         self.nearby = upstream.rename(columns=headers)
 
-    def _filter_features(self, before_feat: int=100, after_feat: int=200) -> None:
+    def _filter_features(self, before_feat: int = 100, after_feat: int = 200) -> None:
         """Merge targets with Feature list and filter for guides close enough to interact.
 
         Args:
@@ -663,7 +676,8 @@ class Annotation:
         """
         # for guides in the same orientation as the targets ( +/+ or -/-) select guides that are within
         #  before_feat of the gene start
-        filtered_df = self.nearby.query('`Guide strand` == `Feature strand` and 0 < `Feature distance` < @before_feat')
+        filtered_df = self.nearby.query(
+            '`Guide strand` == `Feature strand` and 0 < `Feature distance` < @before_feat')
         # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
         filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
                                              and `Feature distance` == 0 and \
@@ -674,10 +688,10 @@ class Annotation:
                                                      and `Feature end` - `Guide start` < @after_feat'))
         # Select guides where target is + and guide is - and the guide is infront of the gene
         filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
-                                                     0 <`Feature start` - `Guide end` < @before_feat' ))
+                                                     0 <`Feature start` - `Guide end` < @before_feat'))
         # Select guides where target is - and guide is + and the guide is infront of the gene
         filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
-                                                     0 <`Guide start` - `Feature end` < @before_feat' ))
+                                                     0 <`Guide start` - `Feature end` < @before_feat'))
         # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
         filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
                                                              0 <`Guide end` -`Feature start`  < @after_feat'))
@@ -701,42 +715,49 @@ class Annotation:
             for letter in seq:
                 if letter in ["G", "C"]:
                     cnt += 1
-            return cnt/len(seq)
+            return cnt / len(seq)
+
         def get_guide_hash(seq):
             return hashlib.md5(seq.encode()).hexdigest()
+
         def get_off_target_score(seq):
             dlist = targetprocessor_object.neighbors[seq]["neighbors"]["dist"]
             s = [str(i) for i in dlist]
             return ";".join(s)
+
         def get_off_target_seqs(seq):
             slist = targetprocessor_object.neighbors[seq]["neighbors"]["seqs"]
             return ";".join(slist)
-        pretty_df = deepcopy(self.filtered_df) # anno class object
+        pretty_df = deepcopy(self.filtered_df)  # anno class object
         # retrive only guides that are in neighbors keys.
-        pretty_df = pretty_df[pretty_df["Guide sequence"].isin(list(targetprocessor_object.neighbors.keys()))]
+        pretty_df = pretty_df[pretty_df["Guide sequence"].isin(
+            list(targetprocessor_object.neighbors.keys()))]
         pretty_df['GC'] = pretty_df['Guide sequence'].apply(gc)
         pretty_df['Guide name'] = pretty_df['Guide sequence'].apply(get_guide_hash)
-        pretty_df['Target strand'] = np.where(pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
-        pretty_df['Similar guide distances'] = pretty_df['Guide sequence'].apply(get_off_target_score)
+        pretty_df['Target strand'] = np.where(
+            pretty_df['Guide strand'] == pretty_df['Feature strand'], 'coding', 'non-coding')
+        pretty_df['Similar guide distances'] = pretty_df['Guide sequence'].apply(
+            get_off_target_score)
         pretty_df['Similar guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
 
-        pretty_df = pd.merge(pretty_df, targetprocessor_object.targets, how = "left",
-         left_on=['Guide sequence','Guide start','Guide end','Accession'],
-         right_on=['target','start','stop','seqid'])
+        pretty_df = pd.merge(pretty_df, targetprocessor_object.targets, how="left",
+         left_on=['Guide sequence', 'Guide start', 'Guide end', 'Accession'],
+            right_on=['target', 'start', 'stop', 'seqid'])
 
         # rename exact_pam to PAM
-        pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"}) 
+        pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"})
 
-        pretty_df = pretty_df[['Guide name', "Guide sequence", 'GC', "Accession","Guide start", "Guide end",
-                    "Guide strand", 'PAM',  "Feature id",
+        pretty_df = pretty_df[['Guide name', "Guide sequence", 'GC', "Accession", "Guide start", "Guide end",
+                    "Guide strand", 'PAM', "Feature id",
                     "Feature start", "Feature end", "Feature strand",
                     "Feature distance", 'Similar guides', 'Similar guide distances']]
         pretty_df = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
-        pretty_df['Guide start'] = pretty_df['Guide start'] + 1 # to match with the numbering with other tools- offset
+        # to match with the numbering with other tools- offset
+        pretty_df['Guide start'] = pretty_df['Guide start'] + 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
         return pretty_df
-    
+
     def locuslen(self) -> int:
         """ Count the number of locus tag in the genebank file
 
@@ -750,8 +771,9 @@ class Annotation:
         locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
         return(locus_count)
 
+
 class GuideMakerPlot:
-    def __init__(self, prettydf: PandasDataFrame, outdir:str) -> None:
+    def __init__(self, prettydf: PandasDataFrame, outdir: str) -> None:
         """GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
 
         Args:
@@ -763,10 +785,10 @@ class GuideMakerPlot:
         """
         self.prettydf = prettydf
         self.accession = list(set(self.prettydf['Accession']))
-        
+
         def _singleplot(df):
             """Returns guidemaker plot describing PAM targets
-            
+
             Args:
                 df(PandasDataFrame): Final output from GuideMaker for a single accession
 
@@ -775,7 +797,7 @@ class GuideMakerPlot:
             """
             source = df
             brush = alt.selection(type='interval', encodings=['x'])
-            binNum = int(round(source['Feature end'].max()/200,0))
+            binNum = int(round(source['Feature end'].max() / 200, 0))
             display_info = source.columns.tolist()
 
             # Feature density
@@ -784,10 +806,10 @@ class GuideMakerPlot:
             as_=['Feature start', 'Feature Density'],
             extent=[1, source['Feature end'].max()],
             bandwidth=binNum,
-            ).mark_area(color='black',opacity=0.6).encode(
-            x = alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+            ).mark_area(color='black', opacity=0.6).encode(
+            x=alt.X('Feature start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
             y='Feature Density:Q',
-            ).properties(height=50,width=500)
+            ).properties(height=50, width=500)
 
             # Guide density
             densityG = alt.Chart(source).transform_density(
@@ -795,15 +817,15 @@ class GuideMakerPlot:
             as_=['Guide start', 'Guide Density'],
             extent=[1, source['Feature end'].max()],
             bandwidth=binNum,
-            ).mark_area(color='pink',opacity=0.6).encode(
-            x = alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
+            ).mark_area(color='pink', opacity=0.6).encode(
+            x=alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
             y='Guide Density:Q',
-            ).properties(height=50,width=500).add_selection(brush)
+            ).properties(height=50, width=500).add_selection(brush)
 
             # locus bar
-            locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+            locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
             x='count(locus_tag):Q',
-            y = alt.Y('locus_tag', axis=alt.Axis( title='Locus')),
+            y=alt.Y('locus_tag', axis=alt.Axis(title='Locus')),
             color='PAM:N',
             tooltip=display_info
             ).transform_filter(
@@ -813,10 +835,11 @@ class GuideMakerPlot:
             return(guidemakerChart)
 
         for accession in self.accession:
-                df = self.prettydf[self.prettydf['Accession']== accession]
-                accession_plot = _singleplot(df)
-                plot_file_name = f"{outdir}/{accession}.html"
-                accession_plot.save(plot_file_name)
+            df = self.prettydf[self.prettydf['Accession'] == accession]
+            accession_plot = _singleplot(df)
+            plot_file_name = f"{outdir}/{accession}.html"
+            accession_plot.save(plot_file_name)
+
 
 def get_fastas(filelist, tempdir=None):
     """Saves a Fasta and from 1 or more Genbank files (may be gzipped)
@@ -844,12 +867,13 @@ def get_fastas(filelist, tempdir=None):
         print("An error occurred in input genbank file %s" % file)
         raise e
 
-def extend_ambiguous_dna(seq:str) ->  List[str]:
+
+def extend_ambiguous_dna(seq: str) -> List[str]:
     """Return list of all possible sequences given an ambiguous DNA input
 
     Args:
         seq(str): A DNA string
-    
+
     Return:
         List[str]: A list of DNA string with expanded ambiguous DNA values
     """
