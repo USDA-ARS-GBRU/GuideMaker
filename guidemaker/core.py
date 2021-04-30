@@ -35,7 +35,6 @@ def is_gzip(filename: str):
 
 
 class PamTarget:
-
     """A Class representing a Protospacer Adjacent Motif (PAM) and targets. The class includes all targets for given PAM as a dataframe, PAM and target attributes, and methods to find target and control sequences."""
 
     def __init__(self, pam: str, pam_orientation: str) -> None:
