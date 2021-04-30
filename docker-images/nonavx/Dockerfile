@@ -6,9 +6,8 @@ LABEL Description="GuideMaker: Globally design guide RNAs for any CRISPR-Cas sys
 RUN apt-get update && apt-get install -y \
     build-essential \
     zlib1g-dev \
-    && apt-get clean
-    
-RUN rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "--login", "-c"]
 
@@ -22,8 +21,6 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     pyyaml=5.4.1 \
     nmslib=2.1.1 \
     && conda clean -afy
-
-RUN pip install --no-binary :all: nmslib
 
 ENV PATH="~/miniconda3/bin:$PATH"
 RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .

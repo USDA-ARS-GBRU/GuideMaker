@@ -35,10 +35,8 @@ def is_gzip(filename: str):
 
 
 class PamTarget:
-
     """
     A Class representing a Protospacer Adjacent Motif (PAM) and targets.
-    
     The classincludes all targets for given PAM as a dataframe,PAM and target attributes,
     and methods to find target and control sequences.
 
@@ -445,7 +443,7 @@ class TargetProcessor:
     def get_neighbors(self, configpath, num_threads=2) -> None:
         """
         Get nearest neighbors for sequences removing sequences that
-         have neighbors less than the Hamming distance threshold
+        have neighbors less than the Hamming distance threshold
 
         For the list of all targets calculate the (knum) nearest neighbors.
         filter out targets with close neighbors and
@@ -572,7 +570,7 @@ class TargetProcessor:
                 sm_count += 1
         except IndexError as e:
            # print("Number of random control searched: ", search_mult * n)
-            pass
+            pass e
 
         total_ncontrolsearched = search_mult * n
         self.ncontrolsearched = total_ncontrolsearched
@@ -589,8 +587,8 @@ class TargetProcessor:
 
 class Annotation:
     def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
-
-        """Annotation class for data and methods on targets and gene annotations
+        """
+        Annotation class for data and methods on targets and gene annotations
 
         Args:
             genbank_list (List[str]): A list of genbank files from a single genome

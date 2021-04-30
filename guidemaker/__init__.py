@@ -1,5 +1,4 @@
-"""Guidemaker: globally design gRNAs for any CRISPR-Cas system in any small genome
-"""
+"""Guidemaker: globally design gRNAs for any CRISPR-Cas system in any small genome."""
 import pkg_resources
 from ._version import get_versions
 from .core import *
