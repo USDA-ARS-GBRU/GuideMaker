@@ -35,7 +35,8 @@ def genome_connect(db_bytes):
 
 @st.cache(suppress_st_warning=True)
 def run_command(args):
-    """Run command, transfer stdout/stderr back into Streamlit and manage error"""
+    """Run command, transfer stdout/stderr back into Streamlit and manage error
+    """
     st.info(f"Running:: '{' '.join(args)}'")
     result = subprocess.run(args, capture_output=True, text=True)
     try:
@@ -225,7 +226,7 @@ def main(arglist: list = None):
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
     except FileNotFoundError as e:
-        pass
+        pass e
 
 
 if __name__ == "__main__":
