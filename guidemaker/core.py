@@ -37,6 +37,7 @@ def is_gzip(filename: str):
 
 
 class PamTarget:
+
     """A Class representing a Protospacer Adjacent Motif (PAM) and targets
 
     The class includes all targets for given PAM as a dataframe, PAM and target attributes, and methods to find target and control sequences
@@ -77,7 +78,8 @@ class PamTarget:
         """
 
         def reverse_complement(seq: str) -> str:
-            """Reverse complement of the PAM sequence
+            """
+            Reverse complement of the PAM sequence
 
             Args:
                 seq (str): A DNA string
@@ -89,7 +91,8 @@ class PamTarget:
             return str(bpseq.reverse_complement())
 
         def pam2re(pam: str) -> str:
-            """Convert an IUPAC ambiguous PAM to a Regex expression
+            """
+            Convert an IUPAC ambiguous PAM to a Regex expression
 
             Args:
                 pam (str): A DNA string

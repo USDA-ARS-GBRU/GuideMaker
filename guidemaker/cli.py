@@ -63,8 +63,7 @@ def parserval(args):
 
 
 def _logger_setup(logfile):
-    """
-    Set up logging to a logfile and the terminal standard out.
+    """Set up logging to a logfile and the terminal standard out.
 
     Args:
         logfile (str): Log file
