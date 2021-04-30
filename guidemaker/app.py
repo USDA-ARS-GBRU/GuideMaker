@@ -226,7 +226,7 @@ def main(arglist: list = None):
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
     except FileNotFoundError as e:
-        pass e
+        raise e
 
 
 if __name__ == "__main__":
