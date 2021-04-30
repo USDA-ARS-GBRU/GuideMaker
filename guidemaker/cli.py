@@ -1,4 +1,5 @@
-"""GuideMaker: The command line interface
+"""
+GuideMaker: The command line interface
 
 A command line tool to globally design guide RNAs for any CRISPR-Cas system in any small genome
 """
@@ -63,7 +64,8 @@ def parserval(args):
 
 
 def _logger_setup(logfile):
-    """Set up logging to a logfile and the terminal standard out.
+    """
+    Set up logging to a logfile and the terminal standard out.
 
     Args:
         logfile (str): Log file
@@ -89,9 +91,7 @@ def _logger_setup(logfile):
 
 
 def main(arglist: list = None):
-    """Run The complete GuideMaker workflow.
-
-    """
+    """Run The complete GuideMaker workflow."""
     # Set up logging
     parser = myparser()
     args = parser.parse_args(arglist)

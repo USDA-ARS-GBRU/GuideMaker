@@ -570,7 +570,7 @@ class TargetProcessor:
                 sm_count += 1
         except IndexError as e:
            # print("Number of random control searched: ", search_mult * n)
-            pass e
+            raise e
 
         total_ncontrolsearched = search_mult * n
         self.ncontrolsearched = total_ncontrolsearched
