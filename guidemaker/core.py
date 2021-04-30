@@ -36,7 +36,8 @@ def is_gzip(filename: str):
 
 class PamTarget:
 
-    """A Class representing a Protospacer Adjacent Motif (PAM) and targets.
+    """
+    A Class representing a Protospacer Adjacent Motif (PAM) and targets.
 
     The classincludes all targets for given PAM as a dataframe,PAM and target attributes,
     and methods to find target and control sequences.
@@ -277,7 +278,8 @@ class PamTarget:
 
 class TargetProcessor:
 
-    """A Class representing a set of guide RNA targets.
+    """
+    A Class representing a set of guide RNA targets.
 
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
@@ -584,7 +586,10 @@ class TargetProcessor:
 
 class Annotation:
 
-    """Annotation class for data and methods on targets and gene annotations."""
+    """
+    Annotation class for data and methods on targets and gene annotations.
+
+    """
 
     def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
         """
@@ -834,7 +839,10 @@ class Annotation:
 
 class GuideMakerPlot:
     
-    """ A class with functions to plot guides over genome cooridinates."""
+    """
+    A class with functions to plot guides over genome cooridinates.
+
+    """
     
     def __init__(self, prettydf: PandasDataFrame, outdir: str) -> None:
         """
