@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import os
 import yaml
+import textwrap
 
 import pybedtools
 from Bio import SeqIO
@@ -16,9 +17,14 @@ from Bio import SeqIO
 import guidemaker
 
 
+
 def myparser():
     parser = argparse.ArgumentParser(
-        description='GuideMaker: globally design guide RNAs for any CRISPR-Cas system in any small genome')
+        description='''GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome.''',
+        epilog=textwrap.dedent(''' To run the web app locally, in terminal run:
+        -----------------------------------------------------------------------
+        streamlit run ''' + guidemaker.WEB_APP + '''
+        -----------------------------------------------------------------------'''))
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True,
                         help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
     parser.add_argument('--pamseq', '-p', type=str, required=True,
@@ -97,6 +103,7 @@ def main(arglist: list = None):
     parserval(args)
 
     _logger_setup(args.log)
+
 
     try:
         with open(args.config) as cf:
