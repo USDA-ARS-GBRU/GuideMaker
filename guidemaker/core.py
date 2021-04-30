@@ -35,7 +35,6 @@ def is_gzip(filename: str):
 
 
 class PamTarget:
-
     """
     A Class representing a Protospacer Adjacent Motif (PAM) and targets. The class
     includes all targets for given PAM as a dataframe,PAM and target attributes,
@@ -63,6 +62,15 @@ class PamTarget:
         self.pam_orientation: str = pam_orientation
 
     def __str__(self) -> str:
+        """
+        str __init__
+
+        Args:
+            self
+
+        Returns:
+            self(str)
+        """
         return "A PAM object: {self.pam}".format(self=self)
 
     def find_targets(self, seq_record_iter: object, target_len: int) -> PandasDataFrame:
@@ -266,8 +274,8 @@ class PamTarget:
 
 
 class TargetProcessor:
-
-    """A Class representing a set of guide RNA targets
+    """
+    A Class representing a set of guide RNA targets
 
     The class includes all targets in a dataframe, methods to process target and a dict with edit distances for sequences.
 
