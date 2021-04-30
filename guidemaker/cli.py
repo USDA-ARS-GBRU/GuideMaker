@@ -1,6 +1,5 @@
 """
 GuideMaker: The command line interface
-
 A command line tool to globally design guide RNAs for any CRISPR-Cas system in any small genome
 """
 
