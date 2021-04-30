@@ -45,21 +45,19 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 ## Usage
 
 ```{bash}
-GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
+GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small
+genome.
 
 optional arguments:
-
   -h, --help            show this help message and exit
-
   --genbank GENBANK [GENBANK ...], -i GENBANK [GENBANK ...]
                         One or more genbank .gbk or gzipped .gbk files for a
                         single genome
-
   --pamseq PAMSEQ, -p PAMSEQ
                         A short PAM motif to search for, it may use IUPAC
                         ambiguous alphabet
-  --outfile OUTFILE, -o OUTFILE
-                        The table of PAM sites and data
+  --outdir OUTDIR, -o OUTDIR
+                        The directory for data output
   --pam_orientation {5prime,3prime}, -r {5prime,3prime}
                         PAM position relative to target: 5prime:
                         [PAM][target], 3prime: [target][PAM]. For example,
@@ -69,20 +67,30 @@ optional arguments:
   --lsr [0-27]          Length of a seed region near the PAM site required to
                         be unique
   --dist [0-5]          Minimum hamming distance from any other potential
-                        guide. Default dist is >= 2.
+                        guide
   --before [1-500]      keep guides this far in front of a feature
   --into [1-500]        keep guides this far inside (past the start site)of a
                         feature
-  --knum [2-20]         Number of sequences similar to the guide to report
-  --controls CONTROLS   Number or random control RNAs to generate
-  --threads THREADS     Number of cpu threads to use
+  --knum [2-20]         how many sequences similar to the guide to report
+  --controls CONTROLS   The number or random control RNAs to generate
+  --threads THREADS     The number of cpu threads to use
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
-  --restriction_enzyme_list List of sequence representing restriction enzymes
-  --keeptemp            Option to keep intermediate files
-  --plot                Option to generate plots
-  --config CONFIG       Path to YAML formatted configuration file
+  --restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]
+                        List of sequence representing restriction enzymes
+  --keeptemp            Option to keep intermediate files be kept
+  --plot                Option to genereate guidemaker plots
+  --config CONFIG       Path to YAML formatted configuration file, default is 
+                        /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/si
+                        te-packages/guidemaker/data/config_default.yaml
   -V, --version         show program's version number and exit
+
+To run the web app locally, in terminal run:
+-----------------------------------------------------------------------
+streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-
+packages/guidemaker/data/app.py
+-----------------------------------------------------------------------
+
 ```
 
 ## Examples
