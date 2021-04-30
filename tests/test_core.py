@@ -29,7 +29,6 @@ configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
 
 
 
-
 #PamTarget Class
 
 def test_pam_pam():
@@ -225,10 +224,12 @@ def test_filter_features():
     prettydf = anno._format_guide_table(tl)
     assert prettydf.shape == (871, 21)
 
-# # Function : get_fastas
-# def test_get_fastas(tmp_path):
-#     gbfiles = [TEST_DATA_DIR /"Pseudomonas_aeruginosa_PAO1_107.gbk"]
-#     guidemaker.core.get_fastas(gbfiles, tmp_path)
+# Function : get_fastas
+@pytest.fixture(scope='session')
+def test_get_fastas(tmpdir_factory):
+    filegb =os.path.join(TEST_DIR,"test_data", "Carsonella_ruddii.gbk")
+    guidemaker.core.get_fastas(filegb, tmpdir_factory)
+
 
 # Function : extend_ambiguous_dna
 def test_extend_ambiguous_dna():
