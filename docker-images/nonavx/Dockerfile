@@ -5,7 +5,9 @@ LABEL Description="GuideMaker: Globally design guide RNAs for any CRISPR-Cas sys
 
 RUN apt-get update && apt-get install -y \
     build-essential \
-    zlib1g-dev
+    zlib1g-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 SHELL ["/bin/bash", "--login", "-c"]
 
