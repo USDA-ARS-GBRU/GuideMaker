@@ -30,7 +30,7 @@ configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
 
 
 
-# PamTarget Class
+#PamTarget Class
 
 def test_pam_pam():
     pamobj = guidemaker.core.PamTarget("NGG", "5prime")

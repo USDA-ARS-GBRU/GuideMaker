@@ -1,6 +1,4 @@
-"""guidemaker/app.py A configuration template fo a streamlit beb application version of Guidemaker
-
-"""
+"""guidemaker/app.py A configuration template fo a streamlit beb application version of Guidemaker."""
 import os
 import subprocess
 import base64
@@ -22,8 +20,7 @@ import guidemaker
 
 @contextmanager
 def genome_connect(db_bytes):
-    """Write input genome to local disk and clean after using
-    """
+    """Write input genome to local disk and clean after using"""
     fp = Path(str(uuid4()))
     fp.write_bytes(db_bytes.getvalue())
     conn = str(fp)
@@ -35,8 +32,7 @@ def genome_connect(db_bytes):
 
 @st.cache(suppress_st_warning=True)
 def run_command(args):
-    """Run command, transfer stdout/stderr back into Streamlit and manage error
-    """
+    """Run command, transfer stdout/stderr back into Streamlit and manage error"""
     st.info(f"Running:: '{' '.join(args)}'")
     result = subprocess.run(args, capture_output=True, text=True)
     try:
@@ -49,8 +45,7 @@ def run_command(args):
 
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
-    """Binary file downloader in html format
-    """
+    """Binary file downloader in html format"""
     with open(bin_file, 'rb') as f:
         data = f.read()
     bin_str = base64.b64encode(data).decode()
@@ -59,14 +54,12 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
 
 
 def read_markdown_file(markdown_file):
-    """Read markdown file
-    """
+    """Read markdown file"""
     return Path(markdown_file).read_text()
 
 
 def guidemakerplot(df):
-    """Returns guidemaker plot describing PAM targets
-    """
+    """Returns guidemaker plot describing PAM targets"""
     source = df
     brush = alt.selection(type='interval', encodings=['x'])
     binnum = int(round(source['Feature end'].max() / 200, 0))
@@ -109,8 +102,8 @@ def guidemakerplot(df):
 
 
 def main(arglist: list = None):
-    """Run web App
-    """
+    """Run web App"""
+    
     subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠 🧬"
     st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>',
                 unsafe_allow_html=True)
