@@ -6,13 +6,10 @@
 
 ## Authors
 
-*  Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
-
-*  Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
-
-*  Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
-
-*  Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
+*   Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
+*   Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
+*   Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
+*   Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
 
 ## Installation
 
