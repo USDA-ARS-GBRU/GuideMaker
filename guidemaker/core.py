@@ -35,10 +35,13 @@ def is_gzip(filename: str):
 
 
 class PamTarget:
+
     """
-    A Class representing a Protospacer Adjacent Motif (PAM) and targets. The class
-    includes all targets for given PAM as a dataframe,PAM and target attributes,
+    A Class representing a Protospacer Adjacent Motif (PAM) and targets.
+    
+    The classincludes all targets for given PAM as a dataframe,PAM and target attributes,
     and methods to find target and control sequences.
+
     """
 
     def __init__(self, pam: str, pam_orientation: str) -> None:
@@ -281,7 +284,19 @@ class TargetProcessor:
 
     """
 
-    def __init__(self, targets, lsr: int, hammingdist: int = 2, knum: int = 2) -> None:
+    def __init__(self, targets: PandasDataFrame, lsr: int, hammingdist: int = 2, knum: int = 2) -> None:
+        """
+        TargetProcessor __init__
+
+        Args:
+            targets (PandasDataFrame): Dataframe with output from class PamTarget
+            lsr (int): Length of seed region
+            hammingdist (int): Hamming distance
+            knum (int): Number of negative controls
+                
+        Returns:
+            None
+        """
         self.targets = targets  # pandas dataframe
         self.lsr: int = lsr  # length of seed region
         self.hammingdist: int = hammingdist
@@ -293,11 +308,30 @@ class TargetProcessor:
         self.genomesize: float = None
         self.pam_orientation: bool = targets['pam_orientation'].iat[0]
 
-    def __str__(self):
+    def __str__(self) -> None:
+        """
+        str __init__
+
+        Args:
+            self
+
+        Return:
+            None
+        """
+
         info = "TargetList: contains a set of {} potential PAM targets".format(len(self.targets))
         return info
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """
+        len __init__ to display length of self.targets
+        
+        Args:
+            self.targets
+        
+        Return:
+            (int): Length of the self.targets
+        """
         return len(self.targets)
 
     def check_restriction_enzymes(self, restriction_enzyme_list: list = []) -> None:
@@ -323,8 +357,8 @@ class TargetProcessor:
         if len(element_to_exclude) > 0:
             self.targets = self.targets.loc[self.targets['target'].str.contains(
                 '|'.join(element_to_exclude)) == False]
-        else:
-            self.targets
+        # else:
+        #     self.targets
 
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
         """
@@ -350,7 +384,7 @@ class TargetProcessor:
             lsr (int): Length of seed region that is close to PAM
 
         Returns:
-            Nome
+            None
         """
         def _get_prox(tseq):  # get target sequence as input
             if self.pam_orientation == True:  # 5prime = True 3prime=False
