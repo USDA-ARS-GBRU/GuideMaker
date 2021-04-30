@@ -29,8 +29,6 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
     # check if the installation works
     guidemaker -h
 
-    # To run the Web app
-    streamlit run guidemaker/app.py
 ```
 
 ## Dependencies
