@@ -54,7 +54,7 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
 
 
 def read_markdown_file(markdown_file):
-    """Read markdown file"""
+    """Read markdown file."""
     return Path(markdown_file).read_text()
 
 
@@ -103,8 +103,9 @@ def guidemakerplot(df):
 
 def main(arglist: list = None):
     """Run web App."""
+    header = "GuideMaker"
     subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠 🧬"
-    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">GuideMaker</strong>',
+    st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">{header}</strong>',
                 unsafe_allow_html=True)
     st.markdown(
         f'<strong style="font-family:Hoefler Text;font-size: 18px;color: #FA4616">{subheader}</strong>', unsafe_allow_html=True)
