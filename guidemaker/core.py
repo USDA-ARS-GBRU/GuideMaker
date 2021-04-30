@@ -322,10 +322,10 @@ class TargetProcessor:
     def __len__(self) -> int:
         """
         len __init__ to display length of self.targets
-        
+
         Args:
             self.targets
-        
+
         Return:
             (int): Length of the self.targets
         """
@@ -359,7 +359,6 @@ class TargetProcessor:
 
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
         """One hot encode Target DNA as a binary string representation for NMSLIB."""
-
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
 
         def seq_to_bin(seq):
@@ -440,8 +439,7 @@ class TargetProcessor:
     def get_neighbors(self, configpath, num_threads=2) -> None:
         """
         Get nearest neighbors for sequences removing sequences that
-        have neighbors less than the Hamming distance threshold
-
+        have neighbors less than the Hamming distance threshold.
         For the list of all targets calculate the (knum) nearest neighbors.
         filter out targets with close neighbors and
         Writes a dictionary to self.neighbors:
