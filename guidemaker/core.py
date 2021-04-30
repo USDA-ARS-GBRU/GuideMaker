@@ -1,6 +1,4 @@
-"""Core classes and functions for GuideMaker
-
-"""
+"""Core classes and functions for GuideMaker."""
 import os
 import yaml
 import logging
@@ -78,8 +76,8 @@ class PamTarget:
         """
 
         def reverse_complement(seq: str) -> str:
-            """
-            Reverse complement of the PAM sequence
+
+            """Reverse complement of the PAM sequence
 
             Args:
                 seq (str): A DNA string
@@ -91,8 +89,8 @@ class PamTarget:
             return str(bpseq.reverse_complement())
 
         def pam2re(pam: str) -> str:
-            """
-            Convert an IUPAC ambiguous PAM to a Regex expression
+
+            """Convert an IUPAC ambiguous PAM to a Regex expression
 
             Args:
                 pam (str): A DNA string
