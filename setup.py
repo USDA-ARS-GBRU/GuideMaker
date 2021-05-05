@@ -9,7 +9,7 @@ requirements = [
     # package requirements go here
     'biopython==1.76',
     'numpy >=1.13',
-    'pybedtools',
+    'pybedtools=0.8.2',
     'nmslib>=2.1.1',
     'pandas>=1.0.0',
     'pyyaml>=5.4.1',
