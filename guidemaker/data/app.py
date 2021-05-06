@@ -128,8 +128,9 @@ def main(arglist: list = None):
     # Define input parameters and widgets
     genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"])
     pam = st.sidebar.text_input("Input PAM Motif [ E.g. NGG ] ", "NGG")
-    restriction_enzyme_list = st_tags_sidebar(
-        'Restriction Enzymes[e.g. NGRT]:', 'Enter to add more', ['NGRT'])
+    restriction_enzyme_list = st_tags_sidebar(label = 'Restriction Enzymes[e.g. NGRT]:',
+                                                                  text  = 'Enter to add more', 
+                                                                  value = ['NGRT'])
     #restriction_enzyme_list= st.sidebar.text_input("Restriction Enzymes list [ E.g. NGRT ] ", "NGRT")
     pam_orientation = st.sidebar.selectbox(
         "PAM Orientation [ Options: 3prime, 5prime ]", ("3prime", "5prime"))
