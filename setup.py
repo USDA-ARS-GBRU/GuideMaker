@@ -15,7 +15,7 @@ requirements = [
     'pyyaml>=5.4.1',
     'regex==2020.11.13',
     'altair',
-    'streamlit>=0.80.0',
+    'streamlit==0.80.0',
     'pytest>=4.6',
     'pytest-cov',
     'streamlit-tags>=1.1.9',
