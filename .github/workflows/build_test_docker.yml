@@ -1,7 +1,7 @@
 name: Build Tests Docker-Images API-Documentation
 
 on:
-  release: #push
+  push:
     branches:
       - main
 
@@ -56,7 +56,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
         registry: docker.pkg.github.com
-        repository: ravinpoudel/actiontest/guidemaker-avx
+        repository: USDA-ARS-GBRU/GuideMaker
         tag_with_ref: true
         tag_with_sha: true
         path: docker-images/avx
@@ -67,7 +67,35 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
         registry: docker.pkg.github.com
-        repository: ravinpoudel/actiontest/guidemaker-nonavx
+        repository: USDA-ARS-GBRU/GuideMaker
         tag_with_ref: true
         tag_with_sha: true
         path: docker-images/nonavx
+
+    - name: Build container image webapp
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: USDA-ARS-GBRU/GuideMaker
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/webapp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
