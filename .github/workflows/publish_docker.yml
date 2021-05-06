@@ -1,0 +1,42 @@
+name: Publish Docker image
+on: [push]
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Build container image avx
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: USDA-ARS-GBRU/GuideMaker
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/avx
+        
+    - name: Build container image nonavx
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: USDA-ARS-GBRU/GuideMaker
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/nonavx
+
+    - name: Build container image webapp
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: USDA-ARS-GBRU/GuideMaker
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/webapp
