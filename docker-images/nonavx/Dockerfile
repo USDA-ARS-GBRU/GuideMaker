@@ -19,7 +19,7 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     biopython=1.76 \
     numpy=1.19.4 \
     pyyaml=5.4.1 \
-    nmslib=2.1.1 \
+    nmslib \
     && conda clean -afy
 
 ENV PATH="~/miniconda3/bin:$PATH"
