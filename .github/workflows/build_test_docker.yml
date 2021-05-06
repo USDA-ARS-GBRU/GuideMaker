@@ -1,7 +1,7 @@
 name: Build Tests Docker-Images API-Documentation
 
 on:
-  relsease:
+  release: #push
     branches:
       - main
 
