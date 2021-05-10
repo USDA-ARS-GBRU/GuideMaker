@@ -70,13 +70,13 @@ jobs:
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: .aws/first-run-task-definition.json
-        container-name: webapp
+        container-name: guidemakerapp
         image: ${{ steps.build-image.outputs.image }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: webapp-service
+        service: guidemakerapp-service
         cluster: guidemakerapp
         wait-for-service-stability: true
