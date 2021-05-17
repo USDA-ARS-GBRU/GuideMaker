@@ -22,7 +22,7 @@ ENV PATH="~/miniconda3/bin:$PATH"
 RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install -e .
 
 # expose to 80
-EXPOSE 80
+EXPOSE 8501
 
 ENTRYPOINT ["conda", "run", "-n", "base"]
 
