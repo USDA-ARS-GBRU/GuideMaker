@@ -13,7 +13,7 @@
 
 ## Installation
 
-GuideMaker can be installed from:
+GuideMaker can be installed from::
 
 The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
