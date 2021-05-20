@@ -14,7 +14,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
         registry: docker.pkg.github.com
-        repository: USDA-ARS-GBRU/GuideMaker/guidemaker-avx
+        repository: USDA-ARS-GBRU/guidemaker/guidemaker-avx
         tag_with_ref: true
         tag_with_sha: true
         path: docker-images/avx
