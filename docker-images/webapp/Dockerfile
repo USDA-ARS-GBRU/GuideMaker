@@ -21,22 +21,13 @@ RUN pip install --no-binary :all: nmslib
 ENV PATH="~/miniconda3/bin:$PATH"
 RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install -e .
 
-# expose to 80
 EXPOSE 8501
 
 ENTRYPOINT ["conda", "run", "-n", "base"]
 
-#CMD streamlit run ~/GuideMaker/guidemaker/data/app.py
 
-#CMD ls /GuideMaker/guidemaker/data/*
-
-
+# run web app
 CMD streamlit run /GuideMaker/guidemaker/data/app.py
 
 
-#CMD streamlit run --server.port 8501 --server.enableCORS false /GuideMaker/guidemaker/data/app.py
 
-
-#CMD conda list 
-
-# docker run -p 8501:8501 gmapp

@@ -32,26 +32,26 @@ def myparser():
     parser.add_argument('--outdir', '-o', type=str, required=True,
                         help='The directory for data output')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime',
-                        help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime")
+                        help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime. Default: '5prime'.")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10,
-                        28, 1), metavar="[10-27]", help='Length of the guide sequence')
+                        28, 1), metavar="[10-27]", help='Length of the guide sequence. Default: 20.')
     parser.add_argument('--lsr', type=int, default=10, choices=range(0, 28, 1),
-                        metavar="[0-27]", help='Length of a seed region near the PAM site required to be unique')
+                        metavar="[0-27]", help='Length of a seed region near the PAM site required to be unique. Default: 10.')
     parser.add_argument('--dist', type=int, choices=range(0, 6, 1),
-                        metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide')
+                        metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide. Default: 2.')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
-                        help='keep guides this far in front of a feature')
+                        help='keep guides this far in front of a feature. Default: 100.')
     parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1), metavar="[1-500]",
-                        help='keep guides this far inside (past the start site)of a feature')
+                        help='keep guides this far inside (past the start site)of a feature. Default: 200.')
     parser.add_argument('--knum', type=int, default=3, choices=range(2, 21, 1),
-                        metavar="[2-20]", help='how many sequences similar to the guide to report')
+                        metavar="[2-20]", help='how many sequences similar to the guide to report. Default: 3.')
     parser.add_argument('--controls', type=int, default=1000,
-                        help='The number or random control RNAs to generate')
-    parser.add_argument('--threads', help='The number of cpu threads to use', type=int, default=2)
+                        help='Number or random control RNAs to generate. Default: 1000.')
+    parser.add_argument('--threads', help='The number of cpu threads to use. Default: 2', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*",
-                        help='List of sequence representing restriction enzymes', default=[])
+                        help='List of sequence representing restriction enzymes. Default: None.', default=[])
     parser.add_argument(
         '--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
