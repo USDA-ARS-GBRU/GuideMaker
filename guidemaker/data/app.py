@@ -211,8 +211,7 @@ def main(arglist: list = None):
 
     ##### License information ©️
 
-    *As a work of the United State Government Department of Agriculture - Agricultural Research Service (USDA-ARS)
-    this software is available under CC0 1.0 Universal (CC0 1.0) Public Domain Dedication*
+    *Guidemaker was created by the United States Department of Agriculture - Agricultural Research Service (USDA-ARS). As a work of the United States Government this software is available under the CC0 1.0 Universal Public Domain Dedication (CC0 1.0)*
 
     """)
 
