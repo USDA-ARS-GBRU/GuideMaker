@@ -27,4 +27,4 @@ jobs:
       with:
         context: docker-images/avx
         push: true
-        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:sha${{ steps.slug.outputs.sha8 }}
+        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:latest:sha:${{ steps.slug.outputs.sha8 }}
