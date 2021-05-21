@@ -6,8 +6,6 @@ on:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    env:
-      SHA8: ${GITHUB_SHA:8} # get first 8 charater from git commit sha.
 
     steps:
     - name: Checkout
@@ -25,4 +23,5 @@ jobs:
       with:
         context: docker-images/avx
         push: true
-        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:$SHA8
+        #tags: ghcr.io/usda-ars-gbru/guidemaker-avx:{{github.sha}}
+        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:{{github.sha}}
