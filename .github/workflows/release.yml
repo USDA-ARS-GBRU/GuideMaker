@@ -1,5 +1,6 @@
 name: Create Release
-#https://github.com/actions/create-release
+
+# additional information - https://github.com/actions/create-release
 on:
   push:
     branches: main
