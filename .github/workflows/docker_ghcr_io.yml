@@ -11,6 +11,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Get short SHA
+      id: slug
+      run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v1
       with:
@@ -24,4 +28,4 @@ jobs:
         context: docker-images/avx
         push: true
         #tags: ghcr.io/usda-ars-gbru/guidemaker-avx:{{github.sha}}
-        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:latest
+        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:${{ steps.slug.outputs.sha8 }}
