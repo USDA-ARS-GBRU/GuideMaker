@@ -24,4 +24,4 @@ jobs:
         context: docker-images/avx
         push: true
         #tags: ghcr.io/usda-ars-gbru/guidemaker-avx:{{github.sha}}
-        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:{{github.sha}}
+        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:latest
