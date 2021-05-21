@@ -21,5 +21,5 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         context: docker-images/avx
-        tag_with_ref: true
-        tag_with_sha: true
+        push: true
+        tags: ghcr.io/usda-ars-gbru/guidemaker-avx:latest
