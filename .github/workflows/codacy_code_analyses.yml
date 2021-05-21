@@ -1,6 +1,6 @@
 name: Codacy Analysis CLI
 
-on: ["release"]
+on: [pull_request]
 
 jobs:
   codacy-analysis-cli:

@@ -1,6 +1,6 @@
 name: Publish Docker image
 on:
-  release:
+  pull_request:
     branches: main
 
 jobs:

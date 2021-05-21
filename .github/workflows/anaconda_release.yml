@@ -1,7 +1,7 @@
 name: Anaconda Release
 
 on:
-  release: #push
+  pull_request: #push
     branches:
       - main
 
