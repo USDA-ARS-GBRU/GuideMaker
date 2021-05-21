@@ -2,7 +2,7 @@ name: Create Release
 
 # additional information - https://github.com/actions/create-release
 on:
-  push:
+  pull:
     branches: main
     #Sequence of patterns matched against refs/tags
     tags:
@@ -22,7 +22,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          release_name: GuideMaker ${{ github.ref }}
           body: |
             Changes in this Release
             - First Change
