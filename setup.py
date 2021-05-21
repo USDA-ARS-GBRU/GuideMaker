@@ -27,7 +27,7 @@ setup(
     name='guidemaker',
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    description='GuideMAker: globally design gRNAs for any CRISPR-Cas system in any small genome',
+    description='GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas',
     license='CC0 1.0 Universal (CC0 1.0) Public Domain Dedication',
     author='Adam Rivers',
     author_email='adam.rivers@usda.gov',

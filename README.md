@@ -2,7 +2,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
 [![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 
-# GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome
+# GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems
 
 ## Authors
 
@@ -43,8 +43,7 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 ## Usage
 
 ```{bash}
-GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small
-genome.
+GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -59,23 +58,27 @@ optional arguments:
   --pam_orientation {5prime,3prime}, -r {5prime,3prime}
                         PAM position relative to target: 5prime:
                         [PAM][target], 3prime: [target][PAM]. For example,
-                        Cas9 is 3prime
+                        Cas9 is 3prime. Default: '5prime'.
   --guidelength [10-27], -l [10-27]
-                        Length of the guide sequence
+                        Length of the guide sequence. Default: 20.
   --lsr [0-27]          Length of a seed region near the PAM site required to
-                        be unique
+                        be unique. Default: 10.
   --dist [0-5]          Minimum hamming distance from any other potential
-                        guide
-  --before [1-500]      keep guides this far in front of a feature
+                        guide. Default: 2.
+  --before [1-500]      keep guides this far in front of a feature. Default:
+                        100.
   --into [1-500]        keep guides this far inside (past the start site)of a
-                        feature
-  --knum [2-20]         how many sequences similar to the guide to report
-  --controls CONTROLS   The number or random control RNAs to generate
-  --threads THREADS     The number of cpu threads to use
+                        feature. Default: 200.
+  --knum [2-20]         how many sequences similar to the guide to report.
+                        Default: 3.
+  --controls CONTROLS   Number or random control RNAs to generate. Default:
+                        1000.
+  --threads THREADS     The number of cpu threads to use. Default: 2
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
   --restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]
-                        List of sequence representing restriction enzymes
+                        List of sequence representing restriction enzymes.
+                        Default: None.
   --keeptemp            Option to keep intermediate files be kept
   --plot                Option to genereate guidemaker plots
   --config CONFIG       Path to YAML formatted configuration file, default is 

@@ -1,4 +1,4 @@
-"""Guidemaker: globally design gRNAs for any CRISPR-Cas system in any small genome."""
+"""GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems."""
 import pkg_resources
 from ._version import get_versions
 from .core import *

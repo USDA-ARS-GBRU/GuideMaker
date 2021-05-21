@@ -1,6 +1,6 @@
 """
 GuideMaker: The command line interface
-A command line tool to globally design guide RNAs for any CRISPR-Cas system in any small genome
+A command line Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems
 """
 
 import logging
@@ -20,7 +20,7 @@ import guidemaker
 
 def myparser():
     parser = argparse.ArgumentParser(
-        description='''GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome.''',
+        description='GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems',
         epilog=textwrap.dedent(''' To run the web app locally, in terminal run:
         -----------------------------------------------------------------------
         streamlit run ''' + guidemaker.WEB_APP + '''

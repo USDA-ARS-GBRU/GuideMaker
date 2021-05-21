@@ -1,7 +1,7 @@
 FROM continuumio/miniconda3:4.9.2
 LABEL maintainer="Adam R. Rivers"
 LABEL version="0.2.0"
-LABEL Description="GuideMaker: Globally design guide RNAs for any CRISPR-Cas system in any small genome"
+LABEL Description="GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems"
 
 RUN apt-get update && apt-get install -y \
     build-essential \
