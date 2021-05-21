@@ -1,0 +1,25 @@
+name: Publish Docker image
+on:
+  push:
+    branches: main
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v1
+      with: ghcr.io
+      username: ${{ github.repository_owner }}
+      password: ${{ secrets.MY_GITHUB_TOKEN }}
+
+    - name: Build container image avx
+      uses: docker/build-push-action@v2
+      with:
+        repository: usda-ars-gbru/guidemaker/guidemaker-avx
+        tag_with_ref: true
+        tag_with_sha: true
+        path: docker-images/avx
