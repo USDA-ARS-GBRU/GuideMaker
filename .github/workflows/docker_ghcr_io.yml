@@ -20,7 +20,6 @@ jobs:
     - name: Build container image avx
       uses: docker/build-push-action@v2
       with:
-        repository: usda-ars-gbru/guidemaker/guidemaker-avx
+        context: docker-images/avx
         tag_with_ref: true
         tag_with_sha: true
-        path: docker-images/avx
