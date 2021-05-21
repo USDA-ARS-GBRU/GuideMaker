@@ -15,7 +15,7 @@ jobs:
       with:
         registry: ghcr.io ghcr.io
         username: ${{ github.repository_owner }}
-        password: ${{ secrets.MY_GITHUB_TOKEN }}
+        password: ${{ secrets.MY_GITHUB_RESISTRY_TOKEN }}
 
     - name: Build container image avx
       uses: docker/build-push-action@v2
