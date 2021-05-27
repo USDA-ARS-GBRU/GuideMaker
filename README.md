@@ -2,7 +2,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
 [![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 
-# GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems
+# GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 
 ## Authors
 
@@ -30,7 +30,6 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
     guidemaker -h
 
 ```
-
 ## Dependencies
 
 *   ``pybedtools``
@@ -129,7 +128,6 @@ streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/
 API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
 
 ## License information
-
 Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
 (USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government this software is available under 
 the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
