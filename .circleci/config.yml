@@ -2,6 +2,7 @@ version: 2
 jobs:
   build:
     docker:
+      # check of version number need to be added
       - image: continuumio/miniconda3
 
     working_directory: ~/repo
@@ -9,7 +10,6 @@ jobs:
     steps:
       - checkout
 
-      
       # - restore_cache:
       #     keys:
       #     - v1-dependencies-{{ checksum "environment.yml" }}
