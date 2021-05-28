@@ -105,7 +105,7 @@ def guidemakerplot(df):
 def main(arglist: list = None):
     """Run web App."""
     header = "GuideMaker"
-    subheader = "Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠 🧬"
+    subheader = "Software to design CRISPR-Cas guide RNA pools in non-model genomes 🦠 🧬"
     st.markdown(f'<strong style="font-family:Hoefler Text;font-size: 36px;color: #0021A5">{header}</strong>',
                 unsafe_allow_html=True)
     st.markdown(
@@ -139,7 +139,9 @@ def main(arglist: list = None):
     dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5, value=2)
     before = st.sidebar.number_input('Before [Options: 1 - 500 ]', 1, 500, value=100, step=50)
     into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500, value=200, step=50)
-    threads = st.sidebar.number_input('Number of Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
+    knum = st.sidebar.number_input('Similar Guides[Options: 2 - 20 ]', 2, 20, value=3)
+    controls = st.sidebar.number_input('Control RNAs', 1, 1000, value=1000, step=100)
+    threads = st.sidebar.number_input('Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
 
     if genome:
         with genome_connect(genome) as conn:
@@ -155,6 +157,8 @@ def main(arglist: list = None):
             "--log", logfilename,
             "--into", str(into),
             "--before", str(before),
+            "--knum", str(knum),
+            "--controls", str(controls),
             "--threads", str(threads),
             "--restriction_enzyme_list"]
             scriptorun = args + restriction_enzyme_list
