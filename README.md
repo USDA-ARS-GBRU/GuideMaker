@@ -3,6 +3,7 @@
 [![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
 ![GitHub release (by tag)](https://img.shields.io/github/downloads/USDA-ARS-GBRU/GuideMaker/v0.2.0/total)
+[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
 
 # GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 
