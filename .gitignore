@@ -1,4 +1,4 @@
-kk# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -110,3 +110,6 @@ test/EcoliPrefilter.py
 
 #
 **/
+*.DS_Store
+*/.DS_Store
+guidemaker/data/.DS_Store

@@ -102,6 +102,8 @@ def guidemakerplot(df):
     return gmplot
 
 
+
+
 def main(arglist: list = None):
     """Run web App."""
     header = "GuideMaker"
@@ -218,6 +220,116 @@ def main(arglist: list = None):
     *Guidemaker was created by the United States Department of Agriculture - Agricultural Research Service (USDA-ARS). As a work of the United States Government this software is available under the CC0 1.0 Universal Public Domain Dedication (CC0 1.0)*
 
     """)
+
+    #########
+
+    img_path = "logo.png"
+    img_bytes = Path(img_path).read_bytes()
+    encoded = base64.b64encode(img_bytes).decode()
+    st.markdown( f'<img src="data:image/gif;base64,{encoded}" alt="cat gif" width=100px>', unsafe_allow_html=True, )
+
+
+
+# <h1 style="color:{};text-align:center;">Streamlit Simple CSS Shape Generator </h1>
+    html_temp = """
+        <div style="background-color:{};padding:5px;">
+        <div style="text-align:center"> 1 </div>
+            <p>
+                <a href="https://www.computerhope.com/" style="color:white; text-align:center; text-decoration:none; ">Computer Hope </a>
+            </p>
+        </div>
+        """
+
+    html_temp2 = """
+        <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <title>Creating Fixed Header and Footer with CSS</title>
+    <style>
+        /* Add some padding on document's body to prevent the content
+        to go underneath the header and footer */
+        body{        
+            padding-top: 60px;
+            padding-bottom: 40px;
+        }
+        .container{
+            width: 80%;
+            margin: 0 auto; /* Center the DIV horizontally */
+        }
+        .fixed-header, .fixed-footer{
+            width: 100%;
+            position: fixed;        
+            background: #003082; 
+            padding: 10px 0;
+            color: #fff;
+            margin-right: auto;
+            margin-left: auto;
+        }
+        .fixed-header{
+            top: 0;
+            left:0;
+        }
+        .fixed-footer{
+            bottom: 0;
+            left: 0;
+            text-align: center;
+            font-size: 24px;
+        }    
+        .header-img {
+            width: 100%;
+            height: 20px;
+            background: url('https://github.com/USDA-ARS-GBRU/GuideMaker/blob/main/guidemaker/data/parameters.png');
+            background: cover;
+        }
+        /* Some more styles to beutify this example */
+        nav a{
+            color: #fff;
+            text-decoration: none;
+            padding: 7px 25px;
+            display: inline-block;
+        }
+        .container p{
+            line-height: 200px; /* Create scrollbar to test positioning */
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+        }
+    <main>
+        <div class="header-img"></div>
+    </main>
+
+    </style>
+    </head>
+    <body>
+        <div class="fixed-header">
+            <div class="container">
+                <nav>
+                    <a href="#"> </a>
+                </nav>
+            </div>
+        </div>
+        <div class="container">
+        </div>    
+        <div class="fixed-footer">
+            <div class="container">USDA Agricultural Research Service&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Contact us: scinet_vrsc@usda.gov</div>        
+        </div>
+        <img src="http://www.kodhus.com/freecourse-images/about.jpg" height="180" alt="">
+    </body>
+    </html>
+
+
+    """
+
+    bgcolor ="darkblue"
+    fontcolor ="red"
+    st.markdown(html_temp2,unsafe_allow_html=True)
+
+    # with open("style.css") as f:
+    #     st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
+
+    #image = Image.open(img_path)
+    #st.image(image, width = 50)
+    
 
     # Check if the output dir exist, if yes, delete so that previous results are not display
     try:
