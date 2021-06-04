@@ -9,13 +9,13 @@ requirements = [
     # package requirements go here
     'biopython==1.76',
     'numpy >=1.13',
-    'pybedtools==0.8.2',
+    'pybedtools>=0.8.2',
     'nmslib>=2.0.6', # note 2.1.1 does not pass the build in ubuntu
     'pandas>=1.0.0',
     'pyyaml>=5.4.1',
-    'regex==2020.11.13',
+    'regex>=2020.11.13',
     'altair',
-    'streamlit>0.80.0',
+    'streamlit>=0.80.0',
     'pytest>=4.6',
     'pytest-cov',
     'streamlit-tags>=1.1.9',
@@ -40,7 +40,7 @@ setup(
         ]
     },
     install_requires=requirements,
-    python_requires='>=3.6',
+    python_requires='>=3.9.5',
     test_suite='pytest',
     tests_require=['pytest'],
     keywords='CRISPR-Cas',
@@ -49,6 +49,7 @@ setup(
     classifiers=[
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Development Status :: 3 - Alpha'
     ]
 )

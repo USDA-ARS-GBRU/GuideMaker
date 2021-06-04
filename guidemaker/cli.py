@@ -22,9 +22,7 @@ def myparser():
     parser = argparse.ArgumentParser(
         description='GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems',
         epilog=textwrap.dedent(''' To run the web app locally, in terminal run:
-        -----------------------------------------------------------------------
-        streamlit run ''' + guidemaker.WEB_APP + '''
-        -----------------------------------------------------------------------'''))
+        streamlit run ''' + guidemaker.WEB_APP))
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True,
                         help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
     parser.add_argument('--pamseq', '-p', type=str, required=True,
