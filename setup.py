@@ -18,7 +18,7 @@ requirements = [
     'streamlit>0.80.0',
     'pytest>=4.6',
     'pytest-cov',
-    'streamlit-tags>=1.2.6',
+    'streamlit-tags',
     'pdoc3'
 ]
 
