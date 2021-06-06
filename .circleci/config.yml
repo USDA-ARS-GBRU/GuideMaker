@@ -26,7 +26,7 @@ jobs:
             conda config --set auto_update_conda no
             conda config --add channels conda-forge
             conda config --add channels bioconda
-            conda config --add channels gagan3012
+            # conda config --add channels gagan3012
             conda info -a
             conda build conda.recipe --no-test
             conda install --use-local guidemaker
