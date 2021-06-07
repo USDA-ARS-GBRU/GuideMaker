@@ -1,6 +1,6 @@
 {% set version = "0.2.0" %}
 {% set name = "GuideMaker" %}
-{% set sha256 = "bc0c31632a72c7080d6cd976f37fc5ae630a345bd4eaf82fd8603420a974967a" %}
+{% set sha256 = "202db33146dc81960ca3ba7d7298a553ddf340109f511ad3b5541d2f629b673b" %}
 {% set user = "USDA-ARS-GBRU" %}
 
 
