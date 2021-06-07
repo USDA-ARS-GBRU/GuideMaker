@@ -1,6 +1,6 @@
 {% set version = "0.2.0" %}
 {% set name = "GuideMaker" %}
-{% set sha256 = "c9cb6e35844209259159ee0530390d837748678538b6a9ed7e71645ba51d57be" %}
+{% set sha256 = "bc0c31632a72c7080d6cd976f37fc5ae630a345bd4eaf82fd8603420a974967a" %}
 {% set user = "USDA-ARS-GBRU" %}
 
 
@@ -31,18 +31,17 @@ requirements:
     - pip
     - python >=3.6
     - biopython==1.76
-    - biopython==1.76
     - numpy >=1.13
-    - pybedtools==0.8.2
+    - pybedtools>=0.8.2
     - nmslib>=2.0.6
     - pandas>=1.0.0
     - pyyaml>=5.4.1
-    - regex==2020.11.13
+    - regex>=2020.11.13
     - altair
-    - streamlit>0.80.0
+    - streamlit>=0.80.0
     - pytest>=4.6
     - pytest-cov
-    - streamlit-tags>=1.1.9
+    - streamlit_tags>=1.2.6
     - pdoc3
 
 
