@@ -8,19 +8,20 @@ import versioneer
 requirements = [
     # package requirements go here
     'biopython==1.76',
-    'numpy >=1.13',
+    'numpy >=1.11',
     'pybedtools>=0.8.2',
-    'nmslib>=2.0.6', # note 2.1.1 does not pass the build in ubuntu
+    'nmslib>=2.0.6',
     'pandas>=1.0.0',
-    'pyyaml>=5.4.1',
-    'regex>=2020.11.13',
+    'pyyaml==5.3.1',
+    'regex==2020.11.13',
     'altair',
-    'streamlit>=0.82.0',
+    'streamlit>=0.81.0',
     'pytest>=4.6',
     'pytest-cov',
     'streamlit_tags>=1.2.6',
     'pdoc3'
 ]
+
 
 
 setup(
