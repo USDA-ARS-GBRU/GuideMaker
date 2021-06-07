@@ -12,7 +12,7 @@ requirements = [
     'pybedtools>=0.8.2',
     'nmslib>=2.0.6',
     'pandas>=1.0.0',
-    'pyyaml==5.3.1',
+    'pyyaml>=5.4.1',
     'regex==2020.11.13',
     'altair',
     'streamlit>=0.81.0',
