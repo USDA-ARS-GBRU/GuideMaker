@@ -19,16 +19,20 @@ from streamlit_tags import st_tags_sidebar
 import guidemaker
 
 
+
 @contextmanager
 def genome_connect(db_bytes):
     """Write input genome to local disk and clean after using."""
     fp = Path(str(uuid4()))
-    fp.write_bytes(db_bytes.getvalue())
+    with open('out.gbk', 'wb') as file:
+        for i in db_bytes:
+            fp = bytearray(i)
+            file.write(fp)
     conn = str(fp)
     try:
         yield conn
     finally:
-        fp.unlink()
+        pass
 
 
 @st.cache(suppress_st_warning=True)
@@ -128,7 +132,10 @@ def main(arglist: list = None):
         DOWNLOADS_PATH.mkdir()
 
     # Define input parameters and widgets
-    genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"])
+    multiple_files = st.sidebar.file_uploader("Upload one or more Genome file [ .gbk]", type=["gbk"], accept_multiple_files=True)
+    genome = list( map(lambda x: x.getvalue(), multiple_files))
+    
+    #genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"], accept_multiple_files=True)
     pam = st.sidebar.text_input("Input PAM Motif [ E.g. NGG ] ", "NGG")
     restriction_enzyme_list = st_tags_sidebar(label = 'Restriction Enzymes[e.g. NGRT]:',
                                                                   text  = 'Enter to add more', 
@@ -145,11 +152,15 @@ def main(arglist: list = None):
     controls = st.sidebar.number_input('Control RNAs', 1, 1000, value=1000, step=100)
     threads = st.sidebar.number_input('Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
 
+    # st.write(genome)
+    # st.write(type(genome))
+
+
     if genome:
         with genome_connect(genome) as conn:
             #st.write("Connection object:", conn)
             args = ["guidemaker",
-            "-i", conn,
+            "-i", "out.gbk",
             "-p", pam,
             "--guidelength", str(guidelength),
             "--pam_orientation", pam_orientation,
@@ -226,6 +237,7 @@ def main(arglist: list = None):
     try:
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
+        #os.remove('out.gbk')
     except FileNotFoundError as e:
         pass
 
