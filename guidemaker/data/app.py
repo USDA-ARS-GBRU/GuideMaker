@@ -156,7 +156,7 @@ def main(arglist: list = None):
     # st.write(type(genome))
 
 
-    if genome:
+    if genome and "out.gbk":
         with genome_connect(genome) as conn:
             #st.write("Connection object:", conn)
             args = ["guidemaker",
@@ -237,7 +237,7 @@ def main(arglist: list = None):
     try:
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
-        #os.remove('out.gbk')
+        os.remove('out.gbk')
     except FileNotFoundError as e:
         pass
 
