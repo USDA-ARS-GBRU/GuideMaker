@@ -4,8 +4,7 @@
 [![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
 [![run with docker](https://img.shields.io/badge/run%20with-Docker-0db7ed?labelColor=000000&logo=docker)](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker
 )
-[![run with bioconda](https://img.shields.io/badge/run%20with-Bioconda-0db7ed?labelColor=000000)](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker
-)
+[![run with bioconda](https://img.shields.io/badge/run%20with-Bioconda-0db7ed?labelColor=000000)](https://anaconda.org/bioconda/guidemaker)
 [![run with github](https://img.shields.io/badge/run%20with-Github-0db7ed?labelColor=000000&logo=github)](https://github.com/USDA-ARS-GBRU/GuideMaker)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
 
