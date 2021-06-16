@@ -7,18 +7,24 @@ Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function stud
 
 ## Methods to access GuideMaker
 
-## Command Line
+
+1.Web Application          |  2.CyCverse Discovery Environment
+:-------------------------:|:-------------------------:
+[![Image of Guidemaker Web App](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/main/misc/%20scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/main/misc/cyverse.png)](https://cyverse.org/discovery-environment)
+
+### 3.Command Line
 
 GuideMaker can be installed from:
 
-1. Bioconda: (preferred method because it handles dependencies):
+3.1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
+
 conda install -c bioconda guidemaker
 
 ```
 
-2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
+3.2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
     # Create a conda environment and install and pybedtools
@@ -33,7 +39,7 @@ conda install -c bioconda guidemaker
     guidemaker -h
 ```
 
-3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
+3.3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
 
 ```bash
 
@@ -53,7 +59,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 
 
-## Usage
+## Command Line Usage
 
 ```{bash}
 GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
