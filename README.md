@@ -5,12 +5,17 @@ GuideMaker can rapidly design gRNAs for gene targets across the genome from a de
 
 Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a web application at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
 
-## Methods to access GuideMaker
 
 
-1.Web Application      |  2.CyCverse Discovery Environment
+**Methods to access GuideMaker**
+
+
+1.[Web Application](https://guidemaker.app.scinet.usda.gov)      |2.[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)
 :---------------------:|:-------------------------:
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov) | [![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
+
+
+
 
 
 ### 3.Command Line
