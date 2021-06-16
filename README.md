@@ -2,11 +2,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
 [![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 [![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
-[![run with docker](https://img.shields.io/badge/run%20with-Docker-0db7ed?labelColor=000000&logo=docker)](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker
-)
-[![run with bioconda](https://img.shields.io/badge/run%20with-Bioconda-0db7ed?labelColor=000000)](https://anaconda.org/bioconda/guidemaker)
-[![run with github](https://img.shields.io/badge/run%20with-Github-0db7ed?labelColor=000000&logo=github)](https://github.com/USDA-ARS-GBRU/GuideMaker)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
+
 
 
 ## Authors
