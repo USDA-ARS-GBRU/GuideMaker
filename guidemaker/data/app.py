@@ -170,7 +170,7 @@ def main(arglist: list = None):
     into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500, value=200, step=50)
     knum = st.sidebar.number_input('Similar Guides[Options: 2 - 20 ]', 2, 20, value=3)
     controls = st.sidebar.number_input('Control RNAs', 1, 1000, value=1000, step=100)
-    threads = st.sidebar.number_input('Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
+    #threads = st.sidebar.number_input('Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
 
     # st.write(genome)
     # st.write(type(genome))
@@ -192,7 +192,7 @@ def main(arglist: list = None):
             "--before", str(before),
             "--knum", str(knum),
             "--controls", str(controls),
-            "--threads", str(threads),
+            "--threads", str(2),
             "--restriction_enzyme_list"]
             scriptorun = args + restriction_enzyme_list
             if(st.sidebar.button("SUBMIT")):
