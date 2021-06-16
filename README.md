@@ -5,16 +5,16 @@
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/guidemaker/badges/downloads.svg)](https://anaconda.org/bioconda/guidemaker)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
 
+## About
+CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria and eukaryotes. There are many excellent tools for designing the CRISPR-Cas guide RNAs for model organisms with standard Cas enzymes. GuideMaker is intended as a fast and easy-to-use design tool for atypical projects with: 1) non-standard Cas enzymes, 2) non-model organisms, or 3) projects that need to design a panel of guide RNAs (gRNA) for genome-wide screens.
 
+GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file . The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
-## Authors
+Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a web application at https://guidemaker.app.scinet.usda.gov and in the CyCverse Discovery Environment.
 
-*   Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
-*   Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
-*   Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
-*   Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
+## Methods to access GuideMaker
 
-## Installation
+## Command Line
 
 GuideMaker can be installed from:
 
@@ -143,6 +143,9 @@ streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/
 ```
 
 [![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
+
+## Citation
+Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
 
 ## API documentation
 
