@@ -5,4 +5,4 @@ relative_links:
   collections: false
 include:
   - README.md
-theme: jekyll-theme-minimal
+theme: jekyll-theme-dinky
