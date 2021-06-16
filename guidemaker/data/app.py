@@ -20,11 +20,32 @@ import guidemaker
 
 
 
+# @contextmanager
+# def genome_connect(db_bytes):
+#     """Write input genome to local disk and clean after using."""
+#     fp = Path(str(uuid4()))
+#     with open("input.gbk", 'wb') as fp:
+#         for i in db_bytes:
+#             if guidemaker.is_gzip(i):
+#                 with zip.open(i, 'rt') as f:
+#                     fp = bytearray(f)
+#                     file.write(fp)
+#             else:
+#                 with open(i, 'r') as f:
+#                     fp = bytearray(f)
+#                     file.write(fp)
+#     conn = str(fp)
+#     try:
+#         yield conn
+#     finally:
+#         pass
+
+
 @contextmanager
 def genome_connect(db_bytes):
     """Write input genome to local disk and clean after using."""
     fp = Path(str(uuid4()))
-    with open('out.gbk', 'wb') as file:
+    with open('input.gbk', 'wb') as file:
         for i in db_bytes:
             fp = bytearray(i)
             file.write(fp)
@@ -33,7 +54,6 @@ def genome_connect(db_bytes):
         yield conn
     finally:
         pass
-
 
 @st.cache(suppress_st_warning=True)
 def run_command(args):
@@ -132,7 +152,7 @@ def main(arglist: list = None):
         DOWNLOADS_PATH.mkdir()
 
     # Define input parameters and widgets
-    multiple_files = st.sidebar.file_uploader("Upload one or more Genome file [ .gbk]", type=["gbk"], accept_multiple_files=True)
+    multiple_files = st.sidebar.file_uploader("Upload one or more Genome file [ .gbk, .gbk.gz]", type=[".gbk", ".gz"], accept_multiple_files=True)
     genome = list( map(lambda x: x.getvalue(), multiple_files))
     
     #genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"], accept_multiple_files=True)
@@ -156,11 +176,11 @@ def main(arglist: list = None):
     # st.write(type(genome))
 
 
-    if genome and "out.gbk":
+    if genome and "input.gbk":
         with genome_connect(genome) as conn:
             #st.write("Connection object:", conn)
             args = ["guidemaker",
-            "-i", "out.gbk",
+            "-i", "input.gbk",
             "-p", pam,
             "--guidelength", str(guidelength),
             "--pam_orientation", pam_orientation,
@@ -237,7 +257,7 @@ def main(arglist: list = None):
     try:
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
-        os.remove('out.gbk')
+        os.remove('input.gbk')
     except FileNotFoundError as e:
         pass
 

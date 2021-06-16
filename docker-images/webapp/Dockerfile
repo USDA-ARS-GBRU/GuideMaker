@@ -21,7 +21,7 @@ RUN pip install --no-binary :all: nmslib
 ENV PATH="~/miniconda3/bin:$PATH"
 RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install -e .
 
-EXPOSE 8501
+EXPOSE 8501 # port on the docker container
 
 ENTRYPOINT ["conda", "run", "-n", "base"]
 
