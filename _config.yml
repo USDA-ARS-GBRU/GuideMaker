@@ -5,4 +5,6 @@ relative_links:
   collections: false
 include:
   - README.md
-theme: jekyll-theme-dinky
+# theme: jekyll-theme-dinky
+remote_theme: mmistakes/jekyll-theme-skinny-bones
+
