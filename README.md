@@ -5,25 +5,11 @@ Start documenting your product, application, service or website with this config
 
 ![Edition template screenshot](images/_screenshot.png)
 
-<<<<<<< HEAD
 Edition was made by [CloudCannon](http://cloudcannon.com/), the Cloud CMS for Jekyll.
-=======
->>>>>>> 16b5fff1ffb3fb4415509a8b353841d1dc428997
 
 Find more templates, themes and step-by-step Jekyll tutorials at [CloudCannon Academy](https://learn.cloudcannon.com/).
 
-<<<<<<< HEAD
 ## Features
-=======
-**Methods to access GuideMaker**
-
-
-1.[Web Application](https://guidemaker.app.scinet.usda.gov)      |2.[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)
-:---------------------:|:-------------------------:
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov) | [![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
-
-
->>>>>>> 16b5fff1ffb3fb4415509a8b353841d1dc428997
 
 * Two column layout
 * Full text search
@@ -37,12 +23,8 @@ Find more templates, themes and step-by-step Jekyll tutorials at [CloudCannon Ac
 
 ## Setup
 
-<<<<<<< HEAD
 1. Add your site and author details in `_config.yml`.
 2. Get a workflow going to see your site's output (with [CloudCannon](https://app.cloudcannon.com/) or Jekyll locally).
-=======
-### 3.Command Line
->>>>>>> 16b5fff1ffb3fb4415509a8b353841d1dc428997
 
 ## Develop
 
