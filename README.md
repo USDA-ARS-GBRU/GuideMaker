@@ -1,35 +1,24 @@
-[![CircleCI](https://img.shields.io/circleci/build/github/USDA-ARS-GBRU/GuideMaker?logo=CircleCi&token=802d114b3ec676d153b4b9fa6a781f9345756fc9)](https://app.circleci.com/pipelines/github/USDA-ARS-GBRU/GuideMaker)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
-[![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
-[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
-[![run with docker](https://img.shields.io/badge/run%20with-Docker-0db7ed?labelColor=000000&logo=docker)](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker
-)
-[![run with bioconda](https://img.shields.io/badge/run%20with-Bioconda-0db7ed?labelColor=000000)](https://anaconda.org/bioconda/guidemaker)
-[![run with github](https://img.shields.io/badge/run%20with-Github-0db7ed?labelColor=000000&logo=github)](https://github.com/USDA-ARS-GBRU/GuideMaker)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
+## GuideMaker
+CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria and eukaryotes. There are many excellent tools for designing the CRISPR-Cas guide RNAs for model organisms with standard Cas enzymes. GuideMaker is intended as a fast and easy-to-use design tool for atypical projects with: 1) non-standard Cas enzymes, 2) non-model organisms, or 3) projects that need to design a panel of guide RNAs (gRNA) for genome-wide screens.
 
-# GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
+GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file . The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
-## Authors
+Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a web application at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
 
-*   Ravin Poudel, PhD, Department of Microbiology and Cell Science, University of Florida
-*   Lidimarie Trujillo, Department of Microbiology and Cell Science, University of Florida
-*   Christopher Reisch, PhD, Department of Microbiology and Cell Science, University of Florida
-*   Adam R. Rivers, PhD , US Department of Agriculture, Agricultural Research Service
+## Methods to access GuideMaker
 
-## Installation
+## Command Line
 
 GuideMaker can be installed from:
 
 1. Bioconda: (preferred method because it handles dependencies):
 
-```
+```bash
 conda install -c bioconda guidemaker
 
 ```
-2. Github:
 
-The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
+2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
     # Create a conda environment and install and pybedtools
@@ -42,13 +31,17 @@ The Github repository: https://github.com/USDA-ARS-GBRU/GuideMaker
 
     # check if the installation works
     guidemaker -h
+```
 
-```
 3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
-```
+
+```bash
+
 docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 ```
+
+
 ## Dependencies
 
 *   ``pybedtools``
@@ -57,6 +50,8 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 *   ``Pandas``
 *   ``Streamlit for webapp``
 *   ``altair for plotting``
+
+
 
 ## Usage
 
@@ -142,6 +137,9 @@ streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/
 
 [![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
 
+## Citation
+Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
+
 ## API documentation
 
 API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
@@ -150,3 +148,11 @@ API documentation for the module can be found [here](https://guidemaker.org/html
 Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
 (USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government this software is available under 
 the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
+
+
+[![CircleCI](https://img.shields.io/circleci/build/github/USDA-ARS-GBRU/GuideMaker?logo=CircleCi&token=802d114b3ec676d153b4b9fa6a781f9345756fc9)](https://app.circleci.com/pipelines/github/USDA-ARS-GBRU/GuideMaker)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
+[![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
+[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/guidemaker/badges/downloads.svg)](https://anaconda.org/bioconda/guidemaker)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
