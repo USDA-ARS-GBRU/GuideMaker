@@ -7,6 +7,12 @@ Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function stud
 
 ## Methods to access GuideMaker
 
+
+Web Application             |  Solarized Ocean
+:-------------------------:|:-------------------------:
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
+
+
 ## Command Line
 
 GuideMaker can be installed from:
