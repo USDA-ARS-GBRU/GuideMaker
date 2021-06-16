@@ -8,7 +8,6 @@
 [![run with github](https://img.shields.io/badge/run%20with-Github-0db7ed?labelColor=000000&logo=github)](https://github.com/USDA-ARS-GBRU/GuideMaker)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
 
-# GuideMaker:Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 
 ## Authors
 
