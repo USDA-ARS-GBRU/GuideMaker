@@ -10,7 +10,7 @@ Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function stud
 
 1.Web Application          |  2.CyCverse Discovery Environment
 :-------------------------:|:-------------------------:
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
+[![Image of Guidemaker Web App](https://github.com/USDA-ARS-GBRU/GuideMaker/blob/main/guidemaker/data/%20scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
 
 ### 3.Command Line
 
