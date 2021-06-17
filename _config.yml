@@ -7,8 +7,8 @@ webrick:
     Access-Control-Allow-Origin: "*"
 
 # Theme settings
-site_author: Carlos Pereira Atencio
-repo_url: 'https://github.com/carlosperate/jekyll-theme-rtd'
+site_author:  USDA-ARS-GBRU
+repo_url: 'https://github.com/USDA-ARS-GBRU/GuideMaker'
 edit_on_github: true
 github_docs_folder: false
 sticky_navigation: true
