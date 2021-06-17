@@ -1,8 +1,8 @@
 plugins:
   - jekyll-relative-links
 relative_links:
-  enabled: false
-  collections: false
+  enabled: true
+  collections: true
 include:
   - README.md
   - html/guidemaker/index.html
