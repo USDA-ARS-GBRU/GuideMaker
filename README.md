@@ -37,7 +37,7 @@ conda install -c bioconda guidemaker
 
 ### 3.2. [Github](https://github.com/USDA-ARS-GBRU/GuideMaker)
 
-```{bash}
+```bash
     # Create a conda environment and install and pybedtools
     conda create -n gmenv python=3.7 pybedtools=0.8.2
     conda activate gmenv
@@ -72,7 +72,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 ### Command Line Usage
 
-```{bash}
+```bash
 GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 
 optional arguments:
