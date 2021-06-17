@@ -41,7 +41,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 ```
 
 
-# Dependencies
+## Dependencies
 
 *   ``pybedtools``
 *   ``NMSLib``
@@ -52,7 +52,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 
 
-# Command Line Usage
+## Command Line Usage
 
 ```{bash}
 GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
@@ -106,7 +106,7 @@ packages/guidemaker/data/app.py
 
 ```
 
-# Examples
+## Examples
 
 Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in the bacterium
 __Carsonela ruddii__. The length of the seed region near the PAM required to be
