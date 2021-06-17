@@ -1,7 +1,7 @@
 ---
 title: FAQs
 category: Resources
-order: 2
+order: 1
 ---
 
 > [Questions](http://example.com/signup) or suggestions- Let us know at [example.com](http://example.com/).
