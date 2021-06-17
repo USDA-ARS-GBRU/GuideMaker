@@ -1,5 +1,5 @@
 ---
-title: Video
+title: CyVerse Discovery Env
 category: Access
 order: 2
 ---
