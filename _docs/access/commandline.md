@@ -5,7 +5,7 @@ order: 3
 ---
 
 
-### 3.Command Line
+### Installation
 
 GuideMaker can be installed from:
 
