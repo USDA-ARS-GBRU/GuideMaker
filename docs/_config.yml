@@ -1,6 +1,6 @@
 title: GuideMaker
 description: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
-remote_theme: carlosperate/jekyll-theme-rtd
+#remote_theme: carlosperate/jekyll-theme-rtd
 
 # Theme settings:
 site_author: USDA-ARS-GBRU
