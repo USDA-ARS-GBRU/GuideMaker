@@ -16,7 +16,7 @@ GuideMaker can be easily accessed via:
 - Command Line 
 - Local Web Application
 
-**NOTE:** *Given the limitation of maintaining high compute resources in the cloud environment, our web applicaiton mostly supports smaller genomes. We highly suggest, users with need to run larger genomes to use **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)** or running the web application locally- as described below or using command line tools.*
+**NOTE:** *Given the limitation of maintaining high compute resources in the cloud environment, our web applicaiton mostly supports smaller genomes. We highly recommend, users with need to run larger genomes to use **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)** or to use the local web application - as described below or to use command line tools.*
 
 1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)
 :-------------------------:|:-------------------------:
@@ -143,12 +143,13 @@ unique in each guide is 11 nucleotides.
 ```
 
 ## 4. Running Web App locally
+In order to run web app locally, first you need to complete command line installation as described above.
 
 Path of the `app.py` differs from the one displayed below. You can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
 
 ```{bash}
 
-streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py
+streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
 
