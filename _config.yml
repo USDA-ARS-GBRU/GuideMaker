@@ -1,79 +1,17 @@
-# ----
-# Site
+title: Read The Docs Jekyll Theme
+description: Port of the Read the Docs theme to Jekyll to use with GitHub Pages.
 
-title: GuideMaker
-url: "https://usda-ars-gbru.github.io/GuideMaker/"
-baseurl:
-google_analytics_key:
-show_full_navigation: true
+# Development server config, needed to load some of the content
+webrick:
+  headers:
+    Access-Control-Allow-Origin: "*"
 
-# Values for the jekyll-seo-tag gem (https://github.com/jekyll/jekyll-seo-tag)
-logo: /siteicon.png
-description: Product documentation template for Jekyll.
-author:
-  name:
-  email:
-  twitter: # twitter username without the @ symbol
-social:
-  name: Edition Template
-  links:
-    - https://github.com/CloudCannon/edition-jekyll-template
-
-# -----
-# Build
-
-timezone: Etc/UTC
-
-permalink: pretty
-
-plugins:
-  - jekyll-sitemap
-  - jekyll-seo-tag
-  - jekyll-feed
-
-exclude:
-  - Gemfile
-  - Gemfile.lock
-  - README.md
-  - LICENCE
-
-collections:
-  docs:
-    title: Documentation
-    permalink: /:path/
-    output: true
-
-defaults:
-  -
-    scope:
-      path: ""
-    values:
-      layout: default
-  -
-    scope:
-      path: ""
-      type: "docs"
-    values:
-      seo:
-        type: Article
-      _comments:
-        category: Group navigation links with this field
-        order: Used to sort links in the navigation
-      _options:
-        content:
-          width: 800
-          height: 2000
-  -
-    scope:
-      path: ""
-      type: "posts"
-    values:
-      _comments:
-        type: Marks the impact of this release
-
-# -----------
-# CloudCannon
-
-types:
-  - minor
-  - major
+# Theme settings
+site_author: Carlos Pereira Atencio
+repo_url: 'https://github.com/carlosperate/jekyll-theme-rtd'
+edit_on_github: true
+github_docs_folder: false
+sticky_navigation: true
+prev_next_buttons_location: both
+search_enabled: true
+hljs_style: github-gist
