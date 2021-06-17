@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>guidemaker.app API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>guidemaker.app</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import os
+import subprocess
+import base64
+import streamlit as st
+import pandas as pd
+import pathlib
+import uuid
+from contextlib import contextmanager
+from pathlib import Path
+from uuid import uuid4
+import shutil
+import pandas as pd
+import numpy as np
+import altair as alt
+from PIL import Image
+import guidemaker
+
+
+
+
+######
+
+@contextmanager
+def genome_connect(db_bytes):
+    &#34;&#34;&#34;Write input genome to local disk and clean after using
+    &#34;&#34;&#34;
+    fp = Path(str(uuid4()))
+    fp.write_bytes(db_bytes.getvalue())
+    conn = str(fp)
+    try:
+        yield conn
+    finally:
+        fp.unlink()
+
+@st.cache(suppress_st_warning=True)
+def run_command(args):
+    &#34;&#34;&#34;Run command, transfer stdout/stderr back into Streamlit and manage error&#34;&#34;&#34;
+    #st.info(f&#34;Running:: &#39;{&#39; &#39;.join(args)}&#39;&#34;)
+    result = subprocess.run(args, capture_output=True, text=True)
+    try:
+        result.check_returncode()
+        #st.info(result.stdout)
+        #st.text(result.stderr)    
+    except subprocess.CalledProcessError as e:
+        st.error(result.stderr)
+        raise e
+
+def get_binary_file_downloader_html(bin_file, file_label=&#39;File&#39;):
+    &#34;&#34;&#34;Binary file downloader in html format
+    &#34;&#34;&#34;
+    with open(bin_file, &#39;rb&#39;) as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    href = f&#39;&lt;a href=&#34;data:application/octet-stream;base64,{bin_str}&#34; download=&#34;{os.path.basename(bin_file)}&#34;&gt;{file_label}&lt;/a&gt;&#39;
+    return href
+
+def read_markdown_file(markdown_file):
+    &#34;&#34;&#34;Read markdown file
+    &#34;&#34;&#34;
+    return Path(markdown_file).read_text()
+
+def GuideMakerPlot(df):
+    &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
+    &#34;&#34;&#34;
+    source = df
+    brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+    binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+    display_info = source.columns.tolist()
+
+    # Feature density
+    densityF = alt.Chart(source).transform_density(
+    &#39;Feature start&#39;,
+    as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+    extent=[1, source[&#39;Feature end&#39;].max()],
+    bandwidth=binNum,
+    ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+    x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+    y=&#39;Feature Density:Q&#39;,
+    ).properties(height=50)
+
+    # gRNA density
+    densityG = alt.Chart(source).transform_density(
+    &#39;Guide start&#39;,
+    as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+    extent=[1, source[&#39;Feature end&#39;].max()],
+    bandwidth=binNum,
+    ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+    x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+    y=&#39;Guide Density:Q&#39;,
+    ).properties(height=50).add_selection(brush)
+
+    # locus tag
+    locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+    x=&#39;count(locus_tag):Q&#39;,
+    y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+    color=&#39;PAM:N&#39;,
+    tooltip=display_info
+    ).transform_filter(
+    brush
+    ).interactive().properties(height=500)
+
+    gmplot = densityF &amp; densityG &amp; locus
+    return( gmplot)
+
+
+def main(arglist: list=None):
+    &#34;&#34;&#34;Run web App
+    &#34;&#34;&#34;
+    subheader = &#34;Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠🧬&#34;
+    st.markdown(f&#39;&lt;h1 style=&#34;color: #003087&#34;&gt;GuideMaker&lt;/h1&gt;&#39;,unsafe_allow_html=True)
+    st.markdown(f&#39;&lt;strong style=&#34;font-family:Hoefler Text;font-size: 18px;color: #FA4616&#34;&gt;{subheader}&lt;/strong&gt;&#39;,unsafe_allow_html=True)
+
+    st.markdown(&#34;---&#34;)
+
+    sessionID = str(uuid.uuid1())
+    #st.write(sessionID)
+    logfilename = sessionID+&#34;_log.txt&#34;
+
+
+    # Create a downloads directory within the streamlit static asset directory
+    # and write output files to it. Binary downloader as html file  has limited
+    # file size for conversion. So, we need to write it to local folder.
+    STREAMLIT_STATIC_PATH = pathlib.Path(st.__path__[0]) / &#39;static&#39;
+    DOWNLOADS_PATH = (STREAMLIT_STATIC_PATH / &#34;downloads&#34;)
+    if not DOWNLOADS_PATH.is_dir():
+        DOWNLOADS_PATH.mkdir()
+
+    # Define input paramters and widgets
+    genome = st.sidebar.file_uploader(&#34;Upload a Genome file [ gbk, gbk.gz ]&#34;, type=[&#34;gbk&#34;,&#34;gz&#34;])
+    pam = st.sidebar.text_input(&#34;Input PAM Motif [ E.g. NGG ] &#34;, &#34;NGG&#34;)
+    restriction_enzyme_list = st.sidebar.text_input(&#34;Restriction Enzymes list [ E.g. NGRT ] &#34;, &#34;NGRT&#34;)
+    pam_orientation = st.sidebar.selectbox(&#34;PAM Orientation [ Options: 3prime, 5prime ]&#34;, (&#34;3prime&#34;,&#34;5prime&#34;))
+    guidelength = st.sidebar.number_input(&#39;Guidelength [ Options: 10 - 27 ]&#39;, 10, 27)
+    lsr = st.sidebar.number_input(&#39;Length of seed region[ Options: 0 - 27 ]&#39;, 0, 27)
+    dist = st.sidebar.number_input(&#39;Hamming Distance [Options: 0 - 5 ]&#39;, 0, 5)
+    before = st.sidebar.number_input(&#39;Before [Options: 1 - 500 ]&#39;, 1, 500)
+    into = st.sidebar.number_input(&#39;Into [Options: 1 - 500 ]&#39;, 1, 500)
+    threads = st.sidebar.number_input(&#39;Number of Threads [ Options: 2, 4, 6, 8]&#39;, 2, 8, step = 2)
+
+    # name_cols = st.beta_columns(3)
+    # First_name = name_cols[0].text_input(&#34;Name&#34;)
+    # Middle_name = name_cols[1].text_input(&#34;Middle Name&#34;)
+    # Last_name = name_cols[2].text_input(&#34;Last Name&#34;)
+
+    # name2_cols = st.beta_columns(3)
+    # First_name2 = name2_cols[0].text_input(&#34;Name2&#34;)
+    # Middle_name2 = name2_cols[1].text_input(&#34;Middle Name2&#34;)
+    # Last_name2 = name2_cols[2].text_input(&#34;Last Name2&#34;)
+
+    # st.write(Last_name2)
+
+    if genome:
+        with genome_connect(genome) as conn:
+            #st.write(&#34;Connection object:&#34;, conn)
+            args = [&#34;guidemaker&#34;,
+            &#34;-i&#34;,conn,
+            &#34;-p&#34;,pam,
+            &#34;--guidelength&#34;,str(guidelength),
+            &#34;--pam_orientation&#34;,pam_orientation,
+            &#34;--lsr&#34;,str(lsr),
+            &#34;--dist&#34;,str(dist),
+            &#34;--outdir&#34;, sessionID ,
+            &#34;--log&#34;, logfilename,
+            &#34;--into&#34;,str(into),
+            &#34;--before&#34;,str(before),
+            &#34;--restriction_enzyme_list&#34;, restriction_enzyme_list,
+            &#34;--threads&#34;,str(threads)]
+            if(st.sidebar.button(&#34;SUBMIT&#34;)):
+                #st.markdown(&#34;&#34;&#34;🏃🏃🏃🏃🏃🏃🏃🏃&#34;&#34;&#34;)
+                run_command(args)
+
+    if os.path.exists(sessionID):
+        
+        source = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;targets.csv&#39;))
+        source = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;targets.csv&#39;),low_memory=False)
+
+        accession_list = list(set(source[&#39;Accession&#39;]))
+        for accession in accession_list:
+            accession_df = source[source[&#34;Accession&#34;] == accession]
+            accession_info = f&#34;**Accession:** {accession}&#34;
+            st.markdown(accession_info)
+            st.write(GuideMakerPlot(accession_df))
+
+        # Targets
+        target_tab = &#34;✅ [Target Data](downloads/targets.csv)&#34;
+        targets = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;targets.csv&#39;),low_memory=False)
+        targets.to_csv(str(DOWNLOADS_PATH / &#34;targets.csv&#34;), index=False)
+
+        # Controls
+        control_tab = &#34;✅ [Control Data](downloads/controls.csv)&#34;
+        controls = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;controls.csv&#39;),low_memory=False)
+        controls.to_csv(str(DOWNLOADS_PATH / &#34;controls.csv&#34;), index=False)
+
+        # logs
+        with st.beta_expander(&#34;Results&#34;):
+            st.write(target_tab)
+            st.write(control_tab)
+            st.write(get_binary_file_downloader_html(logfilename, &#39;✅ Log File&#39;), unsafe_allow_html=True)
+        
+    else:
+        pass
+
+    # Parameters Dictionary 
+    image = Image.open(guidemaker.APP_PARAMETER_IMG)
+    optionals = st.beta_expander(&#34;Parameter Dictionary&#34;, False)
+    optionals.image(image, caption=&#39;GuideMaker Parameters&#39;,use_column_width=True)
+
+    with st.beta_expander(&#34;Designing Experiments with GuideMaker Results&#34;):
+        intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
+        st.markdown(intro_markdown, unsafe_allow_html=True)
+        
+
+    st.markdown(&#34;&#34;&#34;
+    ##### API documentation 📖
+
+    API documentation for the module can be found [here](https://guidemaker.org)
+
+
+    ##### License information ©️
+
+    *As a work of the United State Government Department of Agriculture - Agricultural Research Service (USDA-ARS)
+    this software is available under CC0 1.0 Universal (CC0 1.0) Public Domain Dedication*
+
+    &#34;&#34;&#34;)
+
+    ## Check if the output dir exist, if yes, delete so that previous results are not display
+    try:
+        shutil.rmtree(sessionID, ignore_errors=True)
+        os.remove(logfilename)
+    except FileNotFoundError as e:
+        pass
+
+if __name__ == &#34;__main__&#34;:
+    main()</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="guidemaker.app.GuideMakerPlot"><code class="name flex">
+<span>def <span class="ident">GuideMakerPlot</span></span>(<span>df)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns guidemaker plot describing PAM targets</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def GuideMakerPlot(df):
+    &#34;&#34;&#34;Returns guidemaker plot describing PAM targets
+    &#34;&#34;&#34;
+    source = df
+    brush = alt.selection(type=&#39;interval&#39;, encodings=[&#39;x&#39;])
+    binNum = int(round(source[&#39;Feature end&#39;].max()/200,0))
+    display_info = source.columns.tolist()
+
+    # Feature density
+    densityF = alt.Chart(source).transform_density(
+    &#39;Feature start&#39;,
+    as_=[&#39;Feature start&#39;, &#39;Feature Density&#39;],
+    extent=[1, source[&#39;Feature end&#39;].max()],
+    bandwidth=binNum,
+    ).mark_area(color=&#39;black&#39;,opacity=0.6).encode(
+    x = alt.X(&#39;Feature start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+    y=&#39;Feature Density:Q&#39;,
+    ).properties(height=50)
+
+    # gRNA density
+    densityG = alt.Chart(source).transform_density(
+    &#39;Guide start&#39;,
+    as_=[&#39;Guide start&#39;, &#39;Guide Density&#39;],
+    extent=[1, source[&#39;Feature end&#39;].max()],
+    bandwidth=binNum,
+    ).mark_area(color=&#39;pink&#39;,opacity=0.6).encode(
+    x = alt.X(&#39;Guide start&#39;, axis=alt.Axis(title=&#39;Genome Coordinates (bp)&#39;, tickCount=5)),
+    y=&#39;Guide Density:Q&#39;,
+    ).properties(height=50).add_selection(brush)
+
+    # locus tag
+    locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3).encode(
+    x=&#39;count(locus_tag):Q&#39;,
+    y = alt.Y(&#39;locus_tag&#39;, axis=alt.Axis( title=&#39;Locus&#39;)),
+    color=&#39;PAM:N&#39;,
+    tooltip=display_info
+    ).transform_filter(
+    brush
+    ).interactive().properties(height=500)
+
+    gmplot = densityF &amp; densityG &amp; locus
+    return( gmplot)</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.app.genome_connect"><code class="name flex">
+<span>def <span class="ident">genome_connect</span></span>(<span>db_bytes)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Write input genome to local disk and clean after using</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def genome_connect(db_bytes):
+    &#34;&#34;&#34;Write input genome to local disk and clean after using
+    &#34;&#34;&#34;
+    fp = Path(str(uuid4()))
+    fp.write_bytes(db_bytes.getvalue())
+    conn = str(fp)
+    try:
+        yield conn
+    finally:
+        fp.unlink()</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.app.get_binary_file_downloader_html"><code class="name flex">
+<span>def <span class="ident">get_binary_file_downloader_html</span></span>(<span>bin_file, file_label='File')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Binary file downloader in html format</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_binary_file_downloader_html(bin_file, file_label=&#39;File&#39;):
+    &#34;&#34;&#34;Binary file downloader in html format
+    &#34;&#34;&#34;
+    with open(bin_file, &#39;rb&#39;) as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    href = f&#39;&lt;a href=&#34;data:application/octet-stream;base64,{bin_str}&#34; download=&#34;{os.path.basename(bin_file)}&#34;&gt;{file_label}&lt;/a&gt;&#39;
+    return href</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.app.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>arglist: list = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Run web App</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(arglist: list=None):
+    &#34;&#34;&#34;Run web App
+    &#34;&#34;&#34;
+    subheader = &#34;Globally design gRNAs for any CRISPR-Cas system in any small genome 🦠🧬&#34;
+    st.markdown(f&#39;&lt;h1 style=&#34;color: #003087&#34;&gt;GuideMaker&lt;/h1&gt;&#39;,unsafe_allow_html=True)
+    st.markdown(f&#39;&lt;strong style=&#34;font-family:Hoefler Text;font-size: 18px;color: #FA4616&#34;&gt;{subheader}&lt;/strong&gt;&#39;,unsafe_allow_html=True)
+
+    st.markdown(&#34;---&#34;)
+
+    sessionID = str(uuid.uuid1())
+    #st.write(sessionID)
+    logfilename = sessionID+&#34;_log.txt&#34;
+
+
+    # Create a downloads directory within the streamlit static asset directory
+    # and write output files to it. Binary downloader as html file  has limited
+    # file size for conversion. So, we need to write it to local folder.
+    STREAMLIT_STATIC_PATH = pathlib.Path(st.__path__[0]) / &#39;static&#39;
+    DOWNLOADS_PATH = (STREAMLIT_STATIC_PATH / &#34;downloads&#34;)
+    if not DOWNLOADS_PATH.is_dir():
+        DOWNLOADS_PATH.mkdir()
+
+    # Define input paramters and widgets
+    genome = st.sidebar.file_uploader(&#34;Upload a Genome file [ gbk, gbk.gz ]&#34;, type=[&#34;gbk&#34;,&#34;gz&#34;])
+    pam = st.sidebar.text_input(&#34;Input PAM Motif [ E.g. NGG ] &#34;, &#34;NGG&#34;)
+    restriction_enzyme_list = st.sidebar.text_input(&#34;Restriction Enzymes list [ E.g. NGRT ] &#34;, &#34;NGRT&#34;)
+    pam_orientation = st.sidebar.selectbox(&#34;PAM Orientation [ Options: 3prime, 5prime ]&#34;, (&#34;3prime&#34;,&#34;5prime&#34;))
+    guidelength = st.sidebar.number_input(&#39;Guidelength [ Options: 10 - 27 ]&#39;, 10, 27)
+    lsr = st.sidebar.number_input(&#39;Length of seed region[ Options: 0 - 27 ]&#39;, 0, 27)
+    dist = st.sidebar.number_input(&#39;Hamming Distance [Options: 0 - 5 ]&#39;, 0, 5)
+    before = st.sidebar.number_input(&#39;Before [Options: 1 - 500 ]&#39;, 1, 500)
+    into = st.sidebar.number_input(&#39;Into [Options: 1 - 500 ]&#39;, 1, 500)
+    threads = st.sidebar.number_input(&#39;Number of Threads [ Options: 2, 4, 6, 8]&#39;, 2, 8, step = 2)
+
+    # name_cols = st.beta_columns(3)
+    # First_name = name_cols[0].text_input(&#34;Name&#34;)
+    # Middle_name = name_cols[1].text_input(&#34;Middle Name&#34;)
+    # Last_name = name_cols[2].text_input(&#34;Last Name&#34;)
+
+    # name2_cols = st.beta_columns(3)
+    # First_name2 = name2_cols[0].text_input(&#34;Name2&#34;)
+    # Middle_name2 = name2_cols[1].text_input(&#34;Middle Name2&#34;)
+    # Last_name2 = name2_cols[2].text_input(&#34;Last Name2&#34;)
+
+    # st.write(Last_name2)
+
+    if genome:
+        with genome_connect(genome) as conn:
+            #st.write(&#34;Connection object:&#34;, conn)
+            args = [&#34;guidemaker&#34;,
+            &#34;-i&#34;,conn,
+            &#34;-p&#34;,pam,
+            &#34;--guidelength&#34;,str(guidelength),
+            &#34;--pam_orientation&#34;,pam_orientation,
+            &#34;--lsr&#34;,str(lsr),
+            &#34;--dist&#34;,str(dist),
+            &#34;--outdir&#34;, sessionID ,
+            &#34;--log&#34;, logfilename,
+            &#34;--into&#34;,str(into),
+            &#34;--before&#34;,str(before),
+            &#34;--restriction_enzyme_list&#34;, restriction_enzyme_list,
+            &#34;--threads&#34;,str(threads)]
+            if(st.sidebar.button(&#34;SUBMIT&#34;)):
+                #st.markdown(&#34;&#34;&#34;🏃🏃🏃🏃🏃🏃🏃🏃&#34;&#34;&#34;)
+                run_command(args)
+
+    if os.path.exists(sessionID):
+        
+        source = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;targets.csv&#39;))
+        source = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;targets.csv&#39;),low_memory=False)
+
+        accession_list = list(set(source[&#39;Accession&#39;]))
+        for accession in accession_list:
+            accession_df = source[source[&#34;Accession&#34;] == accession]
+            accession_info = f&#34;**Accession:** {accession}&#34;
+            st.markdown(accession_info)
+            st.write(GuideMakerPlot(accession_df))
+
+        # Targets
+        target_tab = &#34;✅ [Target Data](downloads/targets.csv)&#34;
+        targets = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;targets.csv&#39;),low_memory=False)
+        targets.to_csv(str(DOWNLOADS_PATH / &#34;targets.csv&#34;), index=False)
+
+        # Controls
+        control_tab = &#34;✅ [Control Data](downloads/controls.csv)&#34;
+        controls = pd.read_csv(os.path.join(&#34;./&#34;, sessionID,&#39;controls.csv&#39;),low_memory=False)
+        controls.to_csv(str(DOWNLOADS_PATH / &#34;controls.csv&#34;), index=False)
+
+        # logs
+        with st.beta_expander(&#34;Results&#34;):
+            st.write(target_tab)
+            st.write(control_tab)
+            st.write(get_binary_file_downloader_html(logfilename, &#39;✅ Log File&#39;), unsafe_allow_html=True)
+        
+    else:
+        pass
+
+    # Parameters Dictionary 
+    image = Image.open(guidemaker.APP_PARAMETER_IMG)
+    optionals = st.beta_expander(&#34;Parameter Dictionary&#34;, False)
+    optionals.image(image, caption=&#39;GuideMaker Parameters&#39;,use_column_width=True)
+
+    with st.beta_expander(&#34;Designing Experiments with GuideMaker Results&#34;):
+        intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
+        st.markdown(intro_markdown, unsafe_allow_html=True)
+        
+
+    st.markdown(&#34;&#34;&#34;
+    ##### API documentation 📖
+
+    API documentation for the module can be found [here](https://guidemaker.org)
+
+
+    ##### License information ©️
+
+    *As a work of the United State Government Department of Agriculture - Agricultural Research Service (USDA-ARS)
+    this software is available under CC0 1.0 Universal (CC0 1.0) Public Domain Dedication*
+
+    &#34;&#34;&#34;)
+
+    ## Check if the output dir exist, if yes, delete so that previous results are not display
+    try:
+        shutil.rmtree(sessionID, ignore_errors=True)
+        os.remove(logfilename)
+    except FileNotFoundError as e:
+        pass</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.app.read_markdown_file"><code class="name flex">
+<span>def <span class="ident">read_markdown_file</span></span>(<span>markdown_file)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Read markdown file</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_markdown_file(markdown_file):
+    &#34;&#34;&#34;Read markdown file
+    &#34;&#34;&#34;
+    return Path(markdown_file).read_text()</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.app.run_command"><code class="name flex">
+<span>def <span class="ident">run_command</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Run command, transfer stdout/stderr back into Streamlit and manage error</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@st.cache(suppress_st_warning=True)
+def run_command(args):
+    &#34;&#34;&#34;Run command, transfer stdout/stderr back into Streamlit and manage error&#34;&#34;&#34;
+    #st.info(f&#34;Running:: &#39;{&#39; &#39;.join(args)}&#39;&#34;)
+    result = subprocess.run(args, capture_output=True, text=True)
+    try:
+        result.check_returncode()
+        #st.info(result.stdout)
+        #st.text(result.stderr)    
+    except subprocess.CalledProcessError as e:
+        st.error(result.stderr)
+        raise e</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="guidemaker" href="index.html">guidemaker</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="guidemaker.app.GuideMakerPlot" href="#guidemaker.app.GuideMakerPlot">GuideMakerPlot</a></code></li>
+<li><code><a title="guidemaker.app.genome_connect" href="#guidemaker.app.genome_connect">genome_connect</a></code></li>
+<li><code><a title="guidemaker.app.get_binary_file_downloader_html" href="#guidemaker.app.get_binary_file_downloader_html">get_binary_file_downloader_html</a></code></li>
+<li><code><a title="guidemaker.app.main" href="#guidemaker.app.main">main</a></code></li>
+<li><code><a title="guidemaker.app.read_markdown_file" href="#guidemaker.app.read_markdown_file">read_markdown_file</a></code></li>
+<li><code><a title="guidemaker.app.run_command" href="#guidemaker.app.run_command">run_command</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
