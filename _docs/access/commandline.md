@@ -9,7 +9,7 @@ order: 3
 
 GuideMaker can be installed from:
 
-3.1. Bioconda: (preferred method because it handles dependencies):
+1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
 
@@ -17,7 +17,7 @@ conda install -c bioconda guidemaker
 
 ```
 
-3.2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
+2. [Github](https://github.com/USDA-ARS-GBRU/GuideMaker)
 
 ```{bash}
     # Create a conda environment and install and pybedtools
@@ -32,7 +32,7 @@ conda install -c bioconda guidemaker
     guidemaker -h
 ```
 
-3.3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
+3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
 
 ```bash
 
