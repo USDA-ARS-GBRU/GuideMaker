@@ -1,15 +1,9 @@
 ---
-title: Android
-category: Devices
+title: FAQs
+category: Resources
 order: 2
 ---
 
-Use ChatApp on all of your Android devices. Every version is supported.
-
-To install ChatApp on your device:
-
-1. Open the Google Play Store
-2. Search for ChatApp
-3. Select **Install**
+> [Questions](http://example.com/signup) or suggestions- Let us know at [example.com](http://example.com/).
 
 ![](//placehold.it/800x600)
