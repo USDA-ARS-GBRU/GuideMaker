@@ -30,8 +30,15 @@ GuideMaker can be installed from:
 ### 3.1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
+# Create a conda environment and install guidemaker via bioconda.
 
-conda install -c bioconda guidemaker
+conda create --strict-channel-priority --override-channels --channel conda-forge --channel bioconda --channel defaults --name gmenv guidemaker
+
+# Activate conda env
+conda activate gmenv
+
+# Test the installation
+guidemaker -h
 
 ```
 
