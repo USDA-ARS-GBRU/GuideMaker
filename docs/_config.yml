@@ -1,10 +1,10 @@
-title: Read The Docs Jekyll Theme
-description: Port of the Read the Docs theme to Jekyll to use with GitHub Pages.
+title: GuideMaker
+description: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 remote_theme: carlosperate/jekyll-theme-rtd
 
 # Theme settings:
-site_author: Carlos Pereira Atencio
-repo_url: "https://github.com/carlosperate/jekyll-theme-rtd"
+site_author: USDA-ARS-GBRU
+repo_url: "https://github.com/USDA-ARS-GBRU/GuideMaker"
 edit_on_github: true
 github_docs_folder: true
 sticky_navigation: true
