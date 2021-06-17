@@ -11,16 +11,16 @@ Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function stud
 ## Methods to access GuideMaker
 
 
-1.Web Application          |  2.CyCverse Discovery Environment
+1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)
 :-------------------------:|:-------------------------:
 [![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
 
 
-### 3.Command Line
+## 3.Command Line
 
 GuideMaker can be installed from:
 
-3.1. Bioconda: (preferred method because it handles dependencies):
+### 3.1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
 
@@ -28,7 +28,7 @@ conda install -c bioconda guidemaker
 
 ```
 
-3.2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
+### 3.2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
 
 ```{bash}
     # Create a conda environment and install and pybedtools
@@ -43,7 +43,7 @@ conda install -c bioconda guidemaker
     guidemaker -h
 ```
 
-3.3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
+### 3.3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
 
 ```bash
 
@@ -52,7 +52,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 ```
 
 
-## Dependencies
+### Dependencies
 
 *   ``pybedtools``
 *   ``NMSLib``
@@ -63,7 +63,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 
 
-## Command Line Usage
+### Command Line Usage
 
 ```{bash}
 GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
@@ -117,7 +117,7 @@ packages/guidemaker/data/app.py
 
 ```
 
-## Examples
+### Examples
 
 Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in the bacterium
 __Carsonela ruddii__. The length of the seed region near the PAM required to be
@@ -135,7 +135,7 @@ unique in each guide is 11 nucleotides.
 
 ```
 
-### 4. Running Web App locally
+## 4. Running Web App locally
 
 Path of the `app.py` differs from the one displayed below. You can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
 
