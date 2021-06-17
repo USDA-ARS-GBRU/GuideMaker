@@ -153,7 +153,7 @@ streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/
 
 ```
 
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)]
 
 ## Resources
 ### Experiments
