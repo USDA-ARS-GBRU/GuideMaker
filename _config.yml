@@ -11,7 +11,7 @@ site_author:  USDA-ARS-GBRU
 repo_url: 'https://github.com/USDA-ARS-GBRU/GuideMaker'
 edit_on_github: false
 github_docs_folder: false
-sticky_navigation: true
+sticky_navigation: false
 prev_next_buttons_location: both
 search_enabled: true
 hljs_style: github-gist
