@@ -4,6 +4,10 @@ category: Access
 order: 1
 ---
 
+
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)
+
+
 Share images with your friends! Send photos and pictures from your computer, phone or camera.
 
 > Images are stored until you choose to remove them.
