@@ -1,4 +1,4 @@
-## GuideMaker
+<h1 style="color: #003087" >GuideMaker</h1>
 
 **GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.**
 
