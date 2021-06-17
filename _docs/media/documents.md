@@ -1,12 +1,10 @@
 ---
-title: Documents
-category: Media
+title: Command Line
+category: Access
 order: 3
 ---
 
-Share documents with your friends! Send work or school projects from your computer or phone.
-
-To share a document:
+GuideMaker can be accessed in four different ways:
 
 1. Open a message with someone
 2. Select the **Send Media** button
