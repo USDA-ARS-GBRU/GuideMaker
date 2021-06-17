@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Software Access
+title: CyVerse
 nav_order: 2
 ---
 
