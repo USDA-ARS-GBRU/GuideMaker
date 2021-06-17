@@ -4,6 +4,8 @@ category: Resources
 order: 2
 ---
 
+Designing Experiments with GuideMaker Results.
+
 <h3
 	style="color: #003087"
 	>Pooled CRISPR Experiments
