@@ -1,5 +1,5 @@
 ---
-permalink: docs/index.html
+permalink: /docs/index.html
 ---
 
 <h1 style="color: #FA4616" >GuideMaker</h1>
