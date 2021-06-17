@@ -210,7 +210,7 @@ Please go to the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/Guide
 
 ## API documentation
 
-API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
+API documentation for the module can be found [here](https://ravinpoudel.github.io/GuideMaker/index.html)
 
 ## License information
 Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
