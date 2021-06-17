@@ -130,7 +130,7 @@ Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in the bacterium
 __Carsonela ruddii__. The length of the seed region near the PAM required to be
 unique in each guide is 11 nucleotides.
 
-```{bash}
+```bash
     guidemaker \
     -i tests/test_data/Carsonella_ruddii.gbk \
     -p NGG \
@@ -147,12 +147,12 @@ In order to run web app locally, first you need to complete command line install
 
 Path of the `app.py` differs from the one displayed below. You can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
 
-```{bash}
+```bash
 
 streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
-![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)]
+![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
 
 ## Resources
 ### Experiments
@@ -193,6 +193,10 @@ Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genet
 ### FAQs
 
 ### Reporting Errors and Suggestions
+Please go to the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to `issue` page and submit an `issue` to report difficulties or suggestions for improvements. 
+
+![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
+
 
 ## Citation
 Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
