@@ -1,6 +1,6 @@
 ---
-title: Facebook
-category: Contact Syncing
+title: Accessing
+category: GuideMaker
 order: 1
 ---
 
