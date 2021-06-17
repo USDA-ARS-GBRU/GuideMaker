@@ -193,7 +193,7 @@ Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genet
 ### FAQs
 
 ### Reporting Errors and Suggestions
-Please go to the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to `issue` page and submit an `issue` to report difficulties or suggestions for improvements. 
+Please go to the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. Also, please check **FAQs** section prior submitting an issue. 
 
 ![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
 
