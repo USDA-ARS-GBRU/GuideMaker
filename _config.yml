@@ -1,17 +1,9 @@
-title: GuideMaker
-description: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: false
+  collections: false
+include:
+  - README.md
 
-# Development server config, needed to load some of the content
-webrick:
-  headers:
-    Access-Control-Allow-Origin: "*"
-
-# Theme settings
-site_author:  USDA-ARS-GBRU
-repo_url: 'https://github.com/USDA-ARS-GBRU/GuideMaker'
-edit_on_github: false
-github_docs_folder: false
-sticky_navigation: false
-prev_next_buttons_location: both
-search_enabled: true
-hljs_style: github-gist
+theme: jekyll-theme-hacker
