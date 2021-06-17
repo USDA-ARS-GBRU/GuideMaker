@@ -30,14 +30,21 @@ GuideMaker can be installed from:
 ### 3.1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
+# Create a conda environment and install guidemaker via bioconda.
 
-conda install -c bioconda guidemaker
+conda create --strict-channel-priority --override-channels --channel conda-forge --channel bioconda --channel defaults --name gmenv guidemaker
+
+# Activate conda env
+conda activate gmenv
+
+# Test the installation
+guidemaker -h
 
 ```
 
 ### 3.2. [Github](https://github.com/USDA-ARS-GBRU/GuideMaker)
 
-```{bash}
+```bash
     # Create a conda environment and install and pybedtools
     conda create -n gmenv python=3.7 pybedtools=0.8.2
     conda activate gmenv
@@ -72,7 +79,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 ### Command Line Usage
 
-```{bash}
+```bash
 GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
 
 optional arguments:
@@ -130,7 +137,7 @@ Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in the bacterium
 __Carsonela ruddii__. The length of the seed region near the PAM required to be
 unique in each guide is 11 nucleotides.
 
-```{bash}
+```bash
     guidemaker \
     -i tests/test_data/Carsonella_ruddii.gbk \
     -p NGG \
@@ -147,13 +154,12 @@ In order to run web app locally, first you need to complete command line install
 
 Path of the `app.py` differs from the one displayed below. You can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
 
-```{bash}
+```bash
 
 streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
-
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
+![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
 
 ## Resources
 ### Experiments
@@ -194,13 +200,17 @@ Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genet
 ### FAQs
 
 ### Reporting Errors and Suggestions
+Please go to the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. Also, please check **FAQs** section prior submitting an issue. 
+
+![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
+
 
 ## Citation
-Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
+*Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.*
 
 ## API documentation
 
-API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
+API documentation for the module can be found [here](https://ravinpoudel.github.io/GuideMaker/index.html)
 
 ## License information
 Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
