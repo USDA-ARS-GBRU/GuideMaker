@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Command Line
-nav_order: 1
+nav_order: 3
 ---
 
 # Command Line
