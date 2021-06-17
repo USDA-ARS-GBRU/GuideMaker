@@ -152,8 +152,7 @@ Path of the `app.py` differs from the one displayed below. You can locate the pa
 streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
-
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)]
+![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)]
 
 ## Resources
 ### Experiments
