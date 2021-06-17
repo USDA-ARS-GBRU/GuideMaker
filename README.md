@@ -1,183 +1,167 @@
-# Read The Docs Theme for Jekyll and GitHub Pages
+## GuideMaker
+CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria and eukaryotes. There are many excellent tools for designing the CRISPR-Cas guide RNAs for model organisms with standard Cas enzymes. GuideMaker is intended as a fast and easy-to-use design tool for atypical projects with: 1) non-standard Cas enzymes, 2) non-model organisms, or 3) projects that need to design a panel of guide RNAs (gRNA) for genome-wide screens.
 
-Port of the Read the Docs theme to Jekyll that can be used with GitHub Pages.
+GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file . The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
-You can preview it in the
-[user documentation](https://carlosperate.github.io/jekyll-theme-rtd):
+Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a web application at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
 
-![theme screenshot](docs/assets/img/screenshot.png)
-
-The original [Read The Docs](https://sphinx-rtd-theme.readthedocs.io)
-theme was created for [Sphinx](https://www.sphinx-doc.org/), and so it is
-designed specifically for documentation.
-
-Combined with [GitHub Pages](https://pages.github.com) it's a great and easy
-way to document your projects!
-
-Check out the [quick start guide]() to see how easy it is to 
-
-### 🚧 Warning!
-
-This theme is currently a **Work-In-Progress** but, while some things might be
-broken, it should be already usable.
-
-Missing features are listed in the GitHub issues with the
-[to-do label](https://github.com/carlosperate/jekyll-theme-rtd/issues?q=is%3Aissue+is%3Aopen+label%3Ato-do),
-and any known issues are listed with the
-[bug label](https://github.com/carlosperate/jekyll-theme-rtd/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
-
-Contributions are very welcomed!
+## Methods to access GuideMaker
 
 
-## 🗂️ Readme Contents
-
-This README contains mostly the developer documentation to edit this theme.
-
-To learn how to use this theme for your own website or docs check out the
-[user documentation](https://carlosperate.github.io/jekyll-theme-rtd).
-
-- [🚀 Using this theme with GitHub Pages](#-using-this-theme-with-github-pages)
-- [👩‍💻 Developer Documentation](#-developer-documentation)
-    - [Run in a virtual machine with Vagrant](#run-in-a-virtual-machine-with-vagrant)
-    - [Run locally with Ruby](#run-locally-with-ruby)
-    - [Build the docs using the remote theme](#build-the-docs-using-the-remote-theme)
-    - [Build the docs with MkDocs for comparison](#build-the-docs-with-mkdocs-for-comparison)
-- [👨‍👩‍👧‍👦 Contributing](#-contributing)
-- [⚖️ License](#%EF%B8%8F-license)
+1.Web Application          |  2.CyCverse Discovery Environment
+:-------------------------:|:-------------------------:
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
 
 
-## 🚀 Using this theme with GitHub Pages
 
-The fastest way to use this theme is with GitHub Pages, check out the
-[Quick Start Guide from the user documentation](https://carlosperate.github.io/jekyll-theme-rtd/quickstart.html).
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
+### 3.Command Line
 
-## 👩‍💻 Developer Documentation
+GuideMaker can be installed from:
 
-These instructions describe two different ways to to set up your environment to
-develop or edit this theme.
-
-The theme is developed like a normal Jekyll site, and it can serve the
-documentation using the theme source code located here.
-
-### Run in a virtual machine with Vagrant
-
-[Vagrant](https://www.vagrantup.com) provides an easy way to set up and manage
-a Virtual Machine with [VirtualBox](https://www.virtualbox.org). With a single
-command you can automatically create the VM with all the dependencies required
-to build and sever this project.
-
-There is a [Vagrantfile](Vagrantfile) included to run an Ubuntu VM with Ruby
-and Jekyll. To set-up everything and serve the website run:
+3.1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
-$ vagrant up
-```
 
-The first time you run this command it will take a bit longer, as it downloads
-and installs everything. Subsequent runs will be much quicker.
-
-This will serve the website at [http://localhost:4000](http://localhost:4000)
-with a hot-reload enabled, so any changes made on these files will trigger a
-rebuild.
-
-#### Other Vagrant commands
-
-To stop the virtual machine first press `Ctrl+C` to end the Jekyll process and
-execute in your terminal:
+conda install -c bioconda guidemaker
 
 ```
-$ vagrant halt
+
+3.2. Github: https://github.com/USDA-ARS-GBRU/GuideMaker
+
+```{bash}
+    # Create a conda environment and install and pybedtools
+    conda create -n gmenv python=3.7 pybedtools=0.8.2
+    conda activate gmenv
+
+    git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
+    cd GuideMaker
+    pip install .
+
+    # check if the installation works
+    guidemaker -h
 ```
 
-You can also SSH into the virtual machine with:
-
-```
-$ vagrant ssh
-```
-
-### Run locally with Ruby
-
-This website has been developed using Ruby v2.5. You can install the
-dependencies with:
+3.3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
 
 ```bash
-$ gem install bundler
-$ bundle install
-```
 
-### Build the docs using the remote theme
-
-The Jekyll project here is configured with the root of this repository as the
-root of the website, so when it is built locally it will see all pages as being
-inside a "docs" folder, and therefore in the "docs" category in the left
-navigation bar and page URLs.
-
-On the other hand the root of the website built and served with
-[GitHub Pages](https://carlosperate.github.io/jekyll-theme-rtd) is the
-"docs" folder, so the left navigation bar will show the child folder as
-categories and the URLs will be different.
-
-For updating the theme documentation it can be useful to build and sever the
-docs folder with the same configuration as GitHub Pages. Of course, this would
-mean that the theme used will be the current snapshot of `master` on GitHub
-instead of the local files, but that is not important to just preview the docs.
-
-To do this, add the following lines to the `docs/_config.yml` file:
-
-```yml
-plugins:
-  - jekyll-remote-theme
-```
-
-Then execute Jekyll from the docs folder:
+docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 
 ```
-$ vagrant up --no-provision
-$ vagrant ssh
-(ssh session) $ cd /vagrant/docs
-(ssh session) $ bundle exec jekyll serve --host 0.0.0.0 --watch --force_polling
+
+
+## Dependencies
+
+*   ``pybedtools``
+*   ``NMSLib``
+*   ``Biopython``
+*   ``Pandas``
+*   ``Streamlit for webapp``
+*   ``altair for plotting``
+
+
+
+## Command Line Usage
+
+```{bash}
+GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --genbank GENBANK [GENBANK ...], -i GENBANK [GENBANK ...]
+                        One or more genbank .gbk or gzipped .gbk files for a
+                        single genome
+  --pamseq PAMSEQ, -p PAMSEQ
+                        A short PAM motif to search for, it may use IUPAC
+                        ambiguous alphabet
+  --outdir OUTDIR, -o OUTDIR
+                        The directory for data output
+  --pam_orientation {5prime,3prime}, -r {5prime,3prime}
+                        PAM position relative to target: 5prime:
+                        [PAM][target], 3prime: [target][PAM]. For example,
+                        Cas9 is 3prime. Default: '5prime'.
+  --guidelength [10-27], -l [10-27]
+                        Length of the guide sequence. Default: 20.
+  --lsr [0-27]          Length of a seed region near the PAM site required to
+                        be unique. Default: 10.
+  --dist [0-5]          Minimum hamming distance from any other potential
+                        guide. Default: 2.
+  --before [1-500]      keep guides this far in front of a feature. Default:
+                        100.
+  --into [1-500]        keep guides this far inside (past the start site)of a
+                        feature. Default: 200.
+  --knum [2-20]         how many sequences similar to the guide to report.
+                        Default: 3.
+  --controls CONTROLS   Number or random control RNAs to generate. Default:
+                        1000.
+  --threads THREADS     The number of cpu threads to use. Default: 2
+  --log LOG             Log file
+  --tempdir TEMPDIR     The temp file directory
+  --restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]
+                        List of sequence representing restriction enzymes.
+                        Default: None.
+  --keeptemp            Option to keep intermediate files be kept
+  --plot                Option to genereate guidemaker plots
+  --config CONFIG       Path to YAML formatted configuration file, default is 
+                        /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/si
+                        te-packages/guidemaker/data/config_default.yaml
+  -V, --version         show program's version number and exit
+
+To run the web app locally, in terminal run:
+-----------------------------------------------------------------------
+streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-
+packages/guidemaker/data/app.py
+-----------------------------------------------------------------------
+
 ```
 
-### Build the docs with MkDocs for comparison
+## Examples
 
-As this theme has been ported from the MkDocs port, it can be useful to run
-MkDocs on the documentation markdown file and compare its output to the Jekyll
-output. A `mkdocs.yml` file is included to configure the project.
+Use case: Make 20 nucleotide guide sequences for SpCas9 (NGG) in the bacterium
+__Carsonela ruddii__. The length of the seed region near the PAM required to be
+unique in each guide is 11 nucleotides.
 
-Pipenv has been used to manage Python dependencies:
+```{bash}
+    guidemaker \
+    -i tests/test_data/Carsonella_ruddii.gbk \
+    -p NGG \
+    --pam_orientation 3prime \
+    --guidelength 20 \
+    --lsr 11 \
+    -o OUTDIR \
+    --threads 2
 
-```bash
-$ pip install pipenv
-$ pipenv install
-$ pipenv run mkdocs build
-$ cd _site_mkdocs
-$ pipenv run python -m http.server 8080
 ```
 
+### Running Web App locally
 
-## 👨‍👩‍👧‍👦 Contributing
+Path of the `app.py` differs from the one displayed below. You can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
 
-Bug reports and pull requests are welcome on GitHub at
-https://github.com/carlosperate/jekyll-theme-rtd.
+```{bash}
 
-This project is intended to be a safe, welcoming space for collaboration, and
-contributors are expected to adhere to the
-[Contributor Covenant](http://contributor-covenant.org) code of conduct.
+streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py
+
+```
+
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
+
+## Citation
+Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
+
+## API documentation
+
+API documentation for the module can be found [here](https://guidemaker.org/html/guidemaker/index.html)
+
+## License information
+Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
+(USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government this software is available under 
+the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
 
 
-## ⚖️ License
-
-The original theme is from
-[Read The Docs](https://github.com/readthedocs/sphinx_rtd_theme). Copyright ©
-2013-2018 Dave Snider, Read the Docs, Inc. & contributors, and released under
-the [MIT License](LICENSE-rtd).
-
-This theme is based on the [MkDocs](https://github.com/mkdocs/mkdocs)
-[`readthedocs` port](https://github.com/mkdocs/mkdocs/tree/1.0.4/mkdocs/themes/readthedocs).
-Copyright © 2014, Tom Christie, all rights reserved, and released under the
-[BSD 2-Clause "Simplified" License](LICENSE-mkdocs).
-
-The theme modifications to port it Jekyll can be seen
-[here](https://github.com/carlosperate/jekyll-theme-rtd/compare/dddce9f13fde24c03aee4533158c43091120d47e...master).
-This and all new features are released under the
-[BSD 2-Clause "Simplified" License](LICENSE).
+[![CircleCI](https://img.shields.io/circleci/build/github/USDA-ARS-GBRU/GuideMaker?logo=CircleCi&token=802d114b3ec676d153b4b9fa6a781f9345756fc9)](https://app.circleci.com/pipelines/github/USDA-ARS-GBRU/GuideMaker)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
+[![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
+[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/guidemaker/badges/downloads.svg)](https://anaconda.org/bioconda/guidemaker)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
