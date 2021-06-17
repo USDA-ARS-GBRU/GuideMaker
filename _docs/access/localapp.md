@@ -4,26 +4,15 @@ category: Access
 order: 4
 ---
 
-Share images with your friends! Send photos and pictures from your computer, phone or camera.
+Path of the `app.py` differs from the one displayed below. You can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
 
-> Images are stored until you choose to remove them.
+```{bash}
 
-To share an image:
+streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py
 
-1. Open a message with someone
-2. Select the **Send Media** button
-3. Pick an image
+```
 
-![](//placehold.it/800x600)
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
 
-Supported types:
 
-* JPEG
-* PNG
-* BMP
-* GIF
-
-Unsupported types:
-
-* SVG
-* WEBP
+> [Questions](http://example.com/signup) or suggestions- Let us know at [example.com](http://example.com/).
