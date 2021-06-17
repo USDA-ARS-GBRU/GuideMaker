@@ -147,6 +147,11 @@ streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/
 
 [![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/GuideMakerApp.png)](https://guidemaker.org)
 
+## Resources
+### Experiments
+### FAQs
+### Reporting Errors and Suggestions
+
 ## Citation
 Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
 
