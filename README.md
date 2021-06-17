@@ -199,7 +199,7 @@ Please go to the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/Guide
 
 
 ## Citation
-Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.
+*Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021.*
 
 ## API documentation
 
