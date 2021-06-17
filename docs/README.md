@@ -1,5 +1,3 @@
-{% include docs/index.html %}
-
 <h1 style="color: #FA4616" >GuideMaker</h1>
 
 **GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes?** 🦠 🧬
