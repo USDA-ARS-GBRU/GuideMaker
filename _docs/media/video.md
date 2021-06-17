@@ -1,6 +1,6 @@
 ---
 title: Video
-category: Media
+category: Access
 order: 2
 ---
 
