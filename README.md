@@ -16,7 +16,7 @@ GuideMaker can be easily accessed via:
 - Command Line 
 - Local Web Application
 
-**NOTE:** *Given the limitation of maintaining high compute resources in the cloud environment, our web applicaiton mostly supports smaller genomes. We highly recommend, users with need to run larger genomes to use **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)** or to use the local web application - as described below or to use command line tools.*
+**NOTE:** *Given the limitation of maintaining high compute resources in the cloud environment, our web applicaiton mostly supports smaller genomes. We highly recommend users with need to run larger genomes to use **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)** or to use the local web application - as described below or to use command line tools.*
 
 1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)
 :-------------------------:|:-------------------------:
