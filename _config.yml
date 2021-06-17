@@ -1,8 +1,8 @@
 # ----
 # Site
 
-title: Edition Template
-url: "https://long-pig.cloudvent.net"
+title: GuideMaker
+url: "https://usda-ars-gbru.github.io/GuideMaker/"
 baseurl:
 google_analytics_key:
 show_full_navigation: true
