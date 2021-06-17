@@ -1,5 +1,5 @@
 ---
-title: Designing Experiments with GuideMaker Results
+title: Experiments
 category: Resources
 order: 2
 ---
@@ -8,21 +8,16 @@ order: 2
 	style="color: #003087"
 	>Pooled CRISPR Experiments
 </h3>
-<div
-	style="font-family:Hoefler Text;
-	font-size: 14px;
-	color: "black"
-	>Experiments that target the entire genome, or many genes at once, are typically performed in pooled experiments where 100-100,000+ targets are tested simultaneously. The pooled oligonucleotides for each gRNA are cloned in one batch and used simultaneously in the designed experiment. Each gRNA sequence acts as a barcode that can be quantified with high-throughput sequencing to elucidate each target's relative importance under the experimental conditions. 
-</div>
+
+Experiments that target the entire genome, or many genes at once, are typically performed in pooled experiments where 100-100,000+ targets are tested simultaneously. The pooled oligonucleotides for each gRNA are cloned in one batch and used simultaneously in the designed experiment. Each gRNA sequence acts as a barcode that can be quantified with high-throughput sequencing to elucidate each target's relative importance under the experimental conditions. 
+
+
 <h3 style="color: #003087" >Vectors for gRNA Cloning</h3>
-<div
-	style="font-family:Hoefler Text;
-	font-size: 14px;
-	color: "black"
-	>Genome-scale CRISPR experiments require a gRNA vector amenable to high-throughput cloning, most often through Golden Gate cloning, a restriction enzyme dependent reaction. Plasmids to express gRNA available at Addgene can be found at the link below, though not all of these are compatible with high-throughput cloning. 
-</div>
+Genome-scale CRISPR experiments require a gRNA vector amenable to high-throughput cloning, most often through Golden Gate cloning, a restriction enzyme dependent reaction. Plasmids to express gRNA available at Addgene can be found at the link below, though not all of these are compatible with high-throughput cloning. 
+
+
 <h3 style="color: #003087" >Addgene: CRISPR Plasmids - Empty gRNA Vectors</h3>
-<div
+
 style="font-family:Hoefler Text;
 	font-size: 14px;
 	color: "black"
