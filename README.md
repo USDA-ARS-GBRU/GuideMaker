@@ -16,11 +16,11 @@ GuideMaker can be easily accessed via:
 - Command Line 
 - Local Web Application
 
-**NOTE:** *Our web application runs on a small server instance and is primarily designed for the lower-memory requirements bacterial genomes. We recommend that users run larger genomes on the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**  or run Guidemaker locally as a command-line or web browser-based application.
+**NOTE:** *Our web application runs on a small server instance and is primarily designed for the lower-memory requirements bacterial genomes. We recommend that users run larger genomes on the **[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)**  or run Guidemaker locally as a command-line or web browser-based application.
 
-1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)
+1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
 :-------------------------:|:-------------------------:
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://cyverse.org/discovery-environment)
+[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
 
 
 ## 3.Command Line
