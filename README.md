@@ -6,7 +6,7 @@ CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria 
 
 GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file. The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
-Guidemaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a **[web application](https://guidemaker.app.scinet.usda.gov)** at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
+GuideMaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a **[web application](https://guidemaker.app.scinet.usda.gov)** at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
 
 ## Methods to access GuideMaker
 
@@ -16,11 +16,11 @@ GuideMaker can be easily accessed via:
 - Command Line 
 - Local Web Application
 
-**NOTE:** *Our web application runs on a small server instance and is primarily designed for the lower-memory requirements bacterial genomes. We recommend that users run larger genomes on the **[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)**  or run Guidemaker locally as a command-line or web browser-based application.
+**NOTE:** *Our web application runs on a small server instance and is primarily designed for the lower-memory requirements bacterial genomes. We recommend that users run larger genomes on the **[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)**  or run GuideMaker locally as a command-line or web browser-based application.
 
 1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
 :-------------------------:|:-------------------------:
-[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
+[![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
 
 
 ## 3.Command Line
@@ -30,7 +30,7 @@ GuideMaker can be installed from:
 ### 3.1. Bioconda: (preferred method because it handles dependencies):
 
 ```bash
-# Create a conda environment and install Guidemaker via Bioconda.
+# Create a conda environment and install GuideMaker via Bioconda.
 
 conda create --strict-channel-priority --override-channels --channel conda-forge --channel bioconda --channel defaults --name gmenv guidemaker
 
@@ -159,11 +159,11 @@ If the path of the `app.py` differs from the one displayed below, you can locate
 streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
-![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
+![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
 
-## Using Guidemaker's results
+## Using GuideMaker's results
 
-_This section provides information on how to use Guidemaker's results to create a molecular protocol for pooled CRISPR screens._
+_This section provides information on how to use GuideMaker's results to create a molecular protocol for pooled CRISPR screens._
 
 <h4
 	style="color: #003087"
@@ -180,7 +180,7 @@ Genome-scale CRISPR experiments require a gRNA vector amenable to high-throughpu
 
 <h4 style="color: #003087" >Addgene: CRISPR Plasmids - Empty gRNA Vectors</h4>
 
-After running Guidemaker, the designed gRNA output can be downloaded and with minor adjustments, the targets can be ordered as oligos for cloning. Pooled oligonucleotides can be purchased from several vendors, including those listed below. Pool sizes vary from 100 to over 200,000 oligonucleotides. Vendor specifications for the number of oligos, oligo length, and cost per bp vary widely. For bacterial genome-scale experiments, as of 2021, Genscript offers pool sizes of 12,472 and 91,766 with up to 79 bp per oligo for list prices of $1600 and $4,000, respectively.
+After running GuideMaker, the designed gRNA output can be downloaded and with minor adjustments, the targets can be ordered as oligos for cloning. Pooled oligonucleotides can be purchased from several vendors, including those listed below. Pool sizes vary from 100 to over 200,000 oligonucleotides. Vendor specifications for the number of oligos, oligo length, and cost per bp vary widely. For bacterial genome-scale experiments, as of 2021, Genscript offers pool sizes of 12,472 and 91,766 with up to 79 bp per oligo for list prices of $1600 and $4,000, respectively.
 
 Some example vendors are:
 
@@ -207,7 +207,7 @@ Coming soon...
 ### Reporting Errors and Suggestions
 Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to the `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. Also, check **FAQs** section prior submitting an issue. 
 
-![Image of Guidemaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
+![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
 
 
 ## Citation
@@ -218,7 +218,7 @@ Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), 
 API documentation for the module can be found [here](https://ravinpoudel.github.io/GuideMaker/index.html)
 
 ## License information
-Guidemaker was created by the [United States Department of Agriculture - Agricultural Research Service 
+GuideMaker was created by the [United States Department of Agriculture - Agricultural Research Service 
 (USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government, this software is available under 
 the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
 
@@ -232,4 +232,4 @@ the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommo
 
 ## About us
 
-Guidemaker was developed by the USDA Agricultural Research Service, Genomics and Bioinformatics Research Unit group in Gainesville, FL led by Adam Rivers. Check out our other work at https://tinyecology.com.
+GuideMaker was developed by the USDA Agricultural Research Service, Genomics and Bioinformatics Research Unit group in Gainesville, FL led by Adam Rivers. Check out our other work at https://tinyecology.com.
