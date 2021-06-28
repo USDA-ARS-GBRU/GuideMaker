@@ -3,4 +3,6 @@ include guidemaker/_version.py
 include tests/test_data/*
 include LICENSE.txt
 include README.md
-include guidemaker/data/*.*
+include guidemaker/data/*
+include guidemaker/data/Pseudomonas_aeruginosa.gbk.gz
+include guidemaker/data/Carsonella_ruddii.gbk.gz
