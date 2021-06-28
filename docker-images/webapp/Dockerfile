@@ -28,6 +28,5 @@ ENTRYPOINT ["conda", "run", "-n", "base"]
 
 
 # run web app
-CMD streamlit run /GuideMaker/guidemaker/data/app.py --server.maxUploadSize 500
-
-
+#CMD streamlit run /GuideMaker/guidemaker/data/app.py --server.maxUploadSize 500
+CMD ls /GuideMaker/guidemaker/data/*.*
