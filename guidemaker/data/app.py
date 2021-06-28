@@ -152,10 +152,16 @@ def main(arglist: list = None):
         DOWNLOADS_PATH.mkdir()
 
     # Define input parameters and widgets
+
     multiple_files = st.sidebar.file_uploader("Upload one or more Genome file [ .gbk, .gbk.gz]", type=[".gbk", ".gz"], accept_multiple_files=True)
     genome = list( map(lambda x: x.getvalue(), multiple_files))
-    
-    #genome = st.sidebar.file_uploader("Upload a Genome file [ gbk, gbk.gz ]", type=["gbk", "gz"], accept_multiple_files=True)
+
+    DemoGenome = st.sidebar.selectbox("OR Use Demo GBK",['Carsonella_ruddii.gbk.gz','Pseudomonas_aeruginosa.gbk.gz'])
+    demo = open(DemoGenome,"rb")
+    #st.write("You selected this option ",xx)
+
+  
+
     pam = st.sidebar.text_input("Input PAM Motif [ E.g. NGG ] ", "NGG")
     restriction_enzyme_list = st_tags_sidebar(label = 'Restriction Enzymes[e.g. NGRT]:',
                                                                   text  = 'Enter to add more', 
@@ -174,10 +180,10 @@ def main(arglist: list = None):
 
     # st.write(genome)
     # st.write(type(genome))
+  
 
-
-    if genome and "input.gbk":
-        with genome_connect(genome) as conn:
+    if demo and "input.gbk":
+        with genome_connect(demo):
             #st.write("Connection object:", conn)
             args = ["guidemaker",
             "-i", "input.gbk",
@@ -195,9 +201,30 @@ def main(arglist: list = None):
             "--threads", str(2),
             "--restriction_enzyme_list"]
             scriptorun = args + restriction_enzyme_list
-            if(st.sidebar.button("SUBMIT")):
-                # st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
-                run_command(scriptorun)
+    if genome and "input.gbk":
+        with genome_connect(genome):
+            #st.write("Connection object:", conn)
+            args = ["guidemaker",
+            "-i", "input.gbk",
+            "-p", pam,
+            "--guidelength", str(guidelength),
+            "--pam_orientation", pam_orientation,
+            "--lsr", str(lsr),
+            "--dist", str(dist),
+            "--outdir", sessionID,
+            "--log", logfilename,
+            "--into", str(into),
+            "--before", str(before),
+            "--knum", str(knum),
+            "--controls", str(controls),
+            "--threads", str(2),
+            "--restriction_enzyme_list"]
+            scriptorun = args + restriction_enzyme_list
+
+    if(st.sidebar.button("SUBMIT")):
+        # st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
+        run_command(scriptorun)
+    
 
     if os.path.exists(sessionID):
 
@@ -227,7 +254,6 @@ def main(arglist: list = None):
             st.write(control_tab)
             st.write(get_binary_file_downloader_html(
                 logfilename, '✅ Log File'), unsafe_allow_html=True)
-
     else:
         pass
 

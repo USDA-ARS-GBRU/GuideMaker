@@ -115,3 +115,6 @@ test/EcoliPrefilter.py
 guidemaker/data/.DS_Store
 .DS_Store
 guidemaker/data/.DS_Store
+
+.DS_Store
+ guidemaker/data/.DS_Store
