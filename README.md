@@ -100,8 +100,10 @@ optional arguments:
                         Length of the guide sequence. Default: 20.
   --lsr [0-27]          Length of a seed region near the PAM site required to
                         be unique. Default: 10.
-  --dist [0-5]          Minimum hamming distance from any other potential
-                        guide. Default: 2.
+  --dtype {hamming,leven}
+                        Select the distance type. Default: hamming.
+  --dist [0-5]          Minimum edit distance from any other potential guide.
+                        Default: 2.
   --before [1-500]      keep guides this far in front of a feature. Default:
                         100.
   --into [1-500]        keep guides this far inside (past the start site)of a
