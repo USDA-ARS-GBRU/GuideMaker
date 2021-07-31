@@ -37,8 +37,10 @@ def myparser():
                         28, 1), metavar="[10-27]", help='Length of the guide sequence. Default: 20.')
     parser.add_argument('--lsr', type=int, default=10, choices=range(0, 28, 1),
                         metavar="[0-27]", help='Length of a seed region near the PAM site required to be unique. Default: 10.')
+    parser.add_argument('--dtype', type=str, choices=['hamming', 'leven'], default='hamming',
+                        help='Select the distance type. Default: hamming.')
     parser.add_argument('--dist', type=int, choices=range(0, 6, 1),
-                        metavar="[0-5]", default=2, help='Minimum hamming distance from any other potential guide. Default: 2.')
+                        metavar="[0-5]", default=2, help='Minimum edit distance from any other potential guide. Default: 2.')
     parser.add_argument('--before', type=int, default=100, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far in front of a feature. Default: 100.')
     parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1), metavar="[1-500]",
@@ -133,12 +135,12 @@ def main(arglist: list = None):
         logging.info("Writing fasta file from genbank file(s)")
         fastapath = guidemaker.get_fastas(args.genbank, tempdir=tempdir)
         logging.info("Identifying PAM sites in the genome")
-        pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation)
+        pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation, args.dtype)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         pamtargets = pamobj.find_targets(
             seq_record_iter=seq_record_iter, target_len=args.guidelength)
         tl = guidemaker.core.TargetProcessor(
-            targets=pamtargets, lsr=args.lsr, hammingdist=args.dist, knum=args.knum)
+            targets=pamtargets, lsr=args.lsr, editdist=args.dist, knum=args.knum)
         lengthoftl = len(tl.targets)
         logging.info("Checking guides for restriction enzymes")
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
@@ -177,7 +179,7 @@ def main(arglist: list = None):
             os.makedirs(args.outdir)
         csvpath = os.path.join(args.outdir, "targets.csv")
         prettydf.to_csv(csvpath, index=False)
-        logging.info("creating random control guides")
+        logging.info("Creating random control guides")
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         cmin, cmed, randomdf = tl.get_control_seqs(
@@ -186,10 +188,10 @@ def main(arglist: list = None):
         logging.info("Percentage of GC content in the input genome: " +
                      "{:.2f}".format(tl.gc_percent))
         logging.info("Total length of the genome: " + "{:.1f} MB".format(tl.genomesize))
-        logging.info("created %i control guides with a minimum distance of %d and a median distance of %d" % (
+        logging.info("Created %i control guides with a minimum distance of %d and a median distance of %d" % (
             args.controls, cmin, cmed))
         randomdf.to_csv(contpath)
-        logging.info("guidemaker completed, results are at %s" % args.outdir)
+        logging.info("GuideMaker completed, results are at %s" % args.outdir)
         logging.info("PAM sequence: %s" % args.pamseq)
         logging.info("PAM orientation: %s" % args.pam_orientation)
         logging.info("Genome strand(s) searched: %s" % "both")

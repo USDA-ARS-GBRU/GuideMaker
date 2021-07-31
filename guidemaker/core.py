@@ -44,7 +44,7 @@ class PamTarget:
 
     """
 
-    def __init__(self, pam: str, pam_orientation: str) -> None:
+    def __init__(self, pam: str, pam_orientation: str, dtype: str) -> None:
         """
         Pam __init__
 
@@ -53,6 +53,7 @@ class PamTarget:
             pam_orientation (str): [5prime | 3prime ]
                 5prime means the order is 5'-[pam][target]-3'
                 3prime means the order is 5'-[target][pam]-3'
+            dtype (str): hamming or leven
 
         Returns:
             None
@@ -63,6 +64,7 @@ class PamTarget:
         assert pam_orientation in ["3prime", "5prime"]
         self.pam: str = pam.upper()
         self.pam_orientation: str = pam_orientation
+        self.dtype: str = dtype
 
     def __str__(self) -> str:
         """
@@ -273,6 +275,9 @@ class PamTarget:
             gc.collect()  # clear memory after each chromosome
         df_targets = pd.concat(target_list, ignore_index=True)
         df_targets = df_targets.assign(seedseq=np.nan, isseedduplicated=np.nan)
+        df_targets = df_targets.astype({"seedseq": 'str', "isseedduplicated": 'bool'})
+        df_targets = df_targets.assign(dtype=self.dtype)
+        df_targets = df_targets.astype({"dtype": 'category'})
         return df_targets
 
 
@@ -285,14 +290,14 @@ class TargetProcessor:
 
     """
 
-    def __init__(self, targets: PandasDataFrame, lsr: int, hammingdist: int = 2, knum: int = 2) -> None:
+    def __init__(self, targets: PandasDataFrame, lsr: int, editdist: int = 2, knum: int = 2) -> None:
         """
         TargetProcessor __init__
 
         Args:
             targets (PandasDataFrame): Dataframe with output from class PamTarget
             lsr (int): Length of seed region
-            hammingdist (int): Hamming distance
+            editdist (int): Edit distance
             knum (int): Number of negative controls
 
         Returns:
@@ -300,14 +305,14 @@ class TargetProcessor:
         """
         self.targets = targets  # pandas dataframe
         self.lsr: int = lsr  # length of seed region
-        self.hammingdist: int = hammingdist
+        self.editdist: int = editdist
         self.knum: int = knum
         self.nmslib_index: object = None
         self.neighbors: dict = {}
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
         self.genomesize: float = None
-        self.pam_orientation: bool = targets['pam_orientation'].iat[0]
+        self.pam_orientation: bool = targets['pam_orientation'].iat[0]        
 
     def __str__(self) -> None:
         """
@@ -429,15 +434,28 @@ class TargetProcessor:
         # index everything but not duplicates
         notduplicated_targets = list(set(self.targets['target'].tolist()))
         #logging.info("unique targets for index: %s" % len(notduplicated_targets))
-        bintargets = self._one_hot_encode(notduplicated_targets)
-        index_params = {'M': M, 'indexThreadQty': num_threads, 'efConstruction': efC, 'post': post}
-        index = nmslib.init(space='bit_hamming',
+        if self.targets['dtype'].iat[0] == "hamming":
+            bintargets = self._one_hot_encode(notduplicated_targets)
+            index_params = {'M': M, 'indexThreadQty': num_threads, 'efConstruction': efC, 'post': post}
+            index = nmslib.init(space='bit_hamming',
                             dtype=nmslib.DistType.INT,
                             data_type=nmslib.DataType.OBJECT_AS_STRING,
                             method='hnsw')
-        index.addDataPointBatch(bintargets)
-        index.createIndex(index_params, print_progress=True)
-        self.nmslib_index = index
+            index.addDataPointBatch(bintargets) # notduplicated_targets
+            index.createIndex(index_params, print_progress=True)
+            self.nmslib_index = index
+        else:
+            bintargets = notduplicated_targets
+            index_params = {'M': M, 'indexThreadQty': num_threads, 'efConstruction': efC, 'post': post}
+            index = nmslib.init(space='leven',
+                            dtype=nmslib.DistType.INT,
+                            data_type=nmslib.DataType.OBJECT_AS_STRING,
+                            method='hnsw')
+            index.addDataPointBatch(bintargets) # notduplicated_targets
+            index.createIndex(index_params, print_progress=True)
+            self.nmslib_index = index
+
+        
 
     def get_neighbors(self, configpath, num_threads=2) -> None:
         """
@@ -462,7 +480,12 @@ class TargetProcessor:
 
         unique_targets = self.targets.loc[self.targets['isseedduplicated']
             == False]['target'].tolist()
-        unique_bintargets = self._one_hot_encode(unique_targets)  # search unique seed one
+
+        if self.targets['dtype'].iat[0] == "hamming":
+            unique_bintargets = self._one_hot_encode(unique_targets)  # search unique seed one
+        else:
+            unique_bintargets = unique_targets
+
         self.nmslib_index.setQueryTimeParams({'efSearch': ef})
         results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
                                                k=self.knum, num_threads=num_threads)
@@ -470,16 +493,24 @@ class TargetProcessor:
         for i, entry in enumerate(results_list):
             queryseq = unique_targets[i]
             hitseqidx = entry[0].tolist()
-            hammingdist = entry[1].tolist()
-            # here we just check if the first element of hammingist list is >= 2 * self.hammingdist, as list is sorted- if first fails whole fails
+            editdist = entry[1].tolist()
+            # here we just check if the first element of hammingist list is >= 2 * self.editdist, as list is sorted- if first fails whole fails
             # to close guides.
             # this should be 0 or 1?
             # this should be 1 == b/c each guides will have exact match with itself at 0 position.
-            if hammingdist[1] >= 2 * self.hammingdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
-                neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
-                             "dist": [int(x / 2) for x in hammingdist]}
-                neighbor_dict[queryseq] = {"target": unique_targets[i],
-                                           "neighbors": neighbors}
+            if self.targets['dtype'].iat[0] == "hamming":
+                if editdist[1] >= 2 * self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
+                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this? 
+                                "dist": [int(x / 2) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
+                    neighbor_dict[queryseq] = {"target": unique_targets[i],
+                                            "neighbors": neighbors}
+            else:
+                if editdist[1] >= self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
+                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this? 
+                                "dist": [int(x) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
+                    neighbor_dict[queryseq] = {"target": unique_targets[i],
+                                            "neighbors": neighbors}
+
         self.neighbors = neighbor_dict
 
     def export_bed(self) -> object:
@@ -555,8 +586,12 @@ class TargetProcessor:
                 binseq = []
                 charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
                 for seq in seqs:
-                    charlist = [charmap[letter] for letter in seq]
-                    binseq.append(" ".join(charlist))
+                    if self.targets['dtype'].iat[0] == "hamming":
+                        charlist = [charmap[letter] for letter in seq]
+                        binseq.append(" ".join(charlist))
+                    else: # leven
+                        binseq.append(seq)
+
                 rand_seqs = self.nmslib_index.knnQueryBatch(binseq, k=2, num_threads=num_threads)
                 distlist = []
                 for i in rand_seqs:
@@ -564,11 +599,18 @@ class TargetProcessor:
                 zipped = list(zip(seqs, distlist))
                 dist_seqs = sorted(zipped, reverse=True, key=lambda x: x[1])
                 sort_seq = [item[0] for item in dist_seqs][0:n]
-                sort_dist = [item[1] / 2 for item in dist_seqs][0:n]
+
+                #sort_dist
+                if self.targets['dtype'].iat[0] == "hamming":
+                    sort_dist = [item[1] / 2 for item in dist_seqs][0:n]  ### ? does divide by 2 holds for leven???
+                else:
+                    sort_dist = [item[1] for item in dist_seqs][0:n]  ### ? does divide by 2 holds for leven???
+
+                print(sort_dist)
                 minimum_hmdist = int(min(sort_dist))
                 sm_count += 1
         except IndexError as e:
-           # print("Number of random control searched: ", search_mult * n)
+           # print("Number of random control searched: ", search_mult * n)s
             raise e
 
         total_ncontrolsearched = search_mult * n
@@ -579,6 +621,7 @@ class TargetProcessor:
             return "Cont-" + hashlib.md5(seq.encode()).hexdigest()
         randomdf['name'] = randomdf["Sequences"].apply(create_name)
         randomdf = randomdf[["name", "Sequences", "Hamming distance"]]
+        randomdf.head()
         return (min(sort_dist),
                 statistics.median(sort_dist),
                 randomdf)
@@ -811,10 +854,10 @@ class Annotation:
         # rename exact_pam to PAM
         pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"})
 
-        pretty_df = pretty_df[['Guide name', "Guide sequence", 'GC', "Accession", "Guide start", "Guide end",
-                    "Guide strand", 'PAM', "Feature id",
-                    "Feature start", "Feature end", "Feature strand",
-                    "Feature distance", 'Similar guides', 'Similar guide distances']]
+        pretty_df = pretty_df[['Guide name', 'Guide sequence', 'GC', 'dtype', 'Accession', 'Guide start', 'Guide end',
+                    'Guide strand', 'PAM', 'Feature id',
+                    'Feature start', 'Feature end', 'Feature strand',
+                    'Feature distance', 'Similar guides', 'Similar guide distances']]
         pretty_df = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
         # to match with the numbering with other tools- offset
