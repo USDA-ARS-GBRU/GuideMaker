@@ -17,18 +17,13 @@ from pathlib import Path
 
 import guidemaker
 
-
-
-#TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-
-TEST_DIR = '/Users/admin/Documents/GuideMaker_ALL/GuideMaker/tests'
-
-#configpath="guidemaker/data/config_default.yaml"
-
 from guidemaker.definitions import ROOT_DIR
 
+TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
 
+#TEST_DIR = '/Users/admin/Documents/GuideMaker_ALL/GuideMaker/tests'
+#configpath="guidemaker/data/config_default.yaml"
 
 
 #PamTarget Class
@@ -221,8 +216,8 @@ def test_filter_features():
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
-    prettydf = anno._format_guide_table(tl)
-    assert prettydf.shape == (871, 22)
+    anno._format_guide_table(tl)
+    assert anno.pretty_df.shape == (871, 22)
 
 
 def test_filterlocus():

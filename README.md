@@ -118,6 +118,8 @@ optional arguments:
   --restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]
                         List of sequence representing restriction enzymes.
                         Default: None.
+  --filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]
+                        List of locus tag. Default: None.
   --keeptemp            Option to keep intermediate files be kept
   --plot                Option to genereate guidemaker plots
   --config CONFIG       Path to YAML formatted configuration file, default is 
