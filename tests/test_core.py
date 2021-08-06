@@ -62,9 +62,6 @@ def test_pam_find_targets_3p():
     assert target['target'][0] == "ATGATC"
     assert target['target'][1] == "GCAGCT"
 
-
-
-
 def test_pam_find_targets_fullgenome():
     file =os.path.join(TEST_DIR, "test_data","Carsonella_ruddii.fasta")
     pamobj = guidemaker.core.PamTarget("NGG", "5prime","hamming")
@@ -227,6 +224,29 @@ def test_filter_features():
     prettydf = anno._format_guide_table(tl)
     assert prettydf.shape == (871, 22)
 
+
+def test_filterlocus():
+    pamobj = guidemaker.core.PamTarget("NGG", "5prime","hamming")
+    filegbk =os.path.join(TEST_DIR,"test_data", "Carsonella_ruddii.gbk")
+    file =os.path.join(TEST_DIR, "test_data","Carsonella_ruddii.fasta")
+    gb = SeqIO.parse(file, "fasta")
+    pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+    tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=10, editdist=2, knum=10)
+    tl.check_restriction_enzymes(['NRAGCA'])
+    tl.find_unique_near_pam()
+    tl.create_index(configpath=configpath)
+    tl.get_neighbors(configpath=configpath)
+    tf_df = tl.export_bed()
+    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
+                                        target_bed_df=tf_df)
+    anno._get_genbank_features()
+    anno._get_nearby_features()
+    anno._filter_features()
+    anno._get_qualifiers(configpath=configpath)
+    anno._format_guide_table(tl)
+    filter_prettydf = anno._filterlocus(filter_by_locus=['CRP_001'])
+    assert filter_prettydf.shape == (4, 22)
+
 # Function : get_fastas
 @pytest.fixture(scope='session')
 def test_get_fastas(tmpdir_factory):
@@ -239,18 +259,3 @@ def test_extend_ambiguous_dna():
     extend_seq = guidemaker.core.extend_ambiguous_dna('NGG')
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

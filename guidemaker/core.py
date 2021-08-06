@@ -606,7 +606,7 @@ class TargetProcessor:
                 else:
                     sort_dist = [item[1] for item in dist_seqs][0:n]  ### ? does divide by 2 holds for leven???
 
-                print(sort_dist)
+                #print(sort_dist)
                 minimum_hmdist = int(min(sort_dist))
                 sm_count += 1
         except IndexError as e:
@@ -769,7 +769,7 @@ class Annotation:
         upstream = upstream.append(downstream)
         self.nearby = upstream.rename(columns=headers)
 
-    def _filter_features(self, before_feat: int = 100, after_feat: int = 200) -> None:
+    def _filter_features(self, before_feat: int = 100, after_feat: int = 200 ) -> None:
         """
         Merge targets with Feature list and filter for guides close enough to interact.
 
@@ -863,7 +863,25 @@ class Annotation:
         # to match with the numbering with other tools- offset
         pretty_df['Guide start'] = pretty_df['Guide start'] + 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
-        return pretty_df
+        #print(pretty_df.head())
+        self.pretty_df = pretty_df
+    
+    def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
+        """
+        Create guide table for output for a selected locus_tag
+
+        Args:
+            target- a dataframe with targets from targetclass
+
+        Returns:
+            (PandasDataFrame): A formated pandas dataframe
+        """
+
+        filter_pretty_df = deepcopy(self.pretty_df)  # anno class object
+        if len (filter_by_locus) > 0: 
+            filter_pretty_df = filter_pretty_df[filter_pretty_df['locus_tag'].isin(filter_by_locus)]
+        return filter_pretty_df
+
 
     def locuslen(self) -> int:
         """

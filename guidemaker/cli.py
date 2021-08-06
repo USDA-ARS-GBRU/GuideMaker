@@ -54,6 +54,8 @@ def myparser():
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*",
                         help='List of sequence representing restriction enzymes. Default: None.', default=[])
+    parser.add_argument('--filter_by_locus', nargs="*",
+                        help='List of locus tag. Default: None.', default=[])
     parser.add_argument(
         '--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
@@ -172,7 +174,8 @@ def main(arglist: list = None):
         logging.info("Select description columns")
         anno._get_qualifiers(configpath=args.config)
         logging.info("Format the output")
-        prettydf = anno._format_guide_table(tl)
+        anno._format_guide_table(tl)
+        prettydf = anno._filterlocus(args.filter_by_locus)
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
         logging.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):

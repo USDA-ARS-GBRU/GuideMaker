@@ -177,25 +177,15 @@ def main(arglist: list = None):
         "PAM Orientation [ Options: 3prime, 5prime ]", ("3prime", "5prime"))
     guidelength = st.sidebar.number_input('Guidelength [ Options: 10 - 27 ]', 10, 27, value=20)
     lsr = st.sidebar.number_input('Length of seed region[ Options: 0 - 27 ]', 0, 27, value=10)
-    dtype = st.sidebar.selectbox(
-        "Type of Edit Distance [ Options: hamming, leven ]", ("hamming", "leven"))
-    dist = st.sidebar.number_input('Hamming Distance [Options: 0 - 5 ]', 0, 5, value=2)
+    #dtype = st.sidebar.selectbox(
+    #  "Type of Edit Distance [ Options: hamming, leven ]", ("hamming", "leven"))
+    dist = st.sidebar.number_input('Edit Distance [Options: 0 - 5 ]', 0, 5, value=2)
     before = st.sidebar.number_input('Before [Options: 1 - 500 ]', 1, 500, value=100, step=50)
     into = st.sidebar.number_input('Into [Options: 1 - 500 ]', 1, 500, value=200, step=50)
     knum = st.sidebar.number_input('Similar Guides[Options: 2 - 20 ]', 2, 20, value=3)
     controls = st.sidebar.number_input('Control RNAs', 1, 1000, value=10, step=100)
     #threads = st.sidebar.number_input('Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
-    filter_by_locus = st_tags_sidebar(label = 'Filter by Locus Tag [e.g. NGRT]:', text  = 'Enter to add more')
-                                                            
-    filter_by_gene = st_tags_sidebar(label = 'Filter by Gene Name [e.g. NGRT]:', text  = 'Enter to add more')
                                                                   
-    filter_by_genome_cordinate_start = st.sidebar.number_input('Genome Coordinate Start Position', 0, 500000000, value=0, step=1000)
-    filter_by_genome_cordinate_end = st.sidebar.number_input('Genome Coordinate End Position', 0, 500000000, value=0, step=1000)
-
-
-    # st.write(genome)
-    # st.write(type(genome))
-  
 
     if demo and "input.gbk":
         with genome_connect(demo):
@@ -206,7 +196,7 @@ def main(arglist: list = None):
             "--guidelength", str(guidelength),
             "--pam_orientation", pam_orientation,
             "--lsr", str(lsr),
-            "--dtype", str(dtype),
+            "--dtype", str("hamming"),
             "--dist", str(dist),
             "--outdir", sessionID,
             "--log", logfilename,
@@ -227,7 +217,7 @@ def main(arglist: list = None):
             "--guidelength", str(guidelength),
             "--pam_orientation", pam_orientation,
             "--lsr", str(lsr),
-             "--dtype", str(dtype),
+             "--dtype", str("hamming"),
             "--dist", str(dist),
             "--outdir", sessionID,
             "--log", logfilename,
@@ -268,7 +258,7 @@ def main(arglist: list = None):
         controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
 
         # logs
-        with st.beta_expander("Results"):
+        with st.expander("Results"):
             st.write(target_tab)
             st.write(control_tab)
             st.write(get_binary_file_downloader_html(
@@ -278,10 +268,10 @@ def main(arglist: list = None):
 
     # Parameters Dictionary
     image = Image.open(guidemaker.APP_PARAMETER_IMG)
-    optionals = st.beta_expander("Parameter Dictionary", False)
+    optionals = st.expander("Parameter Dictionary", False)
     optionals.image(image, caption='GuideMaker Parameters', use_column_width=True)
 
-    with st.beta_expander("Designing Experiments with GuideMaker Results"):
+    with st.expander("Designing Experiments with GuideMaker Results"):
         intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
         st.markdown(intro_markdown, unsafe_allow_html=True)
 
