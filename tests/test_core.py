@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, TypeVar, Generator
 from Bio import Seq
 import altair as alt
 from pathlib import Path
-
+import doench_predict
 
 
 import guidemaker
@@ -254,3 +254,11 @@ def test_extend_ambiguous_dna():
     extend_seq = guidemaker.core.extend_ambiguous_dna('NGG')
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
+
+def test_predict_guides()
+    seqs = np.array(['GTACAAAGCACGTTATTAGATGGTGGGAAC', 'TCTAATCACGACAGCATCACTATTAGGCCG', 'TGAAATGTCTCTTATCTCTGTGTAAGGCTC'])
+        return np.array(slist)
+    seqs = create_fake_guides()
+    scores = doench_predict.predict(seqs)
+    exp_scores = np.array([0.59383124], [0.28157765], [0.5276569]], dtype=float32)
+    assert exp_scores == scores
