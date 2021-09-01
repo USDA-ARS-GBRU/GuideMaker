@@ -10,7 +10,7 @@ APP_PARAMETER_IMG = pkg_resources.resource_filename('guidemaker', 'data/paramete
 APP_EXPERIMENT_FILE = pkg_resources.resource_filename('guidemaker', 'data/PooledCRISPRExperiments.md')
 WEB_APP = pkg_resources.resource_filename('guidemaker','data/app.py')
 
-__all__ = ["core", "cli", "definitions","doench_featurization", "doench_predict"]
+__all__ = ["core", "cli", "definitions", "doench_featurization", "doench_predict", "cfd_score_calculator"]
 
 __version__ = get_versions()['version']
 del get_versions

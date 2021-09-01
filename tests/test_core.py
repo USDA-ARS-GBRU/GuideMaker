@@ -258,7 +258,6 @@ def test_extend_ambiguous_dna():
 
 def test_predict_guides()
     seqs = np.array(['GTACAAAGCACGTTATTAGATGGTGGGAAC', 'TCTAATCACGACAGCATCACTATTAGGCCG', 'TGAAATGTCTCTTATCTCTGTGTAAGGCTC'])
-        return np.array(slist)
     scores = doench_predict.predict(seqs)
     exp_scores = np.array([[0.59383124], [0.28157765], [0.5276569]], dtype=float32)
     assert exp_scores == scores
