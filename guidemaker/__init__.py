@@ -4,11 +4,14 @@ from ._version import get_versions
 from .core import *
 from .cli import *
 from .definitions import *
+from .cfd_score_calculator import *
+from .doench_featurization import *
+from .doench_featurization import *
 
 CONFIG_PATH = pkg_resources.resource_filename('guidemaker', 'data/config_default.yaml')
 APP_PARAMETER_IMG = pkg_resources.resource_filename('guidemaker', 'data/parameters.png')
 APP_EXPERIMENT_FILE = pkg_resources.resource_filename('guidemaker', 'data/PooledCRISPRExperiments.md')
-WEB_APP = pkg_resources.resource_filename('guidemaker','data/app.py')
+WEB_APP = pkg_resources.resource_filename('guidemaker', 'data/app.py')
 
 __all__ = ["core", "cli", "definitions", "doench_featurization", "doench_predict", "cfd_score_calculator"]
 
