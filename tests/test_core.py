@@ -2,23 +2,23 @@
 """
 import os
 import pytest
+
+import numpy as np
+import pandas as pd
+from Bio import Seq
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
-import numpy as np
-import pandas as pd
-from typing import List, Dict, Tuple, TypeVar, Generator
-from Bio import Seq
-import altair as alt
-from pathlib import Path
-import doench_predict
-import cfd_score_calculator
 
-
+from guidemaker import doench_predict
+from guidemaker import cfd_score_calculator
 import guidemaker
-
 from guidemaker.definitions import ROOT_DIR
+
+# from typing import List, Dict, Tuple, TypeVar, Generator
+# import altair as alt
+# from pathlib import Path
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
@@ -256,9 +256,10 @@ def test_extend_ambiguous_dna():
     expected_seq = ['GGG', 'AGG', 'TGG', 'CGG']
     assert all([a == b for a, b in zip(extend_seq, expected_seq)])
 
-def test_predict_guides()
+def test_predict_guides():
     seqs = np.array(['GTACAAAGCACGTTATTAGATGGTGGGAAC', 'TCTAATCACGACAGCATCACTATTAGGCCG', 'TGAAATGTCTCTTATCTCTGTGTAAGGCTC'])
-    exp_scores = np.array([[0.59383124], [0.28157765], [0.5276569]], dtype=float32)
+    exp_scores = np.array([[0.59383124], [0.28157765], [0.5276569]], dtype='float32')
+    scores = doench_predict.predict(seqs)
     assert exp_scores == scores
 
 def test_cdf_calc():
