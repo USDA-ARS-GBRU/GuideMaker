@@ -5,7 +5,7 @@ from .core import *
 from .cli import *
 from .definitions import *
 from .cfd_score_calculator import *
-from .doench_featurization import *
+from .doench_predict import *
 from .doench_featurization import *
 
 CONFIG_PATH = pkg_resources.resource_filename('guidemaker', 'data/config_default.yaml')
