@@ -13,6 +13,7 @@ from Bio import Seq
 import altair as alt
 from pathlib import Path
 import doench_predict
+import cfd_score_calculator
 
 
 import guidemaker
@@ -258,7 +259,10 @@ def test_extend_ambiguous_dna():
 def test_predict_guides()
     seqs = np.array(['GTACAAAGCACGTTATTAGATGGTGGGAAC', 'TCTAATCACGACAGCATCACTATTAGGCCG', 'TGAAATGTCTCTTATCTCTGTGTAAGGCTC'])
         return np.array(slist)
-    seqs = create_fake_guides()
     scores = doench_predict.predict(seqs)
-    exp_scores = np.array([0.59383124], [0.28157765], [0.5276569]], dtype=float32)
+    exp_scores = np.array([[0.59383124], [0.28157765], [0.5276569]], dtype=float32)
     assert exp_scores == scores
+
+def test_cdf_calc():
+    result = cfd_score_calculator.calc_cfd("GCATGCACAGCTAGCATGCATGCAGCT", "GCATGCACAGCTAGCATGCATGCAGCG")
+    assert abs(result - 0.176470588) < 0.0001
