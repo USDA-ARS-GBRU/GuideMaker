@@ -20,7 +20,7 @@ requirements = [
     'pytest-cov',
     'streamlit_tags>=1.2.6',
     'pdoc3',
-    'onnxruntime>=1.8.1'
+    'onnxruntime>=1.8.1',
 ]
 
 
@@ -33,7 +33,7 @@ setup(
     license='CC0 1.0 Universal (CC0 1.0) Public Domain Dedication',
     author='Adam Rivers',
     author_email='adam.rivers@usda.gov',
-    url='http://tinyecology.com',
+    url='https://guidemaker.org',
     long_description=open('README.md').read(),
     packages=['guidemaker'],
     entry_points={
