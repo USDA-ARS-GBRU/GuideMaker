@@ -23,15 +23,15 @@ Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.
 """
 
 import pandas as pd
-from doench_featurization import featurize_data
+from guidemaker.doench_featurization import featurize_data
 from typing import List, Optional
 import numpy as np
 from pathlib import Path
 import onnxruntime as rt
 import json
 
-MODEL = "data/V3_model_nopos.onnx"
-MODEL_META = "data/V3_model_nopos_options.json"
+MODEL = "guidemaker/data/V3_model_nopos.onnx"
+MODEL_META = "guidemaker/data/V3_model_nopos_options.json"
 
 
 def concatenate_feature_sets(feature_sets, keys: List[str] = None):

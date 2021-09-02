@@ -19,8 +19,8 @@ requirements = [
     'pytest>=4.6',
     'pytest-cov',
     'streamlit_tags>=1.2.6',
-    'pdoc3'
-    'onnxruntime>=1.8.2'
+    'pdoc3',
+    'onnxruntime>=1.8.1'
 ]
 
 

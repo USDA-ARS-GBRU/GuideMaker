@@ -6,7 +6,6 @@ import pytest
 import numpy as np
 import pandas as pd
 from Bio import Seq
-from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
@@ -260,7 +259,7 @@ def test_predict_guides():
     seqs = np.array(['GTACAAAGCACGTTATTAGATGGTGGGAAC', 'TCTAATCACGACAGCATCACTATTAGGCCG', 'TGAAATGTCTCTTATCTCTGTGTAAGGCTC'])
     exp_scores = np.array([[0.59383124], [0.28157765], [0.5276569]], dtype='float32')
     scores = doench_predict.predict(seqs)
-    assert exp_scores == scores
+    assert (exp_scores == scores).all()
 
 def test_cdf_calc():
     result = cfd_score_calculator.calc_cfd("GCATGCACAGCTAGCATGCATGCAGCT", "GCATGCACAGCTAGCATGCATGCAGCG")

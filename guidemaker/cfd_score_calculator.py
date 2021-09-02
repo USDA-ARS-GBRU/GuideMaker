@@ -25,7 +25,7 @@ def _get_mm_pam_scores() -> Tuple[Dict, Dict]:
 
     """
     try:
-        with open("data/cfd_data.json") as dat:
+        with open("guidemaker/data/cfd_data.json") as dat:
             scores = json.load(dat)
         mm_s = scores['mm']
         pam_s = scores['pam']
