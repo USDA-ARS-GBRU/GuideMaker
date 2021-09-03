@@ -29,6 +29,7 @@ jobs:
             # conda config --add channels gagan3012
             conda info -a
             conda build conda.recipe --no-test
+            pip install --user --progress-bar off onnx onnxruntime
             conda install --use-local guidemaker
 
       
