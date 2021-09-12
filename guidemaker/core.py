@@ -151,6 +151,8 @@ class PamTarget:
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = dnaseq[match_obj.end(): match_obj.end() + target_len]
+                target_seq30 = dnaseq[match_obj.start()-2: match_obj.start()+28]
+                ## 5'-[guide of 25 nt][exact pam, 3nt][next two]-3'
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
                     start = match_obj.end()
@@ -159,7 +161,9 @@ class PamTarget:
                     pam_orientation = True
                     # forward =True, reverse = False
                     strand = True
-                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation, target_seq30
+
+                
 
         def run_for_3p(pam_pattern, dnaseq, target_len) -> Generator:
             """
@@ -174,7 +178,8 @@ class PamTarget:
                 (Generator): A generator with target_seq, exact_pam, start, stop, strand, and pam_orientation
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
-                target_seq = seq[match_obj.start() - target_len: match_obj.start()]
+                target_seq = dnaseq[match_obj.start() - target_len: match_obj.start()]
+                target_seq30 = dnaseq[match_obj.end()-28 :match_obj.end()+2]
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
                     start = match_obj.start() - target_len
@@ -183,7 +188,7 @@ class PamTarget:
                     pam_orientation = False
                     # forward =True, reverse = False
                     strand = True
-                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation, target_seq30
 
         def run_rev_5p(pam_pattern, dnaseq, target_len) -> Generator:
             """
@@ -200,6 +205,8 @@ class PamTarget:
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = reverse_complement(
                     dnaseq[match_obj.start() - target_len: match_obj.start()])
+                target_seq30 = reverse_complement(
+                    dnaseq[match_obj.end()-28:match_obj.end()+2])
                 if check_target(target_seq, target_len):
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.start() - target_len
@@ -208,7 +215,7 @@ class PamTarget:
                     pam_orientation = True
                     # forward =True, reverse = False
                     strand = False
-                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation, target_seq30
 
         def run_rev_3p(pam_pattern, dnaseq, target_len) -> Generator:
             """
@@ -225,6 +232,7 @@ class PamTarget:
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = reverse_complement(
                     dnaseq[match_obj.end(): match_obj.end() + target_len])
+                target_seq30 = reverse_complement(dnaseq[match_obj.start()-2:match_obj.start()+28])
                 if check_target(target_seq, target_len):
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.end()
@@ -233,7 +241,7 @@ class PamTarget:
                     pam_orientation = False
                     # forward =True, reverse = False
                     strand = False
-                    yield target_seq, exact_pam, start, stop, strand, pam_orientation
+                    yield target_seq, exact_pam, start, stop, strand, pam_orientation, target_seq30
 
         target_list = []
         for record in seq_record_iter:
@@ -242,7 +250,7 @@ class PamTarget:
             if self.pam_orientation == "5prime":
                 # forward
                 for5p = pd.DataFrame(run_for_5p(pam2re(self.pam), seq, target_len), columns=[
-                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation", "target_seq30"])
                 for5p["seqid"] = record_id
                 # string to boolean conversion is not straight - as all string were set to Trues- so change the encoding in functions above.
                 # https://stackoverflow.com/questions/715417/converting-from-a-string-to-boolean-in-python/715455#715455
@@ -251,7 +259,7 @@ class PamTarget:
                 target_list.append(for5p)
                 # reverse
                 rev5p = pd.DataFrame(run_rev_5p(pam2re(reverse_complement(self.pam)), seq, target_len), columns=[
-                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation","target_seq30"])
                 rev5p["seqid"] = record_id
                 rev5p = rev5p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
@@ -260,14 +268,14 @@ class PamTarget:
             elif self.pam_orientation == "3prime":
                 # forward
                 for3p = pd.DataFrame(run_for_3p(pam2re(self.pam), seq, target_len), columns=[
-                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation","target_seq30"])
                 for3p["seqid"] = record_id
                 for3p = for3p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
                 target_list.append(for3p)
                 # reverse
                 rev3p = pd.DataFrame(run_rev_3p(pam2re(reverse_complement(self.pam)), seq, target_len), columns=[
-                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation"])
+                                     "target", "exact_pam", "start", "stop", "strand", "pam_orientation","target_seq30"])
                 rev3p["seqid"] = record_id
                 rev3p = rev3p.astype({"target": 'str', "exact_pam": 'category', "start": 'uint32',
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
@@ -527,6 +535,7 @@ class TargetProcessor:
         # why deepcopy - https://stackoverflow.com/questions/55745948/why-doesnt-deepcopy-of-a-pandas-dataframe-affect-memory-usage
         # select only guides that are not duplecated in the seedseq
         df = deepcopy(self.targets.loc[self.targets['isseedduplicated'] == False])
+        #print(df.head())
         df = df[["seqid", "start", "stop", "target", "strand"]]
         df.loc[:, 'strand'] = df.loc[:, 'strand'].apply(lambda x: '+' if x == True else '-')
         df.columns = ["chrom", "chromstart", "chromend", "name", "strand"]
@@ -769,6 +778,7 @@ class Annotation:
         upstream = upstream.append(downstream)
         self.nearby = upstream.rename(columns=headers)
 
+
     def _filter_features(self, before_feat: int = 100, after_feat: int = 200 ) -> None:
         """
         Merge targets with Feature list and filter for guides close enough to interact.
@@ -806,6 +816,7 @@ class Annotation:
                                                              0 <`Feature end` - `Guide start` < @after_feat'))
 
         self.filtered_df = filtered_df
+        #print(filtered_df.head())
 
     def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
         """
@@ -826,6 +837,11 @@ class Annotation:
 
         def get_guide_hash(seq):
             return hashlib.md5(seq.encode()).hexdigest()
+        
+        def checklen30(seq):
+            if len(seq) == 30:
+                return True
+            return False
 
         def get_off_target_score(seq):
             dlist = targetprocessor_object.neighbors[seq]["neighbors"]["dist"]
@@ -836,6 +852,7 @@ class Annotation:
             slist = targetprocessor_object.neighbors[seq]["neighbors"]["seqs"]
             return ";".join(slist)
         pretty_df = deepcopy(self.filtered_df)  # anno class object
+        #print(pretty_df.head())
         # retrive only guides that are in neighbors keys.
         pretty_df = pretty_df[pretty_df["Guide sequence"].isin(
             list(targetprocessor_object.neighbors.keys()))]
@@ -850,21 +867,23 @@ class Annotation:
         pretty_df = pd.merge(pretty_df, targetprocessor_object.targets, how="left",
          left_on=['Guide sequence', 'Guide start', 'Guide end', 'Accession'],
             right_on=['target', 'start', 'stop', 'seqid'])
+        
 
         # rename exact_pam to PAM
         pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"})
-
+    
         pretty_df = pretty_df[['Guide name', 'Guide sequence', 'GC', 'dtype', 'Accession', 'Guide start', 'Guide end',
                     'Guide strand', 'PAM', 'Feature id',
                     'Feature start', 'Feature end', 'Feature strand',
-                    'Feature distance', 'Similar guides', 'Similar guide distances']]
+                    'Feature distance', 'Similar guides', 'Similar guide distances','target_seq30']]
+        #print(pretty_df.head())
         pretty_df = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
         # to match with the numbering with other tools- offset
         pretty_df['Guide start'] = pretty_df['Guide start'] + 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
-        #print(pretty_df.head())
-        self.pretty_df = pretty_df
+        pretty_df2=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
+        self.pretty_df = pretty_df2
     
     def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
         """
@@ -1018,3 +1037,5 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
     for i in product(*[dna_dict[j] for j in seq]):
         extend_list.append("".join(i))
     return extend_list
+
+
