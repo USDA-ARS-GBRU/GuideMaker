@@ -1,6 +1,7 @@
 """Pytest unit tests for the core module of GuideMaker
 """
 import os
+from Bio.AlignIO.MauveIO import XMFA_HEADER_REGEX
 import pytest
 
 import numpy as np
@@ -291,3 +292,5 @@ anno._format_guide_table(tl)
 df = anno.pretty_df
 doench = doench_predict.predict(np.array(df.target_seq30))
 
+### view CDF score
+tl.closest_neighbor_df

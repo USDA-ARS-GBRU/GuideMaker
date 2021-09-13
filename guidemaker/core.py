@@ -1,5 +1,6 @@
 """Core classes and functions for GuideMaker."""
 import os
+import re
 import yaml
 import logging
 import gzip
@@ -18,7 +19,8 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 import altair as alt
-
+from guidemaker import doench_predict
+from guidemaker import cfd_score_calculator
 
 logger = logging.getLogger('guidemaker.core')
 PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
@@ -317,6 +319,7 @@ class TargetProcessor:
         self.knum: int = knum
         self.nmslib_index: object = None
         self.neighbors: dict = {}
+        self.closest_neighbor_df: PandasDataFrame = None
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
         self.genomesize: float = None
@@ -481,6 +484,15 @@ class TargetProcessor:
         Returns:
             None
         """
+
+        def cfd_score(df):
+            cdf_list=[]
+            for i in range(len(df)):
+                row = df.iloc[i]
+                cdf_list.append(cfd_score_calculator.calc_cfd(row.query, row.closest_target))
+            df["CDF"] = cdf_list
+            return df
+
         with open(configpath) as cf:
             config = yaml.safe_load(cf)
 
@@ -498,6 +510,7 @@ class TargetProcessor:
         results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
                                                k=self.knum, num_threads=num_threads)
         neighbor_dict = {}
+        closest_neighbor_list=[]
         for i, entry in enumerate(results_list):
             queryseq = unique_targets[i]
             hitseqidx = entry[0].tolist()
@@ -512,14 +525,18 @@ class TargetProcessor:
                                 "dist": [int(x / 2) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
+                closest_neighbor_list.append([editdist[1]/2, queryseq, self.targets['target'].values[hitseqidx[1]]])
             else:
                 if editdist[1] >= self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
                     neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this? 
                                 "dist": [int(x) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
-
+                closest_neighbor_list.append([editdist[1], queryseq, self.targets['target'].values[hitseqidx[1]]])
+        closest_neighbor_df= pd.DataFrame(closest_neighbor_list, columns=["editdist","query", "closest_target"])
+        closest_neighbor_df = cfd_score(closest_neighbor_df)
         self.neighbors = neighbor_dict
+        self.closest_neighbor_df = closest_neighbor_df
 
     def export_bed(self) -> object:
         """
@@ -1037,5 +1054,7 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
     for i in product(*[dna_dict[j] for j in seq]):
         extend_list.append("".join(i))
     return extend_list
+
+
 
 
