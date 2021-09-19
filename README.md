@@ -162,7 +162,8 @@ unique in each guide is 11 nucleotides.
     --guidelength 20 \
     --lsr 11 \
     -o OUTDIR \
-    --threads 2
+    --doench_efficiency_score \
+    --threads 2 
 
 ```
 
