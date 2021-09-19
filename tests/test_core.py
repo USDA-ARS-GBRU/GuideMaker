@@ -23,8 +23,8 @@ from guidemaker.definitions import ROOT_DIR
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
 
-TEST_DIR = '/Users/ravinpoudel/Documents/GuideMaker_ALL/GuideMaker/tests'
-configpath="guidemaker/data/config_default.yaml"
+# TEST_DIR = '/Users/ravinpoudel/Documents/GuideMaker_ALL/GuideMaker/tests'
+# configpath="guidemaker/data/config_default.yaml"
 
 
 #PamTarget Class
