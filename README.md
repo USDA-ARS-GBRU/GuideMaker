@@ -80,7 +80,19 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
 ### Command Line Usage
 
 ```
-GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems.
+usage: guidemaker [-h] --genbank GENBANK [GENBANK ...] --pamseq PAMSEQ
+                  --outdir OUTDIR [--pam_orientation {5prime,3prime}]
+                  [--guidelength [10-27]] [--lsr [0-27]]
+                  [--dtype {hamming,leven}] [--dist [0-5]] [--before [1-500]]
+                  [--into [1-500]] [--knum [2-20]] [--controls CONTROLS]
+                  [--threads THREADS] [--log LOG] [--tempdir TEMPDIR]
+                  [--restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]]
+                  [--filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]]
+                  [--doench_efficiency_score] [--keeptemp] [--plot]
+                  [--config CONFIG] [-V]
+
+GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas
+systems
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -109,7 +121,7 @@ optional arguments:
   --into [1-500]        keep guides this far inside (past the start site)of a
                         feature. Default: 200.
   --knum [2-20]         how many sequences similar to the guide to report.
-                        Default: 3.
+                        Default: 5.
   --controls CONTROLS   Number or random control RNAs to generate. Default:
                         1000.
   --threads THREADS     The number of cpu threads to use. Default: 2
@@ -120,18 +132,19 @@ optional arguments:
                         Default: None.
   --filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]
                         List of locus tag. Default: None.
+  --doench_efficiency_score
+                        Doench et al. 2016 - only for NGG PAM: None.
   --keeptemp            Option to keep intermediate files be kept
   --plot                Option to genereate guidemaker plots
   --config CONFIG       Path to YAML formatted configuration file, default is 
-                        /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/si
-                        te-packages/guidemaker/data/config_default.yaml
+                        /Users/ravinpoudel/opt/anaconda3/envs/gmenv/lib/python
+                        3.7/site-packages/guidemaker/data/config_default.yaml
   -V, --version         show program's version number and exit
 
-To run the web app locally, in the terminal enter:
+To run the web app locally, in terminal run:
 -----------------------------------------------------------------------
-streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-
+streamlit run /Users/ravinpoudel/opt/anaconda3/envs/gmenv/lib/python3.7/site-
 packages/guidemaker/data/app.py
------------------------------------------------------------------------
 
 ```
 
