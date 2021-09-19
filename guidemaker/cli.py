@@ -4,6 +4,7 @@ A command line Software to design gRNAs pools in non-model genomes and CRISPR-Ca
 """
 
 import logging
+
 import argparse
 import tempfile
 import shutil
@@ -13,9 +14,11 @@ import textwrap
 
 import pybedtools
 from Bio import SeqIO
+import numpy as np
 
 import guidemaker
-
+from guidemaker import doench_predict
+from guidemaker import cfd_score_calculator
 
 
 def myparser():
@@ -31,7 +34,7 @@ def myparser():
                         help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True,
                         help='The directory for data output')
-    parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='5prime',
+    parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='3prime',
                         help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime. Default: '5prime'.")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10,
                         28, 1), metavar="[10-27]", help='Length of the guide sequence. Default: 20.')
@@ -45,8 +48,8 @@ def myparser():
                         help='keep guides this far in front of a feature. Default: 100.')
     parser.add_argument('--into', type=int, default=200, choices=range(1, 501, 1), metavar="[1-500]",
                         help='keep guides this far inside (past the start site)of a feature. Default: 200.')
-    parser.add_argument('--knum', type=int, default=3, choices=range(2, 21, 1),
-                        metavar="[2-20]", help='how many sequences similar to the guide to report. Default: 3.')
+    parser.add_argument('--knum', type=int, default=5, choices=range(2, 21, 1),
+                        metavar="[2-20]", help='how many sequences similar to the guide to report. Default: 5.')
     parser.add_argument('--controls', type=int, default=1000,
                         help='Number or random control RNAs to generate. Default: 1000.')
     parser.add_argument('--threads', help='The number of cpu threads to use. Default: 2', type=int, default=2)
@@ -56,8 +59,8 @@ def myparser():
                         help='List of sequence representing restriction enzymes. Default: None.', default=[])
     parser.add_argument('--filter_by_locus', nargs="*",
                         help='List of locus tag. Default: None.', default=[])
-    parser.add_argument(
-        '--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
+    parser.add_argument('--doench_efficiency_score',help='Doench et al. 2016 - only for NGG PAM: None.', action='store_true')
+    parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
     parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " +
                         guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
@@ -176,6 +179,10 @@ def main(arglist: list = None):
         logging.info("Format the output")
         anno._format_guide_table(tl)
         prettydf = anno._filterlocus(args.filter_by_locus)
+        #prettydf = anno.filter_pretty_df
+        if args.doench_efficiency_score:
+            logging.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
+            prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation)
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
         logging.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):

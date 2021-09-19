@@ -25,6 +25,7 @@ from guidemaker import cfd_score_calculator
 logger = logging.getLogger('guidemaker.core')
 PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
 
+pd.options.mode.chained_assignment = None 
 
 def is_gzip(filename: str):
     try:
@@ -153,7 +154,7 @@ class PamTarget:
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = dnaseq[match_obj.end(): match_obj.end() + target_len]
-                target_seq30 = dnaseq[match_obj.start()-2: match_obj.start()+28]
+                target_seq30 = dnaseq[match_obj.start()-3: match_obj.start()+27]
                 ## 5'-[guide of 25 nt][exact pam, 3nt][next two]-3'
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
@@ -181,7 +182,7 @@ class PamTarget:
             """
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = dnaseq[match_obj.start() - target_len: match_obj.start()]
-                target_seq30 = dnaseq[match_obj.end()-28 :match_obj.end()+2]
+                target_seq30 = dnaseq[match_obj.end()-27 :match_obj.end()+3]
                 if check_target(target_seq, target_len):
                     exact_pam = match_obj.group(0)
                     start = match_obj.start() - target_len
@@ -208,7 +209,7 @@ class PamTarget:
                 target_seq = reverse_complement(
                     dnaseq[match_obj.start() - target_len: match_obj.start()])
                 target_seq30 = reverse_complement(
-                    dnaseq[match_obj.end()-28:match_obj.end()+2])
+                    dnaseq[match_obj.end()-27:match_obj.end()+3])
                 if check_target(target_seq, target_len):
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.start() - target_len
@@ -234,7 +235,7 @@ class PamTarget:
             for match_obj in regex.finditer(pattern=pam_pattern, string=dnaseq, overlapped=True):
                 target_seq = reverse_complement(
                     dnaseq[match_obj.end(): match_obj.end() + target_len])
-                target_seq30 = reverse_complement(dnaseq[match_obj.start()-2:match_obj.start()+28])
+                target_seq30 = reverse_complement(dnaseq[match_obj.start()-3:match_obj.start()+27])
                 if check_target(target_seq, target_len):
                     exact_pam = reverse_complement(match_obj.group(0))
                     start = match_obj.end()
@@ -484,15 +485,6 @@ class TargetProcessor:
         Returns:
             None
         """
-
-        def cfd_score(df):
-            cdf_list=[]
-            for i in range(len(df)):
-                row = df.iloc[i]
-                cdf_list.append(cfd_score_calculator.calc_cfd(row.query, row.closest_target))
-            df["CDF"] = cdf_list
-            return df
-
         with open(configpath) as cf:
             config = yaml.safe_load(cf)
 
@@ -510,7 +502,6 @@ class TargetProcessor:
         results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
                                                k=self.knum, num_threads=num_threads)
         neighbor_dict = {}
-        closest_neighbor_list=[]
         for i, entry in enumerate(results_list):
             queryseq = unique_targets[i]
             hitseqidx = entry[0].tolist()
@@ -525,18 +516,13 @@ class TargetProcessor:
                                 "dist": [int(x / 2) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
-                closest_neighbor_list.append([editdist[1]/2, queryseq, self.targets['target'].values[hitseqidx[1]]])
             else:
                 if editdist[1] >= self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
                     neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this? 
                                 "dist": [int(x) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
-                closest_neighbor_list.append([editdist[1], queryseq, self.targets['target'].values[hitseqidx[1]]])
-        closest_neighbor_df= pd.DataFrame(closest_neighbor_list, columns=["editdist","query", "closest_target"])
-        closest_neighbor_df = cfd_score(closest_neighbor_df)
         self.neighbors = neighbor_dict
-        self.closest_neighbor_df = closest_neighbor_df
 
     def export_bed(self) -> object:
         """
@@ -859,6 +845,21 @@ class Annotation:
             if len(seq) == 30:
                 return True
             return False
+        
+        def cfd_calculator(knnstrlist, guide):
+            knnlist =  knnstrlist.split(';')
+            cfd_list=[]
+            for item in knnlist:
+                result=cfd_score_calculator.calc_cfd(guide, item)
+                cfd_list.append(result)
+            s = [str(i) for i in cfd_list]
+            return s
+
+        def get_max_cfd(cfdlist):
+            newlist = [float(x) for x in cfdlist]
+            newlist.sort()
+            maxcfd = newlist[-1]
+            return(maxcfd)
 
         def get_off_target_score(seq):
             dlist = targetprocessor_object.neighbors[seq]["neighbors"]["dist"]
@@ -880,12 +881,9 @@ class Annotation:
         pretty_df['Similar guide distances'] = pretty_df['Guide sequence'].apply(
             get_off_target_score)
         pretty_df['Similar guides'] = pretty_df['Guide sequence'].apply(get_off_target_seqs)
-
         pretty_df = pd.merge(pretty_df, targetprocessor_object.targets, how="left",
          left_on=['Guide sequence', 'Guide start', 'Guide end', 'Accession'],
             right_on=['target', 'start', 'stop', 'seqid'])
-        
-
         # rename exact_pam to PAM
         pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"})
     
@@ -899,8 +897,12 @@ class Annotation:
         # to match with the numbering with other tools- offset
         pretty_df['Guide start'] = pretty_df['Guide start'] + 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
-        pretty_df2=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
-        self.pretty_df = pretty_df2
+        pretty_check30merlen=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
+        # add CDF scores
+        pretty_check30merlen['CFD Similar Guides'] = pretty_check30merlen.apply(lambda x: cfd_calculator(x['Similar guides'], x['Guide sequence']), axis=1)
+        # Add a column with max CFD score
+        pretty_check30merlen['Max CFD'] = pretty_check30merlen['CFD Similar Guides'].apply(get_max_cfd)
+        self.pretty_df = pretty_check30merlen
     
     def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
         """
@@ -918,7 +920,6 @@ class Annotation:
             filter_pretty_df = filter_pretty_df[filter_pretty_df['locus_tag'].isin(filter_by_locus)]
         return filter_pretty_df
 
-
     def locuslen(self) -> int:
         """
         Count the number of locus tag in the genebank file
@@ -932,6 +933,7 @@ class Annotation:
 
         locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
         return(locus_count)
+
 
 
 class GuideMakerPlot:
@@ -1056,5 +1058,12 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
     return extend_list
 
 
-
-
+def get_doench_efficiency_score(df, pam_orientation):
+    checkset={'AGG','CGG','TGG','GGG'}
+    if pam_orientation == "3prime" and set(df.PAM)==checkset:
+        doenchscore = doench_predict.predict(np.array(df.target_seq30))
+        df["Efficiency"] = doenchscore
+    else:
+        print("NOTE: doench_efficiency_score based on Doench et al. 2016 - can only  be used for NGG PAM).Check PAM sequence and PAM orientation")
+        df["Efficiency"] = "Not Available"
+    return df.drop('target_seq30', axis=1)

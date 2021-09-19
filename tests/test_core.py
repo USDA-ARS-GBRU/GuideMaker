@@ -215,13 +215,13 @@ def test_filter_features():
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
     anno = guidemaker.core.Annotation(genbank_list=[filegbk],
-                                       target_bed_df=tf_df)
+                                        target_bed_df=tf_df)
     anno._get_genbank_features()
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    assert anno.pretty_df.shape == (871, 23)
+    assert anno.pretty_df.shape == (869, 25)
 
 
 def test_filterlocus():
@@ -244,7 +244,7 @@ def test_filterlocus():
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
     filter_prettydf = anno._filterlocus(filter_by_locus=['CRP_001'])
-    assert filter_prettydf.shape == (4, 23)
+    assert filter_prettydf.shape == (4, 25)
 
 # Function : get_fastas
 @pytest.fixture(scope='session')
@@ -271,26 +271,25 @@ def test_cdf_calc():
 
 
 # doench_predict
-pamobj = guidemaker.core.PamTarget("NGG", "5prime","hamming")
-filegbk =os.path.join(TEST_DIR,"test_data", "Carsonella_ruddii.gbk")
-file =os.path.join(TEST_DIR, "test_data","Carsonella_ruddii.fasta")
-gb = SeqIO.parse(file, "fasta")
-pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
-tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=10, editdist=2, knum=10)
-tl.check_restriction_enzymes(['NRAGCA'])
-tl.find_unique_near_pam()
-tl.create_index(configpath=configpath)
-tl.get_neighbors(configpath=configpath)
-tf_df = tl.export_bed()
-anno = guidemaker.core.Annotation(genbank_list=[filegbk],
-                                    target_bed_df=tf_df)
-anno._get_genbank_features()
-anno._get_nearby_features()
-anno._filter_features()
-anno._get_qualifiers(configpath=configpath)
-anno._format_guide_table(tl)
-df = anno.pretty_df
-doench = doench_predict.predict(np.array(df.target_seq30))
-
-### view CDF score
-tl.closest_neighbor_df
+def test_get_doench_efficiency_score():
+    pamobj = guidemaker.core.PamTarget("NGG", "3prime","hamming")
+    filegbk =os.path.join(TEST_DIR,"test_data", "Carsonella_ruddii.gbk")
+    file =os.path.join(TEST_DIR, "test_data","Carsonella_ruddii.fasta")
+    gb = SeqIO.parse(file, "fasta")
+    pamtargets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
+    tl = guidemaker.core.TargetProcessor(targets=pamtargets, lsr=10, editdist=2, knum=10)
+    tl.check_restriction_enzymes(['NRAGCA'])
+    tl.find_unique_near_pam()
+    tl.create_index(configpath=configpath)
+    tl.get_neighbors(configpath=configpath)
+    tf_df = tl.export_bed()
+    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
+                                        target_bed_df=tf_df)
+    anno._get_genbank_features()
+    anno._get_nearby_features()
+    anno._filter_features()
+    anno._get_qualifiers(configpath=configpath)
+    anno._format_guide_table(tl)
+    filter_prettydf = anno._filterlocus()
+    doench_df = guidemaker.core.get_doench_efficiency_score(df=filter_prettydf, pam_orientation=pamobj.pam_orientation)
+    assert abs(doench_df.Efficiency[213] - 0.42684514989852906) < 0.0001
