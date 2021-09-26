@@ -88,8 +88,8 @@ usage: guidemaker [-h] --genbank GENBANK [GENBANK ...] --pamseq PAMSEQ
                   [--threads THREADS] [--log LOG] [--tempdir TEMPDIR]
                   [--restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]]
                   [--filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]]
-                  [--doench_efficiency_score] [--keeptemp] [--plot]
-                  [--config CONFIG] [-V]
+                  [--doench_efficiency_score] [--cfd_score] [--keeptemp]
+                  [--plot] [--config CONFIG] [-V]
 
 GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas
 systems
@@ -134,17 +134,21 @@ optional arguments:
                         List of locus tag. Default: None.
   --doench_efficiency_score
                         Doench et al. 2016 - only for NGG PAM: None.
+  --cfd_score           CFD score for assessing off-target activity of gRNAs:
+                        None.
   --keeptemp            Option to keep intermediate files be kept
   --plot                Option to genereate guidemaker plots
   --config CONFIG       Path to YAML formatted configuration file, default is 
-                        /Users/ravinpoudel/opt/anaconda3/envs/gmenv/lib/python
-                        3.7/site-packages/guidemaker/data/config_default.yaml
+                        /Users/ravinpoudel/opt/anaconda3/envs/gmenv2/lib/pytho
+                        n3.7/site-packages/guidemaker/data/config_default.yaml
   -V, --version         show program's version number and exit
 
 To run the web app locally, in terminal run:
 -----------------------------------------------------------------------
-streamlit run /Users/ravinpoudel/opt/anaconda3/envs/gmenv/lib/python3.7/site-
+streamlit run /Users/ravinpoudel/opt/anaconda3/envs/gmenv2/lib/python3.7/site-
 packages/guidemaker/data/app.py
+-----------------------------------------------------------------------
+
 
 ```
 
