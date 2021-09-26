@@ -845,21 +845,6 @@ class Annotation:
             if len(seq) == 30:
                 return True
             return False
-        
-        def cfd_calculator(knnstrlist, guide):
-            knnlist =  knnstrlist.split(';')
-            cfd_list=[]
-            for item in knnlist:
-                result=cfd_score_calculator.calc_cfd(guide, item)
-                cfd_list.append(result)
-            s = [str(i) for i in cfd_list]
-            return s
-
-        def get_max_cfd(cfdlist):
-            newlist = [float(x) for x in cfdlist]
-            newlist.sort()
-            maxcfd = newlist[-1]
-            return(maxcfd)
 
         def get_off_target_score(seq):
             dlist = targetprocessor_object.neighbors[seq]["neighbors"]["dist"]
@@ -897,12 +882,8 @@ class Annotation:
         # to match with the numbering with other tools- offset
         pretty_df['Guide start'] = pretty_df['Guide start'] + 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
-        pretty_check30merlen=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
-        # add CDF scores
-        pretty_check30merlen['CFD Similar Guides'] = pretty_check30merlen.apply(lambda x: cfd_calculator(x['Similar guides'], x['Guide sequence']), axis=1)
-        # Add a column with max CFD score
-        pretty_check30merlen['Max CFD'] = pretty_check30merlen['CFD Similar Guides'].apply(get_max_cfd)
-        self.pretty_df = pretty_check30merlen
+        pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
+        self.pretty_df = pretty_df
     
     def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
         """
@@ -915,10 +896,10 @@ class Annotation:
             (PandasDataFrame): A formated pandas dataframe
         """
 
-        filter_pretty_df = deepcopy(self.pretty_df)  # anno class object
+        df = deepcopy(self.pretty_df)  # anno class object
         if len (filter_by_locus) > 0: 
-            filter_pretty_df = filter_pretty_df[filter_pretty_df['locus_tag'].isin(filter_by_locus)]
-        return filter_pretty_df
+            df = df[df['locus_tag'].isin(filter_by_locus)]
+        return df
 
     def locuslen(self) -> int:
         """
@@ -1056,6 +1037,31 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
     for i in product(*[dna_dict[j] for j in seq]):
         extend_list.append("".join(i))
     return extend_list
+
+
+# add CDF scores
+
+def cfd_score(df):
+    def cfd_calculator(knnstrlist, guide):
+            knnlist =  knnstrlist.split(';')
+            cfd_list=[]
+            for item in knnlist:
+                result=cfd_score_calculator.calc_cfd(guide, item)
+                cfd_list.append(result)
+            s = [str(i) for i in cfd_list]
+            return s
+
+    def get_max_cfd(cfdlist):
+        newlist = [float(x) for x in cfdlist]
+        newlist.sort()
+        maxcfd = newlist[-1]
+        return(maxcfd)
+
+    df['CFD Similar Guides'] = df.apply(lambda x: cfd_calculator(x['Similar guides'], x['Guide sequence']), axis=1)
+    # Add a column with max CFD score
+    df['Max CFD'] = df['CFD Similar Guides'].apply(get_max_cfd)
+    return df
+    
 
 
 def get_doench_efficiency_score(df, pam_orientation):

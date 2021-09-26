@@ -59,7 +59,8 @@ def myparser():
                         help='List of sequence representing restriction enzymes. Default: None.', default=[])
     parser.add_argument('--filter_by_locus', nargs="*",
                         help='List of locus tag. Default: None.', default=[])
-    parser.add_argument('--doench_efficiency_score',help='Doench et al. 2016 - only for NGG PAM: None.', action='store_true')
+    parser.add_argument('--doench_efficiency_score',help='Doench et al. 2016 - only for NGG PAM: Default: None.', action='store_true')
+    parser.add_argument('--cfd_score',help='CFD score for assessing off-target activity of gRNAs: Default: None.', action='store_true')
     parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
     parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " +
@@ -183,6 +184,11 @@ def main(arglist: list = None):
         if args.doench_efficiency_score:
             logging.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
             prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation)
+
+        if args.cfd_score:
+            logging.info("Calculating CFD score for assessing off-target activity of gRNAs")
+            prettydf = guidemaker.core.cfd_score(df=prettydf)
+        
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
         logging.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):
