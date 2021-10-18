@@ -23,12 +23,13 @@ Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.
 """
 
 import pandas as pd
-from guidemaker.doench_featurization import featurize_data
+from guidemaker.doench_featurization import featurize_data, parallel_featurize_data
 from typing import List, Optional
 import numpy as np
 from pathlib import Path
 import onnxruntime as rt
 import json
+
 
 MODEL = "guidemaker/data/V3_model_nopos.onnx"
 MODEL_META = "guidemaker/data/V3_model_nopos_options.json"
@@ -78,6 +79,7 @@ def predict(
     model_metadata: Optional[Path] = MODEL_META,
     pam_audit: bool = True,
     length_audit: bool = False,
+    num_threads: int = 1
 ) -> np.array:
     """Pedicts regressions scored from sequences.
 
@@ -109,12 +111,14 @@ def predict(
         columns=["30mer", "Strand"],
         data=list(zip(seq, ["NA" for x in range(len(seq))])),
     )
-    feature_sets = featurize_data(
+
+    feature_sets = parallel_featurize_data(
         x_df,
         learn_options,
         pam_audit=pam_audit,
         length_audit=length_audit,
-        quiet=True
+        quiet=True,
+        num_threads=num_threads
     )
     inputs, *_ = concatenate_feature_sets(feature_sets)
     preds = sess.run(None, {'float_input': inputs.astype(np.float32)})[0]

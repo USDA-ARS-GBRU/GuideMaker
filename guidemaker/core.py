@@ -25,7 +25,7 @@ from guidemaker import cfd_score_calculator
 logger = logging.getLogger('guidemaker.core')
 PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
 
-pd.options.mode.chained_assignment = None 
+pd.options.mode.chained_assignment = None
 
 def is_gzip(filename: str):
     try:
@@ -166,7 +166,7 @@ class PamTarget:
                     strand = True
                     yield target_seq, exact_pam, start, stop, strand, pam_orientation, target_seq30
 
-                
+
 
         def run_for_3p(pam_pattern, dnaseq, target_len) -> Generator:
             """
@@ -324,7 +324,7 @@ class TargetProcessor:
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
         self.genomesize: float = None
-        self.pam_orientation: bool = targets['pam_orientation'].iat[0]        
+        self.pam_orientation: bool = targets['pam_orientation'].iat[0]
 
     def __str__(self) -> None:
         """
@@ -467,7 +467,7 @@ class TargetProcessor:
             index.createIndex(index_params, print_progress=True)
             self.nmslib_index = index
 
-        
+
 
     def get_neighbors(self, configpath, num_threads=2) -> None:
         """
@@ -478,7 +478,7 @@ class TargetProcessor:
         Writes a dictionary to self.neighbors:
         self.neighbors[seq]{target: seq_obj, neighbors: {seqs:[s1, s1, ...], dist:[d1, d1,...]}}
 
-        Args: 
+        Args:
             configpath (str): Path to a parameter config file
             num_threads (int): Number of threads
 
@@ -512,13 +512,13 @@ class TargetProcessor:
             # this should be 1 == b/c each guides will have exact match with itself at 0 position.
             if self.targets['dtype'].iat[0] == "hamming":
                 if editdist[1] >= 2 * self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
-                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this? 
+                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
                                 "dist": [int(x / 2) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
             else:
                 if editdist[1] >= self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
-                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this? 
+                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
                                 "dist": [int(x) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
@@ -840,7 +840,7 @@ class Annotation:
 
         def get_guide_hash(seq):
             return hashlib.md5(seq.encode()).hexdigest()
-        
+
         def checklen30(seq):
             if len(seq) == 30:
                 return True
@@ -871,7 +871,7 @@ class Annotation:
             right_on=['target', 'start', 'stop', 'seqid'])
         # rename exact_pam to PAM
         pretty_df = pretty_df.rename(columns={"exact_pam": "PAM"})
-    
+
         pretty_df = pretty_df[['Guide name', 'Guide sequence', 'GC', 'dtype', 'Accession', 'Guide start', 'Guide end',
                     'Guide strand', 'PAM', 'Feature id',
                     'Feature start', 'Feature end', 'Feature strand',
@@ -884,7 +884,7 @@ class Annotation:
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
         pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
         self.pretty_df = pretty_df
-    
+
     def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
         """
         Create guide table for output for a selected locus_tag
@@ -897,7 +897,7 @@ class Annotation:
         """
 
         df = deepcopy(self.pretty_df)  # anno class object
-        if len (filter_by_locus) > 0: 
+        if len (filter_by_locus) > 0:
             df = df[df['locus_tag'].isin(filter_by_locus)]
         return df
 
@@ -918,12 +918,12 @@ class Annotation:
 
 
 class GuideMakerPlot:
-    
+
     """
     A class with functions to plot guides over genome cooridinates.
 
     """
-    
+
     def __init__(self, prettydf: PandasDataFrame, outdir: str) -> None:
         """
         GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
@@ -1042,11 +1042,11 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
 # add CDF scores
 
 def cfd_score(df):
-    def cfd_calculator(knnstrlist, guide):
+    def cfd_calculator(knnstrlist, guide, mm_scores):
             knnlist =  knnstrlist.split(';')
             cfd_list=[]
             for item in knnlist:
-                result=cfd_score_calculator.calc_cfd(guide, item)
+                result=cfd_score_calculator.calc_cfd(guide, item, mm_scores=mm_scores)
                 cfd_list.append(result)
             s = [str(i) for i in cfd_list]
             return s
@@ -1056,18 +1056,18 @@ def cfd_score(df):
         newlist.sort()
         maxcfd = newlist[-1]
         return(maxcfd)
-
-    df['CFD Similar Guides'] = df.apply(lambda x: cfd_calculator(x['Similar guides'], x['Guide sequence']), axis=1)
+    mm_scores, _ = cfd_score_calculator.get_mm_pam_scores()
+    df['CFD Similar Guides'] = df.apply(lambda x: cfd_calculator(x['Similar guides'], x['Guide sequence'], mm_scores=mm_scores), axis=1)
     # Add a column with max CFD score
     df['Max CFD'] = df['CFD Similar Guides'].apply(get_max_cfd)
     return df
-    
 
 
-def get_doench_efficiency_score(df, pam_orientation):
+
+def get_doench_efficiency_score(df, pam_orientation, num_threads=1):
     checkset={'AGG','CGG','TGG','GGG'}
     if pam_orientation == "3prime" and set(df.PAM)==checkset:
-        doenchscore = doench_predict.predict(np.array(df.target_seq30))
+        doenchscore = doench_predict.predict(np.array(df.target_seq30), num_threads=num_threads)
         df["Efficiency"] = doenchscore
     else:
         print("NOTE: doench_efficiency_score based on Doench et al. 2016 - can only  be used for NGG PAM).Check PAM sequence and PAM orientation")

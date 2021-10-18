@@ -17,7 +17,7 @@ import json
 from typing import Tuple, Dict
 
 
-def _get_mm_pam_scores() -> Tuple[Dict, Dict]:
+def get_mm_pam_scores() -> Tuple[Dict, Dict]:
     """load json file of mismatch scores and PAM scores
 
     Returns:
@@ -51,7 +51,7 @@ def check_len(wt: str, off: str) -> int:
     return wtl
 
 
-def calc_cfd(wt: str, off: str) -> float:
+def calc_cfd(wt: str, off: str, mm_scores=None) -> float:
     """Calculate the CFD score using precalculated weights
 
     Args:
@@ -63,7 +63,8 @@ def calc_cfd(wt: str, off: str) -> float:
 
     """
     guidelen = check_len(wt, off)
-    mm_scores, _ = _get_mm_pam_scores()
+    if mm_scores is None:
+        mm_scores, _ = get_mm_pam_scores()
     score = 1.
     off = off.upper().replace('T', 'U')
     wt = wt.upper().replace('T', 'U')

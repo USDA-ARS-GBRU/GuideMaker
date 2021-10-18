@@ -183,12 +183,12 @@ def main(arglist: list = None):
         #prettydf = anno.filter_pretty_df
         if args.doench_efficiency_score:
             logging.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
-            prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation)
+            prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation, num_threads=args.threads)
 
         if args.cfd_score:
             logging.info("Calculating CFD score for assessing off-target activity of gRNAs")
             prettydf = guidemaker.core.cfd_score(df=prettydf)
-        
+
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
         logging.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):

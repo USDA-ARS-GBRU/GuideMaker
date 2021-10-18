@@ -24,6 +24,9 @@ Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.
 from itertools import product
 from time import time
 from typing import List
+import logging
+from functools import partial
+from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -91,6 +94,22 @@ def featurize_data(data, learn_options, pam_audit=True, length_audit=True, quiet
     print("final feature check complte")
 
     return feature_sets
+
+def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=True, quiet=True, num_threads=1) -> dict:
+    if num_threads > 1:
+        dflist = np.array_split(data, num_threads)
+        partial_fd = partial(featurize_data,learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit, quiet=quiet )
+        with Pool(processes=num_threads) as pool:
+            result = pool.map(partial_fd, dflist)
+        featdict = dict.fromkeys(result[0].keys())
+        for featkey in featdict.keys():
+            tempdflist = []
+            for d1 in result:
+                tempdflist.append(d1[featkey])
+            featdict[featkey] = pd.concat(tempdflist)
+        return featdict
+    else:
+        return featurize_data(data=data, learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit, quiet=quiet)
 
 
 def check_feature_set(feature_sets):
