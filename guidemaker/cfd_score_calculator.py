@@ -15,7 +15,9 @@ only scoring the sites present.
 """
 import json
 from typing import Tuple, Dict
+import logging
 
+logger = logging.getLogger(__name__)
 
 def get_mm_pam_scores() -> Tuple[Dict, Dict]:
     """load json file of mismatch scores and PAM scores

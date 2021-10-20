@@ -21,84 +21,87 @@ Zuzana Tothova, Craig Wilen , Robert Orchard , Herbert W. Virgin, Jennifer Listg
 Optimized sgRNA design to maximize activity and minimize off-target effects for genetic screens with CRISPR-Cas9.
 Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.
 """
-from itertools import product
+from itertools import product, islice
 from time import time
 from typing import List
 import logging
 from functools import partial
 from multiprocessing import Pool
+from collections import deque
 
 import numpy as np
 import pandas as pd
 from Bio.SeqUtils import MeltingTemp as Tm
 
+logger = logging.getLogger(__name__)
 
-def featurize_data(data, learn_options, pam_audit=True, length_audit=True, quiet=True) -> dict:
+def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> dict:
     """Creates a dictionary of feature data
 
     Args:
-        data (np.array): of 30-mer sequences
-        learn_options (dict): ict of model training parameters
-        pam_audit (bool): should check of GG  at position 25:27 be performed?
+        data pd.DataFrame: of 30-mer sequences in column 1 and strand in column 2
+        learn_options (dict): dict of model training parameters
+        pam_audit (bool): should a check of GG  at position 25:27 be performed?
         length_audit (bool): should sequence length be checked?
-        quiet (bool):  Should progress be printed?
 
     Returns:
-        (dict): Returns a dict containing feature types as keys and arrays as values
+        (dict): Returns a dict containing pandas dataframs of features
     """
 
-    print("start features")
+    logging.info("Creating features for Doench et al. 2016 score prediction")
     if np.any(data["30mer"].str.len() != 30):
-        raise AssertionError(f"should only have sequences 30 nt long")
+        raise AssertionError(f"Sequences should be 30 nt long")
 
-    if not quiet:
-        print("Constructing features...")
-    time_0 = time()
 
     feature_sets = {}
 
     if learn_options["nuc_features"]:
         # spectrum kernels (position-independent) and weighted degree kernels (position-dependent)
-        get_all_order_nuc_features(
-            data["30mer"],
-            feature_sets,
-            learn_options,
-            learn_options["order"],
-            max_index_to_use=30,
-            quiet=quiet,
-        )
-    print("nuc_ceatures complete")
+        logging.info("Creating nucleotide features")
+        feature_sets["_nuc_pd_Order1"], feature_sets["_nuc_pi_Order1"], feature_sets["_nuc_pd_Order2"], feature_sets["_nuc_pi_Order2"] = get_nuc_features(data)
+
+    logging.info("Verifing nucleotide features")
     check_feature_set(feature_sets)
-    print("check_feature_set complete")
+
     if learn_options["gc_features"]:
+        logging.info("Creating GC features")
         gc_above_10, gc_below_10, gc_count = gc_features(data, length_audit)
         feature_sets["gc_above_10"] = pd.DataFrame(gc_above_10)
         feature_sets["gc_below_10"] = pd.DataFrame(gc_below_10)
         feature_sets["gc_count"] = pd.DataFrame(gc_count)
-    print("gc features complete")
+        logging.info("gc features complete")
 
     if learn_options["include_NGGX_interaction"]:
+        logging.info("Creating ggx features")
         feature_sets["NGGX"] = nggx_interaction_feature(data, pam_audit)
-    print("ggx features complte")
-    if learn_options["include_Tm"]:
-        feature_sets["Tm"] = Tm_feature(data, pam_audit, learn_options=None)
-    print("Tm complete")
 
-    time_1 = time()
-    if not quiet:
-        print(
-            f"\t\tElapsed time for constructing features is {time_1 - time_0:.2f} seconds"
-        )
+    if learn_options["include_Tm"]:
+        logging.info("Creattng Tm features")
+        feature_sets["Tm"] = Tm_feature(data, pam_audit, learn_options=None)
+
 
     check_feature_set(feature_sets)
-    print("final feature check complte")
+    logging.info("final feature check complte")
 
     return feature_sets
 
-def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=True, quiet=True, num_threads=1) -> dict:
+def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=True, num_threads=1) -> dict:
+    """ Use multprocessing to divide up the creation of ML features for Doench scoring
+        Creates a dictionary of feature data
+
+        Args:
+            data pd.DataFrame:      of 30-mer sequences in column 1 and strand in column 2
+            learn_options (dict):   dict of model training parameters
+            pam_audit (bool):       should a check of GG  at position 25:27 be performed?
+            length_audit (bool):    should sequence length be checked?
+
+        Returns:
+            (dict): Returns a dict containing pandas dataframs of features
+
+    """
     if num_threads > 1:
         dflist = np.array_split(data, num_threads)
-        partial_fd = partial(featurize_data,learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit, quiet=quiet )
+        partial_fd = partial(featurize_data,learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit )
         with Pool(processes=num_threads) as pool:
             result = pool.map(partial_fd, dflist)
         featdict = dict.fromkeys(result[0].keys())
@@ -110,6 +113,112 @@ def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=Tr
         return featdict
     else:
         return featurize_data(data=data, learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit, quiet=quiet)
+
+
+def get_nuc_features(data):
+    """ Create first and second order nucleotide features
+
+        Args:
+            data pd.DataFrame:      of 30-mer sequences in column 1 and strand in column 2
+
+        Returns:
+            (tuple): Returns a tuple pwith 4 Pandas dataframes
+
+    """
+    seqlen = 30
+    # create first header
+    nuc_pi_Order1_header = [x[0] for x  in product('ATCG', repeat=1)]
+
+    # create second header
+    nuc_pd_Order1_header = []
+    for i in range(seqlen):
+        nuc_pd_Order1_header.extend([x + "_" + str(i) for x in  nuc_pi_Order1_header ])
+
+    # create third header
+    nuc_pi_Order2_header = [ "".join(x) for x in product('ATCG', repeat=2)]
+
+    # create forth header
+    nuc_pd_Order2_header = []
+    for i in range(seqlen - 1):
+        nuc_pd_Order2_header.extend([x + "_" + str(i) for x in  nuc_pi_Order2_header ])
+
+    # Create lists for holding features
+    nuc_pd_Order1_list = []
+    nuc_pi_Order1_list = []
+    nuc_pd_Order2_list = []
+    nuc_pi_Order2_list = []
+
+    # Create identity matricies and lookups for one hot encoding
+    o1_id = np.eye(4)
+    o2_id = np.eye(16)
+    o1_lookup = {x : i for i, x in enumerate(nuc_pi_Order1_header)}
+    o2_lookup = {x : i for i, x in enumerate(nuc_pi_Order2_header)}
+
+    # not feasable ot use pandas.get_dummies for this
+    def one_hot(seq, idmat, lookup):
+        """One hot endode  an iterable matching the items in a lookup
+
+        Args:
+            seq (str): a 30mer sequence string
+            idmat (np.array): a Numpy identity matrix
+            lookup (dict): a dictionary matchin the substring to the row in idmat
+
+        Returns:
+            pd.Series: one hot encoding
+        """
+        featurevect = []
+        for let in seq:
+            pos  = lookup[let]
+            featurevect.extend(list(idmat[pos,:]))
+        return pd.Series(featurevect)
+
+    def sliding_window(iterable, n):
+        """Create a generator of substrings
+
+            Args:
+                iterable (iterable): an itterable object like a string or list
+                n (int): the size of the window or kmer
+
+            Returns:
+                a genrator of substrings
+        """
+        # sliding_window('ABCDEFG', 4) -> ABCD BCDE CDEF DEFG
+        it = iter(iterable)
+        window = deque(islice(it, n), maxlen=n)
+        if len(window) == n:
+            yield tuple(window)
+        for x in it:
+            window.append(x)
+            yield tuple(window)
+
+    for seq in data["30mer"]:
+        # add order 1 frequency features
+        pi1dict = dict.fromkeys(nuc_pi_Order1_header, 0)
+        for let in seq:
+            pi1dict[let] += 1
+        nuc_pi_Order1_list.append(pi1dict)
+        # add order 1 positon features
+        nuc_pd_Order1_list.append(one_hot(seq, o1_id, o1_lookup))
+        # create list of 2mers
+        seq_2mers =  [ "".join(x) for x in list(sliding_window(seq, 2))]
+        # add order two frequency features
+        pi2dict = dict.fromkeys(nuc_pi_Order2_header, 0)
+        for let in seq_2mers:
+            pi2dict[let] += 1
+        nuc_pi_Order2_list.append(pi2dict)
+        # add order 2 positon features
+        nuc_pd_Order2_list.append(one_hot(seq_2mers, o2_id, o2_lookup))
+
+    # Create DataFrames
+    nuc_pd_Order1 = pd.DataFrame(data=nuc_pd_Order1_list)
+    nuc_pd_Order1.columns = nuc_pd_Order1_header
+    nuc_pi_Order1 = pd.DataFrame(data=nuc_pi_Order1_list, columns=nuc_pi_Order1_header)
+    nuc_pd_Order2 = pd.DataFrame(data=nuc_pd_Order2_list)
+    nuc_pd_Order2.columns = nuc_pd_Order2_header
+    nuc_pi_Order2 = pd.DataFrame(data=nuc_pi_Order2_list, columns=nuc_pi_Order2_header)
+
+    return nuc_pd_Order1, nuc_pi_Order1, nuc_pd_Order2, nuc_pi_Order2
+
 
 
 def check_feature_set(feature_sets):
@@ -133,7 +242,7 @@ def check_feature_set(feature_sets):
                 raise AssertionError("should be at least one individual")
             if num != num2:
                 raise AssertionError(
-                    "# of individuals do not match up across feature sets"
+                    "Number of individuals do not match up across feature sets"
                 )
 
     for item in feature_sets:
@@ -173,32 +282,6 @@ def nggx_interaction_feature(data, pam_audit=True):
     return feat_nx
 
 
-def get_all_order_nuc_features(
-    data,
-    feature_sets,
-    learn_options,
-    maxorder,
-    max_index_to_use,
-    prefix="",
-    quiet=False,
-):
-    for order in range(1, maxorder + 1):
-        if not quiet:
-            print(f"\t\tconstructing order {order} features")
-        nuc_features_pd, nuc_features_pi = apply_nucleotide_features(
-            data,
-            order,
-            include_pos_independent=True,
-            max_index_to_use=max_index_to_use,
-            prefix=prefix,
-        )
-        feature_sets[f"{prefix}_nuc_pd_Order{order:d}"] = nuc_features_pd
-        if learn_options["include_pi_nuc_feat"]:
-            feature_sets[f"{prefix}_nuc_pi_Order{order:d}"] = nuc_features_pi
-        check_feature_set(feature_sets)
-
-        if not quiet:
-            print("\t\t\t\t\t\t\tdone")
 
 
 def countGC(s, length_audit=True):
@@ -297,160 +380,3 @@ def normalize_features(data, axis):
     if np.any(np.isnan(data.values)):
         raise Exception("found NaN in normalized features")
     return data
-
-
-def apply_nucleotide_features(
-    seq_data_frame, order, include_pos_independent, max_index_to_use, prefix=""
-):
-    if include_pos_independent:
-        feat_pd = seq_data_frame.apply(
-            nucleotide_features, args=(order, max_index_to_use, prefix, "pos_dependent")
-        )
-        feat_pi = seq_data_frame.apply(
-            nucleotide_features,
-            args=(order, max_index_to_use, prefix, "pos_independent"),
-        )
-        if np.any(np.isnan(feat_pd)):
-            raise AssertionError(
-                "nans here can arise from sequences of different lengths"
-            )
-        if np.any(np.isnan(feat_pi)):
-            raise AssertionError(
-                "nans here can arise from sequences of different lengths"
-            )
-    else:
-        feat_pd = seq_data_frame.apply(
-            nucleotide_features, args=(order, max_index_to_use, prefix, "pos_dependent")
-        )
-        if np.any(np.isnan(feat_pd)):
-            raise AssertionError("found nan in feat_pd")
-        feat_pi = None
-    return feat_pd, feat_pi
-
-
-def get_alphabet(order, raw_alphabet=("A", "T", "C", "G")):
-    alphabet = ["".join(i) for i in product(raw_alphabet, repeat=order)]
-    return alphabet
-
-
-def nucleotide_features(
-    s,
-    order,
-    max_index_to_use,
-    prefix="",
-    feature_type="all",
-    raw_alphabet=("A", "T", "C", "G"),
-):
-    """
-    compute position-specific order-mer features for the 4-letter alphabet
-    (e.g. for a sequence of length 30, there are 30*4 single nucleotide features
-          and (30-1)*4^2=464 double nucleotide features
-    """
-    if feature_type not in ["all", "pos_independent", "pos_dependent"]:
-        raise AssertionError("Unknown feature_type")
-    if max_index_to_use <= len(s):
-        max_index_to_use = len(s)
-
-    if max_index_to_use is not None:
-        s = s[:max_index_to_use]
-    # s = s[:30] #cut-off at thirty to clean up extra data that they accidentally left in,
-    # nd were instructed to ignore in this way
-    alphabet: List[str] = get_alphabet(order, raw_alphabet=raw_alphabet)
-    features_pos_dependent = np.zeros(len(alphabet) * (len(s) - (order - 1)))
-    features_pos_independent = np.zeros(np.power(len(raw_alphabet), order))
-
-    index_dependent: List[str] = []
-    index_independent: List[str] = []
-
-    for position in range(0, len(s) - order + 1, 1):
-        for let in alphabet:
-            index_dependent.append(f"{prefix}{let}_{position:d}")
-
-    for let in alphabet:
-        index_independent.append(f"{prefix}{let}")
-
-    for position in range(0, len(s) - order + 1, 1):
-        nucl: object = s[position: position + order]
-        features_pos_dependent[alphabet.index(nucl) + (position * len(alphabet))] = 1.0
-        features_pos_independent[alphabet.index(nucl)] += 1.0
-
-        # this is to check that the labels in the pd df actually match the nucl and position
-        if (
-            index_dependent[alphabet.index(nucl) + (position * len(alphabet))]
-            != f"{prefix}{nucl}_{position:d}"
-        ):
-            raise AssertionError()
-        if index_independent[alphabet.index(nucl)] != f"{prefix}{nucl}":
-            raise AssertionError()
-
-    if np.any(np.isnan(features_pos_dependent)):
-        raise Exception("found nan features in features_pos_dependent")
-    if np.any(np.isnan(features_pos_independent)):
-        raise Exception("found nan features in features_pos_independent")
-
-    if feature_type in ("all", "pos_independent"):
-        if feature_type == "all":
-            res = pd.Series(features_pos_dependent, index=index_dependent).append(
-                pd.Series(features_pos_independent, index=index_independent)
-            )
-            if np.any(np.isnan(res.values)):
-                raise AssertionError()
-        else:
-            res = pd.Series(features_pos_independent, index=index_independent)
-            if np.any(np.isnan(res.values)):
-                raise AssertionError()
-    else:
-        res = pd.Series(features_pos_dependent, index=index_dependent)
-
-    if np.any(np.isnan(res.values)):
-        raise AssertionError()
-    return res
-
-
-def nucleotide_features_dictionary(prefix=""):
-    seqname = ["-4", "-3", "-2", "-1"]
-    seqname.extend([str(i) for i in range(1, 21)])
-    seqname.extend(["N", "G", "G", "+1", "+2", "+3"])
-
-    orders = [1, 2, 3]
-    sequence = 30
-    feature_names_dep = []
-    feature_names_indep = []
-    index_dependent = []
-    index_independent = []
-
-    for order in orders:
-        raw_alphabet = ["A", "T", "C", "G"]
-        alphabet = ["".join(i) for i in product(raw_alphabet, repeat=order)]
-        features_pos_dependent = np.zeros(len(alphabet) * (sequence - (order - 1)))
-        features_pos_independent = np.zeros(np.power(len(raw_alphabet), order))
-
-        index_dependent.extend(
-            [
-                f"{prefix}_pd.Order{order}_P{i}"
-                for i in range(len(features_pos_dependent))
-            ]
-        )
-        index_independent.extend(
-            [
-                f"{prefix}_pi.Order{order}_P{i}"
-                for i in range(len(features_pos_independent))
-            ]
-        )
-
-        for pos in range(sequence - (order - 1)):
-            for letter in alphabet:
-                feature_names_dep.append(f"{letter}_{seqname[pos]}")
-
-        for letter in alphabet:
-            feature_names_indep.append(f"{letter}")
-
-        if len(feature_names_indep) != len(index_independent):
-            raise AssertionError()
-        if len(feature_names_dep) != len(index_dependent):
-            raise AssertionError()
-
-    index_all = index_dependent + index_independent
-    feature_all = feature_names_dep + feature_names_indep
-
-    return dict(zip(index_all, feature_all))

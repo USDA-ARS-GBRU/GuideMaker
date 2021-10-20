@@ -29,7 +29,9 @@ import numpy as np
 from pathlib import Path
 import onnxruntime as rt
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 
 MODEL = "guidemaker/data/V3_model_nopos.onnx"
 MODEL_META = "guidemaker/data/V3_model_nopos_options.json"
@@ -117,7 +119,6 @@ def predict(
         learn_options,
         pam_audit=pam_audit,
         length_audit=length_audit,
-        quiet=True,
         num_threads=num_threads
     )
     inputs, *_ = concatenate_feature_sets(feature_sets)

@@ -22,7 +22,7 @@ import altair as alt
 from guidemaker import doench_predict
 from guidemaker import cfd_score_calculator
 
-logger = logging.getLogger('guidemaker.core')
+logger = logging.getLogger(__name__)
 PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
 
 pd.options.mode.chained_assignment = None
