@@ -112,7 +112,7 @@ def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=Tr
             featdict[featkey] = pd.concat(tempdflist)
         return featdict
     else:
-        return featurize_data(data=data, learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit, quiet=quiet)
+        return featurize_data(data=data, learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit)
 
 
 def get_nuc_features(data):
