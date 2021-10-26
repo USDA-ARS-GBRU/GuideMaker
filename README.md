@@ -4,7 +4,7 @@
 
 CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria and eukaryotes. There are many excellent tools for designing the CRISPR-Cas guide RNAs for model organisms with standard Cas enzymes. GuideMaker is intended as a fast and easy-to-use design tool for atypical projects with 1) non-standard Cas enzymes, 2) non-model organisms, or 3) projects that need to design a panel of guide RNAs (gRNA) for genome-wide screens.
 
-GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file. The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
+GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file or Fasta and GFF/GTF file. The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
 GuideMaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a **[web application](https://guidemaker.app.scinet.usda.gov)** at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
 
@@ -97,50 +97,42 @@ systems
 optional arguments:
   -h, --help            show this help message and exit
   --genbank GENBANK [GENBANK ...], -i GENBANK [GENBANK ...]
-                        One or more genbank .gbk or gzipped .gbk files for a
-                        single genome
+                        One or more genbank .gbk or gzipped .gbk files for a single genome. Provide this or GFF and fasta files
+  --fasta FASTA [FASTA ...], -f FASTA [FASTA ...]
+                        One or more fasta or gzipped fasta files for a single genome. If using a fasta, a GFF must also be provided but not a genbank file.
+  --gff GFF [GFF ...], -g GFF [GFF ...]
+                        One or more genbank GFF files for a single genome. If using a GFF a fasta file must also be provided but not a genbank file.
   --pamseq PAMSEQ, -p PAMSEQ
-                        A short PAM motif to search for, it may use IUPAC
-                        ambiguous alphabet
+                        A short PAM motif to search for, it may use IUPAC ambiguous alphabet
   --outdir OUTDIR, -o OUTDIR
                         The directory for data output
   --pam_orientation {5prime,3prime}, -r {5prime,3prime}
-                        PAM position relative to target: 5prime:
-                        [PAM][target], 3prime: [target][PAM]. For example,
-                        Cas9 is 3prime. Default: '5prime'.
+                        PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime. Default: '5prime'.
   --guidelength [10-27], -l [10-27]
                         Length of the guide sequence. Default: 20.
-  --lsr [0-27]          Length of a seed region near the PAM site required to
-                        be unique. Default: 10.
+  --lsr [0-27]          Length of a seed region near the PAM site required to be unique. Default: 10.
   --dtype {hamming,leven}
                         Select the distance type. Default: hamming.
-  --dist [0-5]          Minimum edit distance from any other potential guide.
-                        Default: 2.
-  --before [1-500]      keep guides this far in front of a feature. Default:
-                        100.
-  --into [1-500]        keep guides this far inside (past the start site)of a
-                        feature. Default: 200.
-  --knum [2-20]         how many sequences similar to the guide to report.
-                        Default: 5.
-  --controls CONTROLS   Number or random control RNAs to generate. Default:
-                        1000.
+  --dist [0-5]          Minimum edit distance from any other potential guide. Default: 2.
+  --before [1-500]      keep guides this far in front of a feature. Default: 100.
+  --into [1-500]        keep guides this far inside (past the start site)of a feature. Default: 200.
+  --knum [2-20]         how many sequences similar to the guide to report. Default: 5.
+  --controls CONTROLS   Number or random control RNAs to generate. Default: 1000.
   --threads THREADS     The number of cpu threads to use. Default: 2
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
   --restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]
-                        List of sequence representing restriction enzymes.
-                        Default: None.
+                        List of sequence representing restriction enzymes. Default: None.
   --filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]
                         List of locus tag. Default: None.
   --doench_efficiency_score
-                        Doench et al. 2016 - only for NGG PAM: None.
-  --cfd_score           CFD score for assessing off-target activity of gRNAs:
-                        None.
+                        Doench et al. 2016 - only for NGG PAM: Default: None.
+  --cfd_score           CFD score for assessing off-target activity of gRNAs: Default: None.
   --keeptemp            Option to keep intermediate files be kept
   --plot                Option to genereate guidemaker plots
-  --config CONFIG       Path to YAML formatted configuration file, default is 
-                        [Dynamically created path to yaml file]
+  --config CONFIG       Path to YAML formatted configuration file, default is /Users/rivers/Documents/guidemaker/guidemaker/data/config_default.yaml
   -V, --version         show program's version number and exit
+
 
 To run the web app locally, in terminal run:
 -----------------------------------------------------------------------
