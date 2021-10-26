@@ -1,6 +1,6 @@
 <h1 style="color: #FA4616" >GuideMaker</h1>
 
-**GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes?** 🦠 🧬
+**GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes** 🦠 🧬
 
 CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria and eukaryotes. There are many excellent tools for designing the CRISPR-Cas guide RNAs for model organisms with standard Cas enzymes. GuideMaker is intended as a fast and easy-to-use design tool for atypical projects with 1) non-standard Cas enzymes, 2) non-model organisms, or 3) projects that need to design a panel of guide RNAs (gRNA) for genome-wide screens.
 
@@ -139,14 +139,12 @@ optional arguments:
   --keeptemp            Option to keep intermediate files be kept
   --plot                Option to genereate guidemaker plots
   --config CONFIG       Path to YAML formatted configuration file, default is 
-                        /Users/ravinpoudel/opt/anaconda3/envs/gmenv2/lib/pytho
-                        n3.7/site-packages/guidemaker/data/config_default.yaml
+                        [Dynamically created path to yaml file]
   -V, --version         show program's version number and exit
 
 To run the web app locally, in terminal run:
 -----------------------------------------------------------------------
-streamlit run /Users/ravinpoudel/opt/anaconda3/envs/gmenv2/lib/python3.7/site-
-packages/guidemaker/data/app.py
+streamlit run [Dynamically created path to app file]
 -----------------------------------------------------------------------
 
 
@@ -178,7 +176,7 @@ If the path of the `app.py` differs from the one displayed below, you can locate
 
 ```bash
 
-streamlit run /Users/admin/opt/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
+streamlit run /[user path prefix]/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
 ![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)

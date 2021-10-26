@@ -30,10 +30,10 @@ pd.options.mode.chained_assignment = None
 def is_gzip(filename: str):
     try:
         with open(filename, "rb") as f:
-            logging.info("check if %s is gzipped" % filename)
+            logger.info("check if %s is gzipped" % filename)
             return f.read(2) == b'\x1f\x8b'
     except IOError as e:
-        logging.error("Could not open the file %s to determine if it was gzipped" % filename)
+        logger.error("Could not open the file %s to determine if it was gzipped" % filename)
         raise e
 
 
@@ -445,7 +445,7 @@ class TargetProcessor:
 
         # index everything but not duplicates
         notduplicated_targets = list(set(self.targets['target'].tolist()))
-        #logging.info("unique targets for index: %s" % len(notduplicated_targets))
+        #mod_logger.info("unique targets for index: %s" % len(notduplicated_targets))
         if self.targets['dtype'].iat[0] == "hamming":
             bintargets = self._one_hot_encode(notduplicated_targets)
             index_params = {'M': M, 'indexThreadQty': num_threads, 'efConstruction': efC, 'post': post}
@@ -646,19 +646,21 @@ class Annotation:
 
     """
 
-    def __init__(self, genbank_list: List[str], target_bed_df: object) -> None:
+    def __init__(self, annotation_list: List[str], annotation_type: str, target_bed_df: object) -> None:
         """
         Annotation class for data and methods on targets and gene annotations
 
         Args:
-            genbank_list (List[str]): A list of genbank files from a single genome
+            annotation_list (List[str]): A list of genbank files from a single genome
+            annotation_type (str): "genbank" | "gff"
             target_bed_df (object): A pandas dataframe in Bed format with the
                 locations of targets in the genome
 
         Returns:
             None
         """
-        self.genbank_list: List[str] = genbank_list
+        self.annotation_list: List[str] = annotation_list
+        self.annotation_type = annotation_type
         self.target_bed_df: object = target_bed_df
         self.genbank_bed_df: object = None
         self.feature_dict: Dict = None
@@ -666,9 +668,9 @@ class Annotation:
         self.filtered_df: object = None
         self.qualifiers: object = None
 
-    def _get_genbank_features(self, feature_types: List[str] = None) -> None:
+    def get_annotation_features(self, feature_types: List[str] = None) -> None:
         """
-        Parse genbank records into pandas DF/Bed format and dict format saving to self
+        Parse annotation records into pandas DF/Bed format and dict format saving to self
 
         Args:
             feature_types (List[str]): a list of Genbank feature types to use
@@ -680,21 +682,22 @@ class Annotation:
             feature_types = ["CDS"]
         feature_dict = {}
         pddict = dict(chrom=[], chromStart=[], chromEnd=[], name=[], strand=[])
-        for gbfile in self.genbank_list:
-            try:
-                if is_gzip(gbfile):
-                    f = gzip.open(gbfile, mode='rt')
-                else:
-                    f = open(gbfile, mode='r')
-            except IOError as e:
-                logging.error("The genbank file %s could not be opened" % gbfile)
-                raise e
-            genbank_file = SeqIO.parse(f, "genbank")
-            for entry in genbank_file:
-                for record in entry.features:
-                    if record.type in feature_types:
-                        if record.strand in [1, -1, "+", "-"]:
-                            pddict["strand"].append("-" if record.strand < 0 else "+")
+        if self.annotation_type == "genbank":
+            for gbfile in self.annotation_list:
+                try:
+                    if is_gzip(gbfile):
+                        f = gzip.open(gbfile, mode='rt')
+                    else:
+                        f = open(gbfile, mode='r')
+                except IOError as e:
+                    logger.error("The genbank file %s could not be opened" % gbfile)
+                    raise e
+                genbank_file = SeqIO.parse(f, "genbank")
+                for entry in genbank_file:
+                    for record in entry.features:
+                        if record.type in feature_types:
+                            if record.strand in [1, -1, "+", "-"]:
+                                pddict["strand"].append("-" if str(record.strand) in ['-1', '-' ] else "+")
                             featid = hashlib.md5(str(record).encode()).hexdigest()
                             pddict['chrom'].append(entry.id)
                             pddict["chromStart"].append(record.location.start.position)
@@ -707,7 +710,34 @@ class Annotation:
             genbankbed = pd.DataFrame.from_dict(pddict)
             self.genbank_bed_df = genbankbed
             self.feature_dict = feature_dict
-        f.close()
+            f.close()
+        elif self.annotation_type == "gff":
+            for gff in self.annotation_list:
+                bedfile = BedTool(gff)
+                for rec in bedfile:
+                    if rec[2] in feature_types:
+                        pddict["chrom"].append(rec[0])
+                        pddict["chromStart"].append(rec[3])
+                        pddict["chromEnd"].append(rec[4])
+                        pddict["strand"].append(rec[6])
+                        featid = hashlib.md5(str(rec).encode()).hexdigest()
+                        pddict["name"].append(featid)
+                        featlist = rec[8].split(';')
+                        for feat in featlist:
+                            if feat.isspace():
+                                continue
+                            fl = re.search('^[^"]*', feat)
+                            fv = re.search('"([^"]*)"', feat)
+                            feat_key = fl.group(0).strip()
+                            feat_val = fv.group(0) .strip('"')
+                            if not feat_key in feature_dict:
+                                feature_dict[feat_key] = {}
+                            feature_dict[feat_key][featid] = feat_val
+            print(feature_dict.keys())
+            genbankbed = pd.DataFrame.from_dict(pddict)
+            self.genbank_bed_df = genbankbed
+            self.feature_dict = feature_dict
+
 
     def _get_qualifiers(self, configpath, excluded: List[str] = None) -> object:
         """
@@ -734,16 +764,19 @@ class Annotation:
             excluded = ["translation"]
         final_quals = []
         qual_df = pd.DataFrame(data={"Feature id": []})
-        for quals in self.feature_dict:
-            if len(quals) / len(self.feature_dict) > min_prop:
-                final_quals.append(quals)
+        for featkey, quals in self.feature_dict.items():
+            if len(quals) / len(self.feature_dict[featkey]) > min_prop:
+                final_quals.append(featkey)
         for qualifier in final_quals:
             if qualifier not in excluded:
                 featlist = []
                 quallist = []
                 for feat, qual in self.feature_dict[qualifier].items():
                     featlist.append(feat)
-                    quallist.append(";".join([str(i) for i in qual]))
+                    if isinstance(qual, list):
+                        quallist.append(";".join([str(i) for i in qual]))
+                    else:
+                        quallist.append(qual)
                 tempdf = pd.DataFrame({'Feature id': featlist, qualifier: quallist})
                 qual_df = qual_df.merge(tempdf, how="outer", on="Feature id")
         self.qualifiers = qual_df
@@ -994,7 +1027,7 @@ class GuideMakerPlot:
             accession_plot.save(plot_file_name)
 
 
-def get_fastas(filelist, tempdir=None):
+def get_fastas(filelist, input_format="genbank", tempdir=None):
     """
     Saves a Fasta and from 1 or more Genbank files (may be gzipped)
 
@@ -1005,20 +1038,21 @@ def get_fastas(filelist, tempdir=None):
         None
     """
     try:
+        logger.info("log, log, log!)")
         fastpath = os.path.join(tempdir, "forward.fasta")
         with open(fastpath, "w") as f1:
             for file in filelist:
                 if is_gzip(file):
                     with gzip.open(file, 'rt') as f:
-                        records = SeqIO.parse(f, "genbank")
+                        records = SeqIO.parse(f, input_format)
                         SeqIO.write(records, f1, "fasta")
                 else:
                     with open(file, 'r') as f:
-                        records = (SeqIO.parse(f, "genbank"))
+                        records = (SeqIO.parse(f, input_format))
                         SeqIO.write(records, f1, "fasta")
         return fastpath
     except Exception as e:
-        print("An error occurred in input genbank file %s" % file)
+        print("An error occurred in the input file %s" % file)
         raise e
 
 
@@ -1032,14 +1066,31 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
     Return:
         List[str]: A list of DNA string with expanded ambiguous DNA values
     """
-    dna_dict = Seq.IUPAC.IUPACData.ambiguous_dna_values
+    ambiguous_dna_values = {
+    "A": "A",
+    "C": "C",
+    "G": "G",
+    "T": "T",
+    "M": "AC",
+    "R": "AG",
+    "W": "AT",
+    "S": "CG",
+    "Y": "CT",
+    "K": "GT",
+    "V": "ACG",
+    "H": "ACT",
+    "D": "AGT",
+    "B": "CGT",
+    "X": "GATC",
+    "N": "GATC",
+    }
     extend_list = []
-    for i in product(*[dna_dict[j] for j in seq]):
+    for i in product(*[ambiguous_dna_values[j] for j in seq]):
         extend_list.append("".join(i))
     return extend_list
 
 
-# add CDF scores
+# add CDF and Doench Azimuth scores
 
 def cfd_score(df):
     def cfd_calculator(knnstrlist, guide, mm_scores):

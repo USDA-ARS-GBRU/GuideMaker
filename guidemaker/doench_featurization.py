@@ -48,7 +48,7 @@ def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> di
         (dict): Returns a dict containing pandas dataframs of features
     """
 
-    logging.info("Creating features for Doench et al. 2016 score prediction")
+    logger.info("Creating features for Doench et al. 2016 score prediction")
     if np.any(data["30mer"].str.len() != 30):
         raise AssertionError(f"Sequences should be 30 nt long")
 
@@ -57,31 +57,31 @@ def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> di
 
     if learn_options["nuc_features"]:
         # spectrum kernels (position-independent) and weighted degree kernels (position-dependent)
-        logging.info("Creating nucleotide features")
+        logger.info("Creating nucleotide features")
         feature_sets["_nuc_pd_Order1"], feature_sets["_nuc_pi_Order1"], feature_sets["_nuc_pd_Order2"], feature_sets["_nuc_pi_Order2"] = get_nuc_features(data)
 
-    logging.info("Verifing nucleotide features")
+    logger.info("Verifing nucleotide features")
     check_feature_set(feature_sets)
 
     if learn_options["gc_features"]:
-        logging.info("Creating GC features")
+        logger.info("Creating GC features")
         gc_above_10, gc_below_10, gc_count = gc_features(data, length_audit)
         feature_sets["gc_above_10"] = pd.DataFrame(gc_above_10)
         feature_sets["gc_below_10"] = pd.DataFrame(gc_below_10)
         feature_sets["gc_count"] = pd.DataFrame(gc_count)
-        logging.info("gc features complete")
+        logger.info("gc features complete")
 
     if learn_options["include_NGGX_interaction"]:
-        logging.info("Creating ggx features")
+        logger.info("Creating ggx features")
         feature_sets["NGGX"] = nggx_interaction_feature(data, pam_audit)
 
     if learn_options["include_Tm"]:
-        logging.info("Creattng Tm features")
+        logger.info("Creattng Tm features")
         feature_sets["Tm"] = Tm_feature(data, pam_audit, learn_options=None)
 
 
     check_feature_set(feature_sets)
-    logging.info("final feature check complte")
+    logger.info("final feature check complte")
 
     return feature_sets
 

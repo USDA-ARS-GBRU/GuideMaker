@@ -14,11 +14,9 @@ import textwrap
 
 import pybedtools
 from Bio import SeqIO
-import numpy as np
+
 
 import guidemaker
-from guidemaker import doench_predict
-from guidemaker import cfd_score_calculator
 
 
 def myparser():
@@ -28,8 +26,12 @@ def myparser():
         -----------------------------------------------------------------------
         streamlit run ''' + guidemaker.WEB_APP + '''
         -----------------------------------------------------------------------'''))
-    parser.add_argument('--genbank', '-i', nargs='+', type=str, required=True,
-                        help='One or more genbank .gbk  or gzipped .gbk files for a single genome')
+    parser.add_argument('--genbank', '-i', nargs='+', type=str, required=False,
+                        help='One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or  GFF and fasta files')
+    parser.add_argument('--fasta', '-f', nargs='+', type=str, required=False,
+                        help='One or more fasta  or gzipped fasta files for a single genome. If using a fasta, a GFF must also be provided but not a genbank file.')
+    parser.add_argument('--gff', '-g', nargs='+', type=str, required=False,
+                        help='One or more genbank GFF files for a single genome. If using a GFF a fasta file  must also be provided but not a genbank file.')
     parser.add_argument('--pamseq', '-p', type=str, required=True,
                         help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True,
@@ -70,11 +72,16 @@ def myparser():
     return parser
 
 
-def parserval(args):
-    assert(args.lsr <= args.guidelength), "The length of sequence near the PAM .i.e seed sequence that must be less than the guide length"
-    # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
-    assert(1 < len(args.pamseq) < 9), "The length of the PAM sequence must be between 2-8"
 
+def parserval(args):
+    try:
+        assert(args.lsr <= args.guidelength), "The length of sequence near the PAM .i.e seed sequence that must be less than the guide length"
+        # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
+        assert(1 < len(args.pamseq) < 9), "The length of the PAM sequence must be between 2-8"
+        assert ((args.genbank is not None and args.fasta is None and args.gff is None) or
+                (args.genbank is None and args.fasta is not  None and args.gff is not None)),"Please provide either Genbank files or Fasta and GFF files"
+    except AssertionError as err:
+        raise err
 
 def _logger_setup(logfile):
     """
@@ -84,22 +91,25 @@ def _logger_setup(logfile):
         logfile (str): Log file
     """
     try:
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                            datefmt='%m-%d %H:%M',
-                            filename=logfile,
-                            filemode='w')
-        # define a Handler which writes INFO messages or higher to the sys.stderr
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
+        # create logger
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        # create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        # create file handler
+
+        fh = logging.FileHandler(logfile)
+        fh.setLevel(logging.DEBUG)
         # set a format which is simpler for console use
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         # tell the handler to use this format
-
-        console.setFormatter(formatter)
-        # add the handler to the root logger
-        logger = logging.getLogger().addHandler(console)
-        #logging.getLogger('').addHandler(console)
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+        # add the handlers to the logger
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+        return logger
     except Exception as e:
         print("An error occurred setting up logging")
         raise e
@@ -110,9 +120,9 @@ def main(arglist: list = None):
     # Set up logging
     parser = myparser()
     args = parser.parse_args(arglist)
+    logger = _logger_setup(args.log)
     parserval(args)
 
-    _logger_setup(args.log)
 
 
     try:
@@ -123,26 +133,32 @@ def main(arglist: list = None):
         raise SystemExit(1)
 
     try:
-        logging.info("Configuration data loaded from {}:".format(args.config))
-        logging.info(config)
+        logger.info("Configuration data loaded from {}:".format(args.config))
+        logger.info(config)
     except:
-        print("Could find config file, exiting.")
+        print("Could not find config file, exiting.")
         raise SystemExit(1)
 
     try:
 
         if args.tempdir:
             if not os.path.exists(args.tempdir):
-                logging.warning("Specified location for tempfile (%s) does not \
+                logger.warning("Specified location for tempfile (%s) does not \
                                  exist, using default location." % args.tempdir)
-                tempdir = tempfile.mkdtemp(prefix='guidemaker_')
+                os.mkdir(args.tempdir)
+                tempdir = args.tempdir
+            else:
+                tempdir = tempfile.mkdtemp
         else:
             tempdir = tempfile.mkdtemp(prefix='guidemaker_', dir=args.tempdir)
             pybedtools.helpers.set_tempdir(tempdir)
-        logging.info("Temp directory is: %s" % (tempdir))
-        logging.info("Writing fasta file from genbank file(s)")
-        fastapath = guidemaker.get_fastas(args.genbank, tempdir=tempdir)
-        logging.info("Identifying PAM sites in the genome")
+        logger.info("Temp directory is: %s" % (tempdir))
+        logger.info("Writing fasta file from genbank file(s)")
+        if args.genbank:
+            fastapath = guidemaker.get_fastas(args.genbank, input_format="genbank", tempdir=tempdir)
+        elif args.fasta:
+            fastapath = guidemaker.get_fastas(args.fasta, input_format="fasta", tempdir=tempdir)
+        logger.info("Identifying PAM sites in the genome")
         pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation, args.dtype)
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         pamtargets = pamobj.find_targets(
@@ -150,89 +166,92 @@ def main(arglist: list = None):
         tl = guidemaker.core.TargetProcessor(
             targets=pamtargets, lsr=args.lsr, editdist=args.dist, knum=args.knum)
         lengthoftl = len(tl.targets)
-        logging.info("Checking guides for restriction enzymes")
+        logger.info("Checking guides for restriction enzymes")
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
-        logging.info("Number of guides removed after checking for restriction enzymes: %d",
+        logger.info("Number of guides removed after checking for restriction enzymes: %d",
                      (lengthoftl - len(tl.targets)))
-        logging.info("Identifing guides that are unique near the PAM site")
+        logger.info("Identifing guides that are unique near the PAM site")
         tl.find_unique_near_pam()
-        logging.info("Number of guides with non unique seed sequence: %d",
+        logger.info("Number of guides with non unique seed sequence: %d",
                      (tl.targets.isseedduplicated.sum()))
-        logging.info("Indexing all potential guide sites: %s. This is the longest step." %
+        logger.info("Indexing all potential guide sites: %s. This is the longest step." %
                      len(list(set(tl.targets['target'].tolist()))))
         tl.create_index(num_threads=args.threads, configpath=args.config)
-        logging.info(
+        logger.info(
             "Identifying guides that have a hamming distance <= %s to all other potential guides", str(args.dist))
         tl.get_neighbors(num_threads=args.threads, configpath=args.config)
-        logging.info("Formatting data for BedTools")
+        logger.info("Formatting data for BedTools")
         tf_df = tl.export_bed()
-        logging.info("Create GuideMaker Annotation object")
-        anno = guidemaker.core.Annotation(genbank_list=args.genbank,
-                                           target_bed_df=tf_df)
-        logging.info("Identify genomic features")
-        anno._get_genbank_features()
-        logging.info("Total number of CDS/locus in the input genome: %d" % anno.locuslen())
-        logging.info("Find genomic features closest the guides")
+        logger.info("Create GuideMaker Annotation object")
+        if args.genbank:
+            anno = guidemaker.core.Annotation(annotation_list=args.genbank, annotation_type="genbank",
+                                              target_bed_df=tf_df)
+        elif args.gff:
+            anno = guidemaker.core.Annotation(annotation_list=args.gff, annotation_type="gff",
+                                              target_bed_df=tf_df)
+        logger.info("Identify genomic features")
+        anno.get_annotation_features()
+        logger.info("Total number of CDS/locus in the input genome: %d" % anno.locuslen())
+        logger.info("Find genomic features closest the guides")
         anno._get_nearby_features()
-        logging.info("Select guides that start between +%s and -%s of a feature start" %
+        logger.info("Select guides that start between +%s and -%s of a feature start" %
                      (args.before, args.into))
         anno._filter_features(before_feat=args.before, after_feat=args.into)
-        logging.info("Select description columns")
+        logger.info("Select description columns")
         anno._get_qualifiers(configpath=args.config)
-        logging.info("Format the output")
+        logger.info("Format the output")
         anno._format_guide_table(tl)
         prettydf = anno._filterlocus(args.filter_by_locus)
         #prettydf = anno.filter_pretty_df
         if args.doench_efficiency_score:
-            logging.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
+            logger.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
             prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation, num_threads=args.threads)
 
         if args.cfd_score:
-            logging.info("Calculating CFD score for assessing off-target activity of gRNAs")
+            logger.info("Calculating CFD score for assessing off-target activity of gRNAs")
             prettydf = guidemaker.core.cfd_score(df=prettydf)
 
         fd_zero = prettydf['Feature distance'].isin([0]).sum()
-        logging.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
+        logger.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):
             os.makedirs(args.outdir)
         csvpath = os.path.join(args.outdir, "targets.csv")
         prettydf.to_csv(csvpath, index=False)
-        logging.info("Creating random control guides")
+        logger.info("Creating random control guides")
         contpath = os.path.join(args.outdir, "controls.csv")
         seq_record_iter = SeqIO.parse(fastapath, "fasta")
         cmin, cmed, randomdf = tl.get_control_seqs(
             seq_record_iter, configpath=args.config, length=args.guidelength, n=args.controls, num_threads=args.threads)
-        logging.info("Number of random control searched: %d" % tl.ncontrolsearched)
-        logging.info("Percentage of GC content in the input genome: " +
+        logger.info("Number of random control searched: %d" % tl.ncontrolsearched)
+        logger.info("Percentage of GC content in the input genome: " +
                      "{:.2f}".format(tl.gc_percent))
-        logging.info("Total length of the genome: " + "{:.1f} MB".format(tl.genomesize))
-        logging.info("Created %i control guides with a minimum distance of %d and a median distance of %d" % (
+        logger.info("Total length of the genome: " + "{:.1f} MB".format(tl.genomesize))
+        logger.info("Created %i control guides with a minimum distance of %d and a median distance of %d" % (
             args.controls, cmin, cmed))
         randomdf.to_csv(contpath)
-        logging.info("GuideMaker completed, results are at %s" % args.outdir)
-        logging.info("PAM sequence: %s" % args.pamseq)
-        logging.info("PAM orientation: %s" % args.pam_orientation)
-        logging.info("Genome strand(s) searched: %s" % "both")
-        logging.info("Total PAM sites considered: %d" % lengthoftl)
-        logging.info("Guide RNA candidates found: %d" % len(prettydf))
+        logger.info("GuideMaker completed, results are at %s" % args.outdir)
+        logger.info("PAM sequence: %s" % args.pamseq)
+        logger.info("PAM orientation: %s" % args.pam_orientation)
+        logger.info("Genome strand(s) searched: %s" % "both")
+        logger.info("Total PAM sites considered: %d" % lengthoftl)
+        logger.info("Guide RNA candidates found: %d" % len(prettydf))
     except Exception as e:
-        logging.error("GuideMaker terminated with errors. See the log file for details.")
-        logging.error(e)
+        logger.exception("GuideMaker terminated with errors. See the log file for details.")
         raise SystemExit(1)
     try:
         if args.plot:
-            logging.info("Creating Plots...")
+            logger.info("Creating Plots...")
             guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
-            logging.info("Plots saved at: %s" % args.outdir)
+            logger.info("Plots saved at: %s" % args.outdir)
     except Exception as e:
-        logging.error(e)
+        logger.exception(e)
         raise SystemExit(1)
     try:
         if not args.keeptemp:
             shutil.rmtree(tempdir)
     except UnboundLocalError as e:
-        logging.error(e)
+        logger.exception(e)
         raise SystemExit(1)
     except AttributeError as e:
-        logging.error(e)
+        logger.exception(e)
         raise SystemExit(1)

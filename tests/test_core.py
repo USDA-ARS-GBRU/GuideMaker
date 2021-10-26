@@ -9,7 +9,7 @@ import pandas as pd
 from Bio import Seq
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from Bio.Alphabet import IUPAC
+
 
 from guidemaker import doench_predict
 from guidemaker import cfd_score_calculator
@@ -44,7 +44,7 @@ pamobj = guidemaker.core.PamTarget("NGG", "5prime","hamming")
 
 def test_pam_find_targets_5p():
     pamobj = guidemaker.core.PamTarget("NGG", "5prime", "hamming")
-    testseq1 = [SeqRecord(Seq.Seq("AATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTAACAATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTGGGAAC",alphabet=IUPAC.ambiguous_dna), id="testseq1")]
+    testseq1 = [SeqRecord(Seq.Seq("AATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTAACAATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTGGGAAC"), id="testseq1")]
     target = pamobj.find_targets(seq_record_iter=testseq1, target_len=6)
     assert target['target'][0] == "ATGCAC"
     assert target['target'][1] == "TAACAA"
@@ -55,7 +55,7 @@ def test_pam_find_targets_5p():
 
 def test_pam_find_targets_3p():
     pamobj = guidemaker.core.PamTarget("NGG", "3prime", "hamming")
-    testseq1 = [SeqRecord(Seq.Seq("AATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTAACAATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTGGGAAC]",alphabet=IUPAC.ambiguous_dna), id="testseq1")]
+    testseq1 = [SeqRecord(Seq.Seq("AATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTAACAATGATCTGGATGCACATGCACTGCTCCAAGCTGCATGAAAAGTACAAAGCACGTTATTAGATGGTGGGAAC]"), id="testseq1")]
     target = pamobj.find_targets(seq_record_iter=testseq1, target_len=6)
     assert target['target'][0] == "ATGATC"
     assert target['target'][1] == "ATTAGA"
@@ -166,20 +166,20 @@ tl.find_unique_near_pam()
 tl.create_index(configpath=configpath)
 tl.get_neighbors(configpath=configpath)
 tf_df = tl.export_bed()
-anno = guidemaker.Annotation(genbank_list=[filegbk],
+anno = guidemaker.Annotation(annotation_list=[filegbk], annotation_type="genbank",
                                            target_bed_df=tf_df)
 
 def test_get_genbank_features():
-    anno._get_genbank_features()
+    anno.get_annotation_features()
     assert 7 == len(anno.feature_dict)
     assert 182 == len(anno.genbank_bed_df)
 
 
 def test_get_qualifiers():
     filegbk =os.path.join(TEST_DIR, "test_data", "Carsonella_ruddii.gbk")
-    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
-                                       target_bed_df=tf_df)
-    anno._get_genbank_features()
+    anno = guidemaker.Annotation(annotation_list=[filegbk], annotation_type="genbank",
+                                 target_bed_df=tf_df)
+    anno.get_annotation_features()
     anno._get_qualifiers(configpath=configpath)
     assert anno.qualifiers.shape == (182, 7)
 
@@ -195,9 +195,9 @@ def test_get_nearby_features(tmp_path):
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
-    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
-                                       target_bed_df=tf_df)
-    anno._get_genbank_features()
+    anno = guidemaker.Annotation(annotation_list=[filegbk], annotation_type="genbank",
+                                 target_bed_df=tf_df)
+    anno.get_annotation_features()
     anno._get_nearby_features()
     assert anno.nearby.shape == (6804, 12)
 
@@ -214,9 +214,9 @@ def test_filter_features():
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
-    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
-                                        target_bed_df=tf_df)
-    anno._get_genbank_features()
+    anno = guidemaker.Annotation(annotation_list=[filegbk], annotation_type="genbank",
+                                 target_bed_df=tf_df)
+    anno.get_annotation_features()
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
@@ -236,9 +236,9 @@ def test_filterlocus():
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
-    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
+    anno = guidemaker.core.Annotation(annotation_list=[filegbk],annotation_type="genbank",
                                         target_bed_df=tf_df)
-    anno._get_genbank_features()
+    anno.get_annotation_features()
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
@@ -283,9 +283,9 @@ def test_get_doench_efficiency_score():
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
-    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
+    anno = guidemaker.core.Annotation(annotation_list=[filegbk],annotation_type="genbank",
                                         target_bed_df=tf_df)
-    anno._get_genbank_features()
+    anno.get_annotation_features()
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
@@ -306,9 +306,9 @@ def test_cfd_score():
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
-    anno = guidemaker.core.Annotation(genbank_list=[filegbk],
+    anno = guidemaker.core.Annotation(annotation_list=[filegbk], annotation_type="genbank",
                                         target_bed_df=tf_df)
-    anno._get_genbank_features()
+    anno.get_annotation_features()
     anno._get_nearby_features()
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)

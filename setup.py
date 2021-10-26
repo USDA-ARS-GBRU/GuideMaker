@@ -7,7 +7,7 @@ import versioneer
 
 requirements = [
     # package requirements go here
-    'biopython==1.76',
+    'biopython>=1.79',
     'numpy >=1.11',
     'pybedtools>=0.8.2',
     'nmslib>=2.0.6',
