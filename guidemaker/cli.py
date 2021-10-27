@@ -27,11 +27,11 @@ def myparser():
         streamlit run ''' + guidemaker.WEB_APP + '''
         -----------------------------------------------------------------------'''))
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=False,
-                        help='One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or  GFF and fasta files')
+                        help='One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or GFF/GTF and fasta files')
     parser.add_argument('--fasta', '-f', nargs='+', type=str, required=False,
-                        help='One or more fasta  or gzipped fasta files for a single genome. If using a fasta, a GFF must also be provided but not a genbank file.')
+                        help='One or more fasta or gzipped fasta files for a single genome. If using a fasta, a GFF/GTF file must also be provided but not a genbank file.')
     parser.add_argument('--gff', '-g', nargs='+', type=str, required=False,
-                        help='One or more genbank GFF files for a single genome. If using a GFF a fasta file  must also be provided but not a genbank file.')
+                        help='One or more GFF or GTF files (optionally gzipped) for a single genome. If using a GFF/GTF a fasta file  must also be provided but not a genbank file.')
     parser.add_argument('--pamseq', '-p', type=str, required=True,
                         help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True,
@@ -202,7 +202,7 @@ def main(arglist: list = None):
         logger.info("Format the output")
         anno._format_guide_table(tl)
         prettydf = anno._filterlocus(args.filter_by_locus)
-        #prettydf = anno.filter_pretty_df
+        # prettydf = anno.filter_pretty_df
         if args.doench_efficiency_score:
             logger.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
             prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation, num_threads=args.threads)

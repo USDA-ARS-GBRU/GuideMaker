@@ -668,6 +668,29 @@ class Annotation:
         self.filtered_df: object = None
         self.qualifiers: object = None
 
+    def check_annotation_type(self):
+        """determine if the file provided by the GFF argument is a GFF or GTF file
+
+            Args: None
+
+            Returns (str): ["gff" | "gtf"]
+        """
+        def search(f):
+            line1 = f.readline()
+            gffmatch = re.search("gff-version", line1)
+            if gffmatch is not None:
+                return "gff"
+            gtfmatch = re.search("gtf-version", line1)
+            if gtfmatch is not None:
+                return "gtf" 
+        testfile = self.annotation_list[0]
+        if is_gzip(testfile):
+            with gzip.open(testfile, 'rt') as f:
+                return search(f)
+        else:
+            with open(testfile, 'r') as f:
+                return search(f)
+
     def get_annotation_features(self, feature_types: List[str] = None) -> None:
         """
         Parse annotation records into pandas DF/Bed format and dict format saving to self
@@ -712,6 +735,7 @@ class Annotation:
             self.feature_dict = feature_dict
             f.close()
         elif self.annotation_type == "gff":
+            anno_format = self.check_annotation_type()
             for gff in self.annotation_list:
                 bedfile = BedTool(gff)
                 for rec in bedfile:
@@ -726,14 +750,18 @@ class Annotation:
                         for feat in featlist:
                             if feat.isspace():
                                 continue
-                            fl = re.search('^[^"]*', feat)
-                            fv = re.search('"([^"]*)"', feat)
-                            feat_key = fl.group(0).strip()
-                            feat_val = fv.group(0) .strip('"')
+                            if anno_format == 'gtf':
+                                fl = re.search('^[^"]*', feat)
+                                fv = re.search('"([^"]*)"', feat)
+                                feat_key = fl.group(0).strip()
+                                feat_val = fv.group(0).strip('"')
+                            elif anno_format =='gff':
+                                fl = feat.split('=')
+                                feat_key = fl[0]
+                                feat_val = fl[1]
                             if not feat_key in feature_dict:
                                 feature_dict[feat_key] = {}
                             feature_dict[feat_key][featid] = feat_val
-            print(feature_dict.keys())
             genbankbed = pd.DataFrame.from_dict(pddict)
             self.genbank_bed_df = genbankbed
             self.feature_dict = feature_dict
@@ -909,7 +937,6 @@ class Annotation:
                     'Guide strand', 'PAM', 'Feature id',
                     'Feature start', 'Feature end', 'Feature strand',
                     'Feature distance', 'Similar guides', 'Similar guide distances','target_seq30']]
-        #print(pretty_df.head())
         pretty_df = pretty_df.merge(self.qualifiers, how="left", on="Feature id")
         pretty_df = pretty_df.sort_values(by=['Accession', 'Feature start'])
         # to match with the numbering with other tools- offset
@@ -1038,7 +1065,6 @@ def get_fastas(filelist, input_format="genbank", tempdir=None):
         None
     """
     try:
-        logger.info("log, log, log!)")
         fastpath = os.path.join(tempdir, "forward.fasta")
         with open(fastpath, "w") as f1:
             for file in filelist:
@@ -1121,6 +1147,6 @@ def get_doench_efficiency_score(df, pam_orientation, num_threads=1):
         doenchscore = doench_predict.predict(np.array(df.target_seq30), num_threads=num_threads)
         df["Efficiency"] = doenchscore
     else:
-        print("NOTE: doench_efficiency_score based on Doench et al. 2016 - can only  be used for NGG PAM).Check PAM sequence and PAM orientation")
+        logger.warning("NOTE: doench_efficiency_score based on Doench et al. 2016 - can only  be used for NGG PAM).Check PAM sequence and PAM orientation")
         df["Efficiency"] = "Not Available"
     return df.drop('target_seq30', axis=1)

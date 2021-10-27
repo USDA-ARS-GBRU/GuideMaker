@@ -237,7 +237,7 @@ def main(arglist: list = None):
     if os.path.exists(sessionID):
 
         #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
-        source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
+        source = pd.read_csv(os.path.join("/", sessionID, 'targets.csv'), low_memory=False)
 
         accession_list = list(set(source['Accession']))
         for accession in accession_list:
@@ -249,12 +249,12 @@ def main(arglist: list = None):
 
         # Targets
         target_tab = "✅ [Target Data](downloads/targets.csv)"
-        targets = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
+        targets = pd.read_csv(os.path.join("/", sessionID, 'targets.csv'), low_memory=False)
         targets.to_csv(str(DOWNLOADS_PATH / "targets.csv"), index=False)
 
         # Controls
         control_tab = "✅ [Control Data](downloads/controls.csv)"
-        controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv'), low_memory=False)
+        controls = pd.read_csv(os.path.join("/", sessionID, 'controls.csv'), low_memory=False)
         controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
 
         # logs
