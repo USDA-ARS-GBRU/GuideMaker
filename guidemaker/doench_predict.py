@@ -30,6 +30,7 @@ from pathlib import Path
 import onnxruntime as rt
 import json
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
