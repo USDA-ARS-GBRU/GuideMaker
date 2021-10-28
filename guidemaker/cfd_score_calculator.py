@@ -16,8 +16,12 @@ only scoring the sites present.
 import json
 from typing import Tuple, Dict
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+MODEL_META = os.path.join(DIR,"data/cfd_data.json")
 
 def get_mm_pam_scores() -> Tuple[Dict, Dict]:
     """load json file of mismatch scores and PAM scores
@@ -27,7 +31,7 @@ def get_mm_pam_scores() -> Tuple[Dict, Dict]:
 
     """
     try:
-        with open("guidemaker/data/cfd_data.json") as dat:
+        with open(MODEL_META) as dat:
             scores = json.load(dat)
         mm_s = scores['mm']
         pam_s = scores['pam']
