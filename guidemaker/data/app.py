@@ -25,6 +25,7 @@ st.set_page_config(page_title=apptitle, page_icon=":eyeglasses:")
 st.sidebar.markdown("## Select Parameters to Design gRNAs")
 
 
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
 
 # @contextmanager
 # def genome_connect(db_bytes):
@@ -52,6 +53,34 @@ def genome_connect(db_bytes):
     """Write input genome to local disk and clean after using."""
     fp = Path(str(uuid4()))
     with open('input.gbk', 'wb') as file:
+        for i in db_bytes:
+            fp = bytearray(i)
+            file.write(fp)
+    conn = str(fp)
+    try:
+        yield conn
+    finally:
+        pass
+
+@contextmanager
+def fasta_connect(db_bytes):
+    """Write input genome to local disk and clean after using."""
+    fp = Path(str(uuid4()))
+    with open('input.fasta', 'wb') as file:
+        for i in db_bytes:
+            fp = bytearray(i)
+            file.write(fp)
+    conn = str(fp)
+    try:
+        yield conn
+    finally:
+        pass
+
+@contextmanager
+def gff_connect(db_bytes):
+    """Write input genome to local disk and clean after using."""
+    fp = Path(str(uuid4()))
+    with open('input.gff', 'wb') as file:
         for i in db_bytes:
             fp = bytearray(i)
             file.write(fp)
@@ -159,11 +188,19 @@ def main(arglist: list = None):
 
     # Define input parameters and widgets
 
-    multiple_files = st.sidebar.file_uploader("Upload one or more Genome file [ .gbk, .gbk.gz]", type=[".gbk", ".gz"], accept_multiple_files=True)
-    genome = list( map(lambda x: x.getvalue(), multiple_files))
+    multiple_files_gbk = st.sidebar.file_uploader("Upload one or more Genome file [ .gbk, .gbk.gz]", type=[".gbk", ".gz",".gbff"], accept_multiple_files=True)
+    genome = list( map(lambda x: x.getvalue(), multiple_files_gbk))
+
+    multiple_files_fasta = st.sidebar.file_uploader("Upload one or more fasta file [ .fasta, .fasta.gz]", type=[".fasta", ".gz",".fna"], accept_multiple_files=True)
+    fasta = list( map(lambda x: x.getvalue(), multiple_files_fasta))
+
+
+    multiple_files_gff= st.sidebar.file_uploader("Upload gff/gtf file if you are using fasta [ .gff, .gtf]", type=[".gff", ".gtf"], accept_multiple_files=True)
+    gff = list( map(lambda x: x.getvalue(), multiple_files_gff))
 
     DemoGenome = st.sidebar.selectbox("OR Use Demo GBK",['Carsonella_ruddii.gbk.gz','Pseudomonas_aeruginosa.gbk.gz'])
-    demo = open(DemoGenome,"rb")
+    DemoGenomepath = os.path.join(DATA_DIR,DemoGenome)
+    demo = open(DemoGenomepath,"rb")
     #st.write("You selected this option ",xx)
 
   
@@ -205,6 +242,8 @@ def main(arglist: list = None):
             "--knum", str(knum),
             "--controls", str(controls),
             "--threads", str(2),
+            "--cfd_score",
+            "--doench_efficiency_score",
             "--restriction_enzyme_list"]
             scriptorun = args + restriction_enzyme_list
 
@@ -226,8 +265,35 @@ def main(arglist: list = None):
             "--knum", str(knum),
             "--controls", str(controls),
             "--threads", str(2),
+            "--cfd_score",
+            "--doench_efficiency_score",
             "--restriction_enzyme_list"]
             scriptorun = args + restriction_enzyme_list
+
+    if fasta and gff:
+        with fasta_connect(fasta):
+            with gff_connect(gff):
+                #st.write("Connection object:", conn)
+                args = ["guidemaker",
+                "-f", "input.fasta",
+                "-g", "input.gff",
+                "-p", pam,
+                "--guidelength", str(guidelength),
+                "--pam_orientation", pam_orientation,
+                "--lsr", str(lsr),
+                "--dtype", str("hamming"),
+                "--dist", str(dist),
+                "--outdir", sessionID,
+                "--log", logfilename,
+                "--into", str(into),
+                "--before", str(before),
+                "--knum", str(knum),
+                "--controls", str(controls),
+                "--threads", str(2),
+                "--cfd_score",
+                "--doench_efficiency_score",
+                "--restriction_enzyme_list"]
+                scriptorun = args + restriction_enzyme_list
 
     if(st.sidebar.button("SUBMIT")):
         # st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
@@ -237,7 +303,7 @@ def main(arglist: list = None):
     if os.path.exists(sessionID):
 
         #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
-        source = pd.read_csv(os.path.join("/", sessionID, 'targets.csv'), low_memory=False)
+        source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
 
         accession_list = list(set(source['Accession']))
         for accession in accession_list:
@@ -249,12 +315,12 @@ def main(arglist: list = None):
 
         # Targets
         target_tab = "✅ [Target Data](downloads/targets.csv)"
-        targets = pd.read_csv(os.path.join("/", sessionID, 'targets.csv'), low_memory=False)
+        targets = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
         targets.to_csv(str(DOWNLOADS_PATH / "targets.csv"), index=False)
 
         # Controls
         control_tab = "✅ [Control Data](downloads/controls.csv)"
-        controls = pd.read_csv(os.path.join("/", sessionID, 'controls.csv'), low_memory=False)
+        controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv'), low_memory=False)
         controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
 
         # logs
@@ -293,6 +359,8 @@ def main(arglist: list = None):
         shutil.rmtree(sessionID, ignore_errors=True)
         os.remove(logfilename)
         os.remove('input.gbk')
+        os.remove('input.fasta')
+        os.remove('input.gff')
     except FileNotFoundError as e:
         pass
 
