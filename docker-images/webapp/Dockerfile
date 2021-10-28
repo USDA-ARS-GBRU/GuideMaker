@@ -3,7 +3,7 @@ LABEL maintainer="Adam R. Rivers"
 LABEL version="0.2.0"
 LABEL Description="GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems"
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get --allow-releaseinfo-change -y update && apt-get install -y \
     build-essential \
     zlib1g-dev
 

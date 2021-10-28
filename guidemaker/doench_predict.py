@@ -33,9 +33,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MODEL = "guidemaker/data/V3_model_nopos.onnx"
-MODEL_META = "guidemaker/data/V3_model_nopos_options.json"
+DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
 
+
+#MODEL = "guidemaker/data/V3_model_nopos.onnx"
+MODEL = os.path.join(DIR,"data/V3_model_nopos.onnx")
+#MODEL_META = "guidemaker/data/V3_model_nopos_options.json"
+MODEL_META = os.path.join(DIR,"data/V3_model_nopos_options.json")
 
 def concatenate_feature_sets(feature_sets, keys: List[str] = None):
     """ Combine features

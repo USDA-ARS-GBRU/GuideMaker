@@ -3,7 +3,7 @@ LABEL maintainer="Adam R. Rivers"
 LABEL version="0.2.0"
 LABEL Description="GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems"
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get --allow-releaseinfo-change -y update && apt-get install -y \
     build-essential \
     zlib1g-dev \
     && apt-get clean \
@@ -17,7 +17,7 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     python=3.7 \
     pandas=1.0.3 \
     pybedtools \
-    biopython=1.76 \
+    biopython=1.79 \
     numpy=1.19.4 \
     pyyaml=5.4.1 \
     && conda clean -afy
@@ -29,5 +29,4 @@ RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker &
 RUN mkdir /data
 WORKDIR /data
 ENTRYPOINT ["conda", "run", "-n", "base", "guidemaker"]
-
 
