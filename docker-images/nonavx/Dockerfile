@@ -20,6 +20,7 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     numpy=1.19.4 \
     pyyaml=5.4.1 \
     nmslib \
+    jsonschema==3.2 \
     && conda clean -afy
 
 ENV PATH="~/miniconda3/bin:$PATH"

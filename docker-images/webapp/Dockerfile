@@ -18,6 +18,7 @@ RUN conda install --yes --channel conda-forge --channel bioconda --channel gagan
     biopython=1.79 \
     numpy=1.19.4 \
     pyyaml=5.4.1 \
+    jsonschema==3.2 \
     && conda clean -afy
 
 RUN pip install --no-binary :all: nmslib
