@@ -14,7 +14,7 @@ requirements = [
     'pandas>=1.0.0',
     'pyyaml>=5.4.1',
     'regex==2020.11.13',
-    'altair',
+    'altair==4.1.0',
     'streamlit>=0.86.0',
     'pytest>=4.6',
     'pytest-cov',

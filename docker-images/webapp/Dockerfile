@@ -13,7 +13,11 @@ SHELL ["/bin/bash", "--login", "-c"]
 RUN conda install --yes --channel conda-forge --channel bioconda --channel gagan3012 --freeze-installed \
     nomkl \
     python=3.7 \
-    pybedtools=0.8.2 \
+    pandas=1.0.3 \
+    pybedtools \
+    biopython=1.79 \
+    numpy=1.19.4 \
+    pyyaml=5.4.1 \
     && conda clean -afy
 
 RUN pip install --no-binary :all: nmslib

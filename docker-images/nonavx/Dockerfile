@@ -16,7 +16,7 @@ RUN conda install --yes --channel conda-forge --channel bioconda --freeze-instal
     python=3.7 \
     pandas=1.0.3 \
     pybedtools \
-    biopython=1.76 \
+    biopython=1.79 \
     numpy=1.19.4 \
     pyyaml=5.4.1 \
     nmslib \
