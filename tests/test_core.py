@@ -68,7 +68,7 @@ def test_pam_find_targets_fullgenome():
     target = pamobj.find_targets(seq_record_iter=gb, target_len=20)
     assert target['target'][0] == "AAATGGTACGTTATGTGTTA"
 
-tardict = {'target': ['AAATGGTACGTTATGTGTTA','TACGTTATGTGTTATAAGAA','AACAGTAAAATGGTTTAATG'],
+tardict = {'target': ['AAATGGTACGTTATGTGTTA','AAATGGTACGTTATGTGTTA','AACAGTAAAATGGTTTAATG'],
         'exact_pam': ["AGG","TGG","CGG"],
         'start': [35, 41, 158572],
         'stop': [55, 61, 158592],
@@ -78,6 +78,7 @@ tardict = {'target': ['AAATGGTACGTTATGTGTTA','TACGTTATGTGTTATAAGAA','AACAGTAAAAT
         'seqid': ['AP009180.1','AP009180.2','AP009180.1'],
         'seedseq': [np.nan, np.nan, np.nan],
         'isseedduplicated': [np.nan, np.nan, np.nan],
+        'hasrestrictionsite': [np.nan, np.nan, np.nan],
         'dtype': ['hamming','hamming','hamming']}
     
 
@@ -91,8 +92,8 @@ def test_check_restriction_enzymes():
                                      lsr=10,
                                      editdist=2,
                                      knum=2)
-    tl.check_restriction_enzymes(['NRAGCA'])
-    assert tl.targets.shape == (3, 11)
+    tl.check_restriction_enzymes(['NGGTAB'])
+    assert tl.targets['hasrestrictionsite'][0] == True
 
 
 def test_find_unique_near_pam():
@@ -100,9 +101,9 @@ def test_find_unique_near_pam():
                                      lsr=10,
                                      editdist=2,
                                      knum=2)
-    tl.check_restriction_enzymes(['NRAGCA'])
+    tl.check_restriction_enzymes(['NGGTAB'])
     tl.find_unique_near_pam()
-    assert tl.targets[tl.targets['isseedduplicated'] == False].shape == (3,11)
+    assert tl.targets[tl.targets['isseedduplicated'] == False].shape == (2,12)
 
 
 def test_create_index():
@@ -139,7 +140,7 @@ def test_export_bed():
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     df = tl.export_bed()
-    assert df.shape == (3, 5)
+    assert df.shape == (2, 5)
 
 
 
@@ -190,16 +191,16 @@ def test_get_nearby_features(tmp_path):
     gb = SeqIO.parse(file, "fasta")
     targets = pamobj.find_targets(seq_record_iter=gb, target_len=20)
     tl = guidemaker.core.TargetProcessor(targets=targets, lsr=10, editdist=2, knum=2)
-    tl.check_restriction_enzymes(['NRAGCA'])
+    tl.check_restriction_enzymes(['NGGRT'])
     tl.find_unique_near_pam()
     tl.create_index(configpath=configpath)
     tl.get_neighbors(configpath=configpath)
     tf_df = tl.export_bed()
     anno = guidemaker.Annotation(annotation_list=[filegbk], annotation_type="genbank",
-                                 target_bed_df=tf_df)
+                                    target_bed_df=tf_df)
     anno.get_annotation_features()
     anno._get_nearby_features()
-    assert anno.nearby.shape == (6804, 12)
+    assert anno.nearby.shape == (7074, 12)
 
 
 def test_filter_features():
@@ -221,7 +222,7 @@ def test_filter_features():
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    assert anno.pretty_df.shape == (869, 23)
+    assert anno.pretty_df.shape == (900, 23)
 
 
 def test_filterlocus():
@@ -292,7 +293,7 @@ def test_get_doench_efficiency_score():
     anno._format_guide_table(tl)
     filter_pretty_30mer_df = anno._filterlocus()
     doench_df = guidemaker.core.get_doench_efficiency_score(df=filter_pretty_30mer_df, pam_orientation=pamobj.pam_orientation)
-    assert abs(doench_df.Efficiency[213] - 0.42684514989852906) < 0.0001
+    assert abs(doench_df.Efficiency[213] - 0.3245381) < 0.0001
 
 def test_cfd_score():
     pamobj = guidemaker.core.PamTarget("NGG", "3prime","hamming")

@@ -285,7 +285,7 @@ class PamTarget:
                 target_list.append(rev3p)
             gc.collect()  # clear memory after each chromosome
         df_targets = pd.concat(target_list, ignore_index=True)
-        df_targets = df_targets.assign(seedseq=np.nan, isseedduplicated=np.nan)
+        df_targets = df_targets.assign(seedseq=np.nan, hasrestrictionsite=np.nan, isseedduplicated=np.nan)
         df_targets = df_targets.astype({"seedseq": 'str', "isseedduplicated": 'bool'})
         df_targets = df_targets.assign(dtype=self.dtype)
         df_targets = df_targets.astype({"dtype": 'category'})
@@ -370,13 +370,10 @@ class TargetProcessor:
             element_to_exclude.append(extend_ambiguous_dna(str(record_seq)))
             element_to_exclude.append(extend_ambiguous_dna(
                 str(record_seq.reverse_complement())))  # reverse complement
-        element_to_exclude = sum(element_to_exclude, [])  # flatout list of list to list
+        element_to_exclude = sum(element_to_exclude, [])  # flatout list of list to list with restriction enzyme sites
         if len(element_to_exclude) > 0:
-            self.targets = self.targets.loc[self.targets['target'].str.contains(
-                '|'.join(element_to_exclude)) == False]
-        # else:
-        #     self.targets
-
+            self.targets['hasrestrictionsite'] = self.targets['target'].str.contains('|'.join(element_to_exclude))
+    
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
         """One hot encode Target DNA as a binary string representation for NMSLIB."""
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
@@ -490,8 +487,10 @@ class TargetProcessor:
 
         ef = config['NMSLIB']['ef']
 
-        unique_targets = self.targets.loc[self.targets['isseedduplicated']
-            == False]['target'].tolist()
+        # unique_targets = self.targets.loc[self.targets['isseedduplicated']
+        #     == False]['target'].tolist()
+        # For indexing we need to use all targets -- for checking off-targets. For searching neighbours remove seed duplicated and one wiht restriction site.
+        unique_targets = self.targets.loc[(self.targets['isseedduplicated']==False) | (self.targets['hasrestrictionsite']==False)]['target'].tolist()
 
         if self.targets['dtype'].iat[0] == "hamming":
             unique_bintargets = self._one_hot_encode(unique_targets)  # search unique seed one
