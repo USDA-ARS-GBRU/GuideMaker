@@ -37,7 +37,7 @@ def myparser():
     parser.add_argument('--outdir', '-o', type=str, required=True,
                         help='The directory for data output')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='3prime',
-                        help="PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime. Default: '5prime'.")
+                        help="The PAM position relative to the target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, SpCas9 is 3prime. Default: '3prime'.")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10,
                         28, 1), metavar="[10-27]", help='Length of the guide sequence. Default: 20.')
     parser.add_argument('--lsr', type=int, default=10, choices=range(0, 28, 1),
@@ -53,7 +53,7 @@ def myparser():
     parser.add_argument('--knum', type=int, default=5, choices=range(2, 21, 1),
                         metavar="[2-20]", help='how many sequences similar to the guide to report. Default: 5.')
     parser.add_argument('--controls', type=int, default=1000,
-                        help='Number or random control RNAs to generate. Default: 1000.')
+                        help='Number of random control RNAs to generate. Default: 1000.')
     parser.add_argument('--threads', help='The number of cpu threads to use. Default: 2', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
@@ -61,10 +61,10 @@ def myparser():
                         help='List of sequence representing restriction enzymes. Default: None.', default=[])
     parser.add_argument('--filter_by_locus', nargs="*",
                         help='List of locus tag. Default: None.', default=[])
-    parser.add_argument('--doench_efficiency_score',help='Doench et al. 2016 - only for NGG PAM: Default: None.', action='store_true')
-    parser.add_argument('--cfd_score',help='CFD score for assessing off-target activity of gRNAs: Default: None.', action='store_true')
+    parser.add_argument('--doench_efficiency_score',help="On-target scoring from Doench et al. 2016 - only for NGG PAM and guidelength=25: Default: None.", action='store_true')
+    parser.add_argument('--cfd_score',help='CFD score for assessing off-target activity of gRNAs with NGG pam: Default: None.', action='store_true')
     parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
-    parser.add_argument('--plot', help="Option to genereate guidemaker plots", action='store_true')
+    parser.add_argument('--plot', help="Option to create GuideMaker plots", action='store_true')
     parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " +
                         guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
     parser.add_argument('-V', '--version', action='version',
