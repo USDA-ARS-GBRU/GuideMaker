@@ -373,6 +373,8 @@ class TargetProcessor:
         element_to_exclude = sum(element_to_exclude, [])  # flatout list of list to list with restriction enzyme sites
         if len(element_to_exclude) > 0:
             self.targets['hasrestrictionsite'] = self.targets['target'].str.contains('|'.join(element_to_exclude))
+        else:
+            self.targets['hasrestrictionsite'] = False
     
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
         """One hot encode Target DNA as a binary string representation for NMSLIB."""
@@ -491,7 +493,6 @@ class TargetProcessor:
         #     == False]['target'].tolist()
         # For indexing we need to use all targets -- for checking off-targets. For searching neighbours remove seed duplicated and one wiht restriction site.
         unique_targets = self.targets.loc[(self.targets['isseedduplicated']==False) | (self.targets['hasrestrictionsite']==False)]['target'].tolist()
-
         if self.targets['dtype'].iat[0] == "hamming":
             unique_bintargets = self._one_hot_encode(unique_targets)  # search unique seed one
         else:
@@ -505,20 +506,18 @@ class TargetProcessor:
             queryseq = unique_targets[i]
             hitseqidx = entry[0].tolist()
             editdist = entry[1].tolist()
-            # here we just check if the first element of hammingist list is >= 2 * self.editdist, as list is sorted- if first fails whole fails
-            # to close guides.
-            # this should be 0 or 1?
-            # this should be 1 == b/c each guides will have exact match with itself at 0 position.
             if self.targets['dtype'].iat[0] == "hamming":
-                if editdist[1] >= 2 * self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
+                # check that the closest sequence meets the min. dist. requirment. We multiply by 2 b/c each 
+                # base is one hot encoded. e.g. 1000 vs 0100 = 2 differences
+                if editdist[1] >= 2 * self.editdist:
                     neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
-                                "dist": [int(x / 2) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
+                                "dist": [int(x / 2) for x in editdist]} 
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
             else:
-                if editdist[1] >= self.editdist:  # multiply by 4 b/c each base is one hot encoded in 4 bits
+               if editdist[1] >= self.editdist: 
                     neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
-                                "dist": [int(x) for x in editdist]}  ## ### ? does divide by 2 holds for leven???-- ask adam
+                                "dist": [int(x) for x in editdist]}
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
         self.neighbors = neighbor_dict
@@ -537,7 +536,6 @@ class TargetProcessor:
         # why deepcopy - https://stackoverflow.com/questions/55745948/why-doesnt-deepcopy-of-a-pandas-dataframe-affect-memory-usage
         # select only guides that are not duplecated in the seedseq
         df = deepcopy(self.targets.loc[self.targets['isseedduplicated'] == False])
-        #print(df.head())
         df = df[["seqid", "start", "stop", "target", "strand"]]
         df.loc[:, 'strand'] = df.loc[:, 'strand'].apply(lambda x: '+' if x == True else '-')
         df.columns = ["chrom", "chromstart", "chromend", "name", "strand"]
@@ -577,7 +575,6 @@ class TargetProcessor:
             gccnt += GC(record.seq) * len(record)
             totlen += len(record)
         gc = gccnt / (totlen * 100)
-        #print("Percentage of GC content in the input genome: "+"{:.2f}".format(gc * 100))
         self.gc_percent = gc * 100
         self.genomesize = totlen / (1024 * 1024)
 
@@ -617,11 +614,9 @@ class TargetProcessor:
                 else:
                     sort_dist = [item[1] for item in dist_seqs][0:n]  ### ? does divide by 2 holds for leven???
 
-                #print(sort_dist)
                 minimum_hmdist = int(min(sort_dist))
                 sm_count += 1
         except IndexError as e:
-           # print("Number of random control searched: ", search_mult * n)s
             raise e
 
         total_ncontrolsearched = search_mult * n
@@ -879,7 +874,6 @@ class Annotation:
                                                              0 <`Feature end` - `Guide start` < @after_feat'))
 
         self.filtered_df = filtered_df
-        #print(filtered_df.head())
 
     def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
         """
@@ -915,7 +909,6 @@ class Annotation:
             slist = targetprocessor_object.neighbors[seq]["neighbors"]["seqs"]
             return ";".join(slist)
         pretty_df = deepcopy(self.filtered_df)  # anno class object
-        #print(pretty_df.head())
         # retrive only guides that are in neighbors keys.
         pretty_df = pretty_df[pretty_df["Guide sequence"].isin(
             list(targetprocessor_object.neighbors.keys()))]
@@ -1077,7 +1070,7 @@ def get_fastas(filelist, input_format="genbank", tempdir=None):
                         SeqIO.write(records, f1, "fasta")
         return fastpath
     except Exception as e:
-        print("An error occurred in the input file %s" % file)
+        logger.exception("An error occurred in the input file %s" % file)
         raise e
 
 

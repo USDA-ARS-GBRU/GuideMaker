@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>guidemaker.doench_predict API documentation</title>
+<meta name="description" content="doench_predict.py. Simplified module to run the model &#39;V3_model_nopos&#39; from Doench et al. 2016 for on-target
+scoring …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>guidemaker.doench_predict</code></h1>
+</header>
+<section id="section-intro">
+<p>doench_predict.py. Simplified module to run the model 'V3_model_nopos' from Doench et al. 2016 for on-target
+scoring.</p>
+<p>For use in Guidemaker <a href="https://guidemaker.org.">https://guidemaker.org.</a>
+Adam Rivers, Unites States Department of Agriculture, Agricultural Research Service</p>
+<p>The core code, <a href="https://github.com/MicrosoftResearch/Azimuth,">https://github.com/MicrosoftResearch/Azimuth,</a> is in Python2 and does not run well given changes to packages.
+Miles Smith worked on porting to Python3 in this repo: <a href="https://github.com/milescsmith/Azimuth,">https://github.com/milescsmith/Azimuth,</a> including a new branch
+that used Poetry to build. The work is not complete.</p>
+<p>This work is derivative of that BSD 3-clause, Modified licensed work. The key changes are:
+1. Much of the code needed for tasks other thant prediction of the V3_model_nopos was removed.
+2. The Calculation of NGGX features was re-written. A bug that prevented scaling to thousands guides efficiently.
+3. the Pickle model and scikit-learn were replaced with an Onnx model ('V3_model_nopos.onnx"), and medadata file
+("V3_model_nopos_options.json") and onnxruntime for better persistence, security, and performance.</p>
+<p>Reference:</p>
+<p>John G. Doench<em>, Nicolo Fusi</em>, Meagan Sullender<em>, Mudra Hegde</em>, Emma W. Vaimberg<em>, Katherine F. Donovan, Ian Smith,
+Zuzana Tothova, Craig Wilen , Robert Orchard , Herbert W. Virgin, Jennifer Listgarten</em>, David E. Root.
+Optimized sgRNA design to maximize activity and minimize off-target effects for genetic screens with CRISPR-Cas9.
+Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;doench_predict.py. Simplified module to run the model &#39;V3_model_nopos&#39; from Doench et al. 2016 for on-target
+   scoring.
+
+For use in Guidemaker https://guidemaker.org.
+Adam Rivers, Unites States Department of Agriculture, Agricultural Research Service
+
+The core code, https://github.com/MicrosoftResearch/Azimuth, is in Python2 and does not run well given changes to packages.
+Miles Smith worked on porting to Python3 in this repo: https://github.com/milescsmith/Azimuth, including a new branch
+that used Poetry to build. The work is not complete.
+
+This work is derivative of that BSD 3-clause, Modified licensed work. The key changes are:
+ 1. Much of the code needed for tasks other thant prediction of the V3_model_nopos was removed.
+ 2. The Calculation of NGGX features was re-written. A bug that prevented scaling to thousands guides efficiently.
+ 3. the Pickle model and scikit-learn were replaced with an Onnx model (&#39;V3_model_nopos.onnx&#34;), and medadata file
+    (&#34;V3_model_nopos_options.json&#34;) and onnxruntime for better persistence, security, and performance.
+
+Reference:
+
+John G. Doench*, Nicolo Fusi*, Meagan Sullender*, Mudra Hegde*, Emma W. Vaimberg*, Katherine F. Donovan, Ian Smith,
+Zuzana Tothova, Craig Wilen , Robert Orchard , Herbert W. Virgin, Jennifer Listgarten*, David E. Root.
+Optimized sgRNA design to maximize activity and minimize off-target effects for genetic screens with CRISPR-Cas9.
+Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.
+&#34;&#34;&#34;
+
+import pandas as pd
+from guidemaker.doench_featurization import featurize_data, parallel_featurize_data
+from typing import List, Optional
+import numpy as np
+from pathlib import Path
+import onnxruntime as rt
+import json
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+
+
+#MODEL = &#34;guidemaker/data/V3_model_nopos.onnx&#34;
+MODEL = os.path.join(DIR,&#34;data/V3_model_nopos.onnx&#34;)
+#MODEL_META = &#34;guidemaker/data/V3_model_nopos_options.json&#34;
+MODEL_META = os.path.join(DIR,&#34;data/V3_model_nopos_options.json&#34;)
+
+def concatenate_feature_sets(feature_sets, keys: List[str] = None):
+    &#34;&#34;&#34; Combine features
+
+    Given a dictionary of sets of features, each in a pd.DataFrame,
+    concatenate them together to form one big np.array, and get the dimension
+    of each set
+
+    Args:
+        feature_sets (dict): a Dict of feature sets as pandas DataFrames
+
+    Returns:
+        (tuple: inputs(numpy.ndarray), dim (tuple)
+    &#34;&#34;&#34;
+    if feature_sets == {}:
+        raise AssertionError(&#34;no feature sets present&#34;)
+    if keys is None:
+        keys = list(feature_sets.keys())
+    feature_1 = feature_sets[keys[0]].shape[0]
+    for assemblage in feature_sets:
+        feature_2 = feature_sets[assemblage].shape[0]
+        if feature_1 != feature_2:
+            raise AssertionError(
+                f&#34;not same # items for features {keys[0]} and {assemblage}&#34;
+            )
+    num_sets = feature_sets[keys[0]].shape[0]
+    inputs = np.zeros((num_sets, 0))
+    feature_names = []
+    dim = {}
+    dimsum = 0
+    for assemblage in keys:
+        inputs_set = feature_sets[assemblage].values
+        dim[assemblage] = inputs_set.shape[1]
+        dimsum = dimsum + dim[assemblage]
+        inputs = np.hstack((inputs, inputs_set))
+        feature_names.extend(feature_sets[assemblage].columns.tolist())
+    return inputs, dim, dimsum, feature_names
+
+
+def predict(
+    seq: np.ndarray,
+    model_file: Optional[Path] = MODEL,
+    model_metadata: Optional[Path] = MODEL_META,
+    pam_audit: bool = True,
+    length_audit: bool = False,
+    num_threads: int = 1
+) -&gt; np.array:
+    &#34;&#34;&#34;Pedicts regressions scored from sequences.
+
+    Args:
+        seq (numpy.ndarray) numpy array of 30 nt sequences with 25 nt of guide, NGG pam in 25:27 and the following 2 nts.
+        model_file (str): file path of the onnx Boosted Gradien Regressor model file without position data
+        model_metadata (str): file path of the json model parameters metadata file.
+        pam_audit (bool): check PAM of each sequence.
+        length_audit(bool) : check length of each sequence.
+
+    Returns:
+        (numpy.array): An array with regression values.
+
+     &#34;&#34;&#34;
+    if not isinstance(seq, np.ndarray):
+        raise AssertionError(&#34;Please ensure seq is a numpy array&#34;)
+    if len(seq[0]) &lt;= 0:
+        raise AssertionError(&#34;Make sure that seq is not empty&#34;)
+    if not isinstance(seq[0], str):
+        raise AssertionError(
+            f&#34;Please ensure input sequences are in string format, i.e. &#39;AGAG&#39; &#34;
+            f&#34;rather than [&#39;A&#39; &#39;G&#39; &#39;A&#39; &#39;G&#39;] or alternate representations&#34;
+        )
+    # Open onnx runtime session
+    sess = rt.InferenceSession(model_file)
+    with open(model_metadata, &#34;r&#34;) as f:
+        learn_options = json.load(f)
+    x_df = pd.DataFrame(
+        columns=[&#34;30mer&#34;, &#34;Strand&#34;],
+        data=list(zip(seq, [&#34;NA&#34; for x in range(len(seq))])),
+    )
+
+    feature_sets = parallel_featurize_data(
+        x_df,
+        learn_options,
+        pam_audit=pam_audit,
+        length_audit=length_audit,
+        num_threads=num_threads
+    )
+    inputs, *_ = concatenate_feature_sets(feature_sets)
+    preds = sess.run(None, {&#39;float_input&#39;: inputs.astype(np.float32)})[0]
+    return preds</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="guidemaker.doench_predict.concatenate_feature_sets"><code class="name flex">
+<span>def <span class="ident">concatenate_feature_sets</span></span>(<span>feature_sets, keys: List[str] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Combine features</p>
+<p>Given a dictionary of sets of features, each in a pd.DataFrame,
+concatenate them together to form one big np.array, and get the dimension
+of each set</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>feature_sets</code></strong> :&ensp;<code>dict</code></dt>
+<dd>a Dict of feature sets as pandas DataFrames</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(tuple: inputs(numpy.ndarray), dim (tuple)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def concatenate_feature_sets(feature_sets, keys: List[str] = None):
+    &#34;&#34;&#34; Combine features
+
+    Given a dictionary of sets of features, each in a pd.DataFrame,
+    concatenate them together to form one big np.array, and get the dimension
+    of each set
+
+    Args:
+        feature_sets (dict): a Dict of feature sets as pandas DataFrames
+
+    Returns:
+        (tuple: inputs(numpy.ndarray), dim (tuple)
+    &#34;&#34;&#34;
+    if feature_sets == {}:
+        raise AssertionError(&#34;no feature sets present&#34;)
+    if keys is None:
+        keys = list(feature_sets.keys())
+    feature_1 = feature_sets[keys[0]].shape[0]
+    for assemblage in feature_sets:
+        feature_2 = feature_sets[assemblage].shape[0]
+        if feature_1 != feature_2:
+            raise AssertionError(
+                f&#34;not same # items for features {keys[0]} and {assemblage}&#34;
+            )
+    num_sets = feature_sets[keys[0]].shape[0]
+    inputs = np.zeros((num_sets, 0))
+    feature_names = []
+    dim = {}
+    dimsum = 0
+    for assemblage in keys:
+        inputs_set = feature_sets[assemblage].values
+        dim[assemblage] = inputs_set.shape[1]
+        dimsum = dimsum + dim[assemblage]
+        inputs = np.hstack((inputs, inputs_set))
+        feature_names.extend(feature_sets[assemblage].columns.tolist())
+    return inputs, dim, dimsum, feature_names</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.doench_predict.predict"><code class="name flex">
+<span>def <span class="ident">predict</span></span>(<span>seq: numpy.ndarray, model_file: Optional[pathlib.Path] = '/Users/rivers/Documents/guidemaker/guidemaker/data/V3_model_nopos.onnx', model_metadata: Optional[pathlib.Path] = '/Users/rivers/Documents/guidemaker/guidemaker/data/V3_model_nopos_options.json', pam_audit: bool = True, length_audit: bool = False, num_threads: int = 1) ‑> <built-in function array></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Pedicts regressions scored from sequences.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt>seq (numpy.ndarray) numpy array of 30 nt sequences with 25 nt of guide, NGG pam in 25:27 and the following 2 nts.</dt>
+<dt><strong><code>model_file</code></strong> :&ensp;<code>str</code></dt>
+<dd>file path of the onnx Boosted Gradien Regressor model file without position data</dd>
+<dt><strong><code>model_metadata</code></strong> :&ensp;<code>str</code></dt>
+<dd>file path of the json model parameters metadata file.</dd>
+<dt><strong><code>pam_audit</code></strong> :&ensp;<code>bool</code></dt>
+<dd>check PAM of each sequence.</dd>
+</dl>
+<p>length_audit(bool) : check length of each sequence.</p>
+<h2 id="returns">Returns</h2>
+<p>(numpy.array): An array with regression values.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def predict(
+    seq: np.ndarray,
+    model_file: Optional[Path] = MODEL,
+    model_metadata: Optional[Path] = MODEL_META,
+    pam_audit: bool = True,
+    length_audit: bool = False,
+    num_threads: int = 1
+) -&gt; np.array:
+    &#34;&#34;&#34;Pedicts regressions scored from sequences.
+
+    Args:
+        seq (numpy.ndarray) numpy array of 30 nt sequences with 25 nt of guide, NGG pam in 25:27 and the following 2 nts.
+        model_file (str): file path of the onnx Boosted Gradien Regressor model file without position data
+        model_metadata (str): file path of the json model parameters metadata file.
+        pam_audit (bool): check PAM of each sequence.
+        length_audit(bool) : check length of each sequence.
+
+    Returns:
+        (numpy.array): An array with regression values.
+
+     &#34;&#34;&#34;
+    if not isinstance(seq, np.ndarray):
+        raise AssertionError(&#34;Please ensure seq is a numpy array&#34;)
+    if len(seq[0]) &lt;= 0:
+        raise AssertionError(&#34;Make sure that seq is not empty&#34;)
+    if not isinstance(seq[0], str):
+        raise AssertionError(
+            f&#34;Please ensure input sequences are in string format, i.e. &#39;AGAG&#39; &#34;
+            f&#34;rather than [&#39;A&#39; &#39;G&#39; &#39;A&#39; &#39;G&#39;] or alternate representations&#34;
+        )
+    # Open onnx runtime session
+    sess = rt.InferenceSession(model_file)
+    with open(model_metadata, &#34;r&#34;) as f:
+        learn_options = json.load(f)
+    x_df = pd.DataFrame(
+        columns=[&#34;30mer&#34;, &#34;Strand&#34;],
+        data=list(zip(seq, [&#34;NA&#34; for x in range(len(seq))])),
+    )
+
+    feature_sets = parallel_featurize_data(
+        x_df,
+        learn_options,
+        pam_audit=pam_audit,
+        length_audit=length_audit,
+        num_threads=num_threads
+    )
+    inputs, *_ = concatenate_feature_sets(feature_sets)
+    preds = sess.run(None, {&#39;float_input&#39;: inputs.astype(np.float32)})[0]
+    return preds</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="guidemaker" href="index.html">guidemaker</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="guidemaker.doench_predict.concatenate_feature_sets" href="#guidemaker.doench_predict.concatenate_feature_sets">concatenate_feature_sets</a></code></li>
+<li><code><a title="guidemaker.doench_predict.predict" href="#guidemaker.doench_predict.predict">predict</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

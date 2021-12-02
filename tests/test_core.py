@@ -1,7 +1,6 @@
 """Pytest unit tests for the core module of GuideMaker
 """
 import os
-from Bio.AlignIO.MauveIO import XMFA_HEADER_REGEX
 import pytest
 
 import numpy as np
@@ -22,9 +21,6 @@ from guidemaker.definitions import ROOT_DIR
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
-
-# TEST_DIR = '/Users/ravinpoudel/Documents/GuideMaker_ALL/GuideMaker/tests'
-# configpath="guidemaker/data/config_default.yaml"
 
 
 #PamTarget Class
@@ -317,3 +313,36 @@ def test_cfd_score():
     filter_pretty_30mer_df = anno._filterlocus()
     cfd_df = guidemaker.core.cfd_score(df=filter_pretty_30mer_df)
     assert abs(cfd_df['Max CFD'][0] > 0)
+
+
+
+def test_levin_dist():
+    """Test that levin and hamming distance are being claculated correctly.
+
+        The test sequece has three guides embeded in it:
+        1. CGTAGCTAG[T]CACTAGCTGACA_GCA|AGG
+        2. CGTAGCTAG[A]CACTAGCTGACA_GCA|AGG
+        3. CGTAGCTAG[T]CACTAGCTGACTAGCA|AGG
+        guide 2 has 1 substutution and guide 3 has 1 insertion relative to guide 1.
+         The levin distances for seq 1 vs  [2, 3] are [1, 2], while the hamming distances for seq 1 vd/ [2, 3] are [1,16] 
+    """
+    distseq = [SeqRecord(Seq.Seq(
+        "CGTAGCTAGTCACTAGCTGACAGCAAGGTTTTTCGTAGCTAGACACTAGCTGACAGCAAGGTTTTTTCGTAGCTAGTCACTAGCTGACTAGCAAGG"),
+        id="distseq")]
+    pt_levin = guidemaker.core.PamTarget("NGG", "3prime","levin")
+    pt_hamming = guidemaker.core.PamTarget("NGG", "3prime","hamming")
+    pd_levin = pt_levin.find_targets(seq_record_iter=distseq, target_len=20)
+    pd_hamming = pt_hamming.find_targets(seq_record_iter=distseq, target_len=20)
+    tp_levin =  guidemaker.core.TargetProcessor(targets=pd_levin, lsr=0, editdist=1, knum=3 )
+    tp_hamming = guidemaker.core.TargetProcessor(targets=pd_hamming, lsr=0, editdist=1, knum=3)
+    tp_levin.find_unique_near_pam()
+    tp_hamming.find_unique_near_pam()
+    tp_hamming.check_restriction_enzymes()
+    tp_levin.check_restriction_enzymes()
+    tp_levin.create_index(configpath=configpath)
+    tp_hamming.create_index(configpath=configpath)
+    tp_levin.get_neighbors(configpath=configpath)
+    tp_hamming.get_neighbors(configpath=configpath)
+    assert(tp_levin.neighbors['CTAGTCACTAGCTGACAGCA']['neighbors']['dist'] == [0, 1, 2])
+    assert(tp_hamming.neighbors['CTAGTCACTAGCTGACAGCA']['neighbors']['dist'] == [0, 1, 16])
+    

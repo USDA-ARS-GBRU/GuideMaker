@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>guidemaker.cli API documentation</title>
+<meta name="description" content="GuideMaker: The command line interface
+A command line Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>guidemaker.cli</code></h1>
+</header>
+<section id="section-intro">
+<p>GuideMaker: The command line interface
+A command line Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+GuideMaker: The command line interface
+A command line Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems
+&#34;&#34;&#34;
+
+import logging
+
+import argparse
+import tempfile
+import shutil
+import os
+import yaml
+import textwrap
+
+import pybedtools
+from Bio import SeqIO
+
+
+import guidemaker
+
+
+def myparser():
+    parser = argparse.ArgumentParser(
+        description=&#39;GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems&#39;,
+        epilog=textwrap.dedent(&#39;&#39;&#39; To run the web app locally, in terminal run:
+        -----------------------------------------------------------------------
+        streamlit run &#39;&#39;&#39; + guidemaker.WEB_APP + &#39;&#39;&#39;
+        -----------------------------------------------------------------------&#39;&#39;&#39;))
+    parser.add_argument(&#39;--genbank&#39;, &#39;-i&#39;, nargs=&#39;+&#39;, type=str, required=False,
+                        help=&#39;One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or GFF/GTF and fasta files&#39;)
+    parser.add_argument(&#39;--fasta&#39;, &#39;-f&#39;, nargs=&#39;+&#39;, type=str, required=False,
+                        help=&#39;One or more fasta or gzipped fasta files for a single genome. If using a fasta, a GFF/GTF file must also be provided but not a genbank file.&#39;)
+    parser.add_argument(&#39;--gff&#39;, &#39;-g&#39;, nargs=&#39;+&#39;, type=str, required=False,
+                        help=&#39;One or more GFF or GTF files (optionally gzipped) for a single genome. If using a GFF/GTF a fasta file  must also be provided but not a genbank file.&#39;)
+    parser.add_argument(&#39;--pamseq&#39;, &#39;-p&#39;, type=str, required=True,
+                        help=&#39;A short PAM motif to search for, it may use IUPAC ambiguous alphabet&#39;)
+    parser.add_argument(&#39;--outdir&#39;, &#39;-o&#39;, type=str, required=True,
+                        help=&#39;The directory for data output&#39;)
+    parser.add_argument(&#39;--pam_orientation&#39;, &#39;-r&#39;, choices=[&#39;5prime&#39;, &#39;3prime&#39;], default=&#39;3prime&#39;,
+                        help=&#34;The PAM position relative to the target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, SpCas9 is 3prime. Default: &#39;3prime&#39;.&#34;)
+    parser.add_argument(&#39;--guidelength&#39;, &#39;-l&#39;, type=int, default=20, choices=range(10,
+                        28, 1), metavar=&#34;[10-27]&#34;, help=&#39;Length of the guide sequence. Default: 20.&#39;)
+    parser.add_argument(&#39;--lsr&#39;, type=int, default=10, choices=range(0, 28, 1),
+                        metavar=&#34;[0-27]&#34;, help=&#39;Length of a seed region near the PAM site required to be unique. Default: 10.&#39;)
+    parser.add_argument(&#39;--dtype&#39;, type=str, choices=[&#39;hamming&#39;, &#39;leven&#39;], default=&#39;hamming&#39;,
+                        help=&#39;Select the distance type. Default: hamming.&#39;)
+    parser.add_argument(&#39;--dist&#39;, type=int, choices=range(0, 6, 1),
+                        metavar=&#34;[0-5]&#34;, default=2, help=&#39;Minimum edit distance from any other potential guide. Default: 2.&#39;)
+    parser.add_argument(&#39;--before&#39;, type=int, default=100, choices=range(1, 501, 1), metavar=&#34;[1-500]&#34;,
+                        help=&#39;keep guides this far in front of a feature. Default: 100.&#39;)
+    parser.add_argument(&#39;--into&#39;, type=int, default=200, choices=range(1, 501, 1), metavar=&#34;[1-500]&#34;,
+                        help=&#39;keep guides this far inside (past the start site)of a feature. Default: 200.&#39;)
+    parser.add_argument(&#39;--knum&#39;, type=int, default=5, choices=range(2, 21, 1),
+                        metavar=&#34;[2-20]&#34;, help=&#39;how many sequences similar to the guide to report. Default: 5.&#39;)
+    parser.add_argument(&#39;--controls&#39;, type=int, default=1000,
+                        help=&#39;Number of random control RNAs to generate. Default: 1000.&#39;)
+    parser.add_argument(&#39;--threads&#39;, help=&#39;The number of cpu threads to use. Default: 2&#39;, type=int, default=2)
+    parser.add_argument(&#39;--log&#39;, help=&#34;Log file&#34;, default=&#34;guidemaker.log&#34;)
+    parser.add_argument(&#39;--tempdir&#39;, help=&#39;The temp file directory&#39;, default=None)
+    parser.add_argument(&#39;--restriction_enzyme_list&#39;, nargs=&#34;*&#34;,
+                        help=&#39;List of sequence representing restriction enzymes. Default: None.&#39;, default=[])
+    parser.add_argument(&#39;--filter_by_locus&#39;, nargs=&#34;*&#34;,
+                        help=&#39;List of locus tag. Default: None.&#39;, default=[])
+    parser.add_argument(&#39;--doench_efficiency_score&#39;,help=&#34;On-target scoring from Doench et al. 2016 - only for NGG PAM and guidelength=25: Default: None.&#34;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--cfd_score&#39;,help=&#39;CFD score for assessing off-target activity of gRNAs with NGG pam: Default: None.&#39;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--keeptemp&#39;, help=&#34;Option to keep intermediate files be kept&#34;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--plot&#39;, help=&#34;Option to create GuideMaker plots&#34;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--config&#39;, help=&#34;Path to YAML formatted configuration file, default is &#34; +
+                        guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
+    parser.add_argument(&#39;-V&#39;, &#39;--version&#39;, action=&#39;version&#39;,
+                        version=&#34;%(prog)s (&#34; + guidemaker.__version__ + &#34;)&#34;)
+    return parser
+
+
+
+def parserval(args):
+    try:
+        assert(args.lsr &lt;= args.guidelength), &#34;The length of sequence near the PAM .i.e seed sequence that must be less than the guide length&#34;
+        # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
+        assert(1 &lt; len(args.pamseq) &lt; 9), &#34;The length of the PAM sequence must be between 2-8&#34;
+        assert ((args.genbank is not None and args.fasta is None and args.gff is None) or
+                (args.genbank is None and args.fasta is not  None and args.gff is not None)),&#34;Please provide either Genbank files or Fasta and GFF files&#34;
+    except AssertionError as err:
+        raise err
+
+def _logger_setup(logfile):
+    &#34;&#34;&#34;
+    Set up logging to a logfile and the terminal standard out.
+
+    Args:
+        logfile (str): Log file
+    &#34;&#34;&#34;
+    try:
+        # create logger
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        # create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        # create file handler
+
+        fh = logging.FileHandler(logfile)
+        fh.setLevel(logging.DEBUG)
+        # set a format which is simpler for console use
+        formatter = logging.Formatter(&#39;%(asctime)s %(name)-12s %(levelname)-8s %(message)s&#39;)
+        # tell the handler to use this format
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+        # add the handlers to the logger
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+        return logger
+    except Exception as e:
+        print(&#34;An error occurred setting up logging&#34;)
+        raise e
+
+
+def main(arglist: list = None):
+    &#34;&#34;&#34;Run The complete GuideMaker workflow.&#34;&#34;&#34;
+    # Set up logging
+    parser = myparser()
+    args = parser.parse_args(arglist)
+    logger = _logger_setup(args.log)
+    parserval(args)
+
+
+
+    try:
+        with open(args.config) as cf:
+            config = yaml.safe_load(cf)
+    except:
+        print(&#34;Could not parse the configuration file.&#34;)
+        raise SystemExit(1)
+
+    try:
+        logger.info(&#34;Configuration data loaded from {}:&#34;.format(args.config))
+        logger.info(config)
+    except:
+        print(&#34;Could not find config file, exiting.&#34;)
+        raise SystemExit(1)
+
+    try:
+
+        if args.tempdir:
+            if not os.path.exists(args.tempdir):
+                logger.warning(&#34;Specified location for tempfile (%s) does not \
+                                 exist, using default location.&#34; % args.tempdir)
+                os.mkdir(args.tempdir)
+                tempdir = args.tempdir
+            else:
+                tempdir = tempfile.mkdtemp
+        else:
+            tempdir = tempfile.mkdtemp(prefix=&#39;guidemaker_&#39;, dir=args.tempdir)
+            pybedtools.helpers.set_tempdir(tempdir)
+        logger.info(&#34;Temp directory is: %s&#34; % (tempdir))
+        logger.info(&#34;Writing fasta file from genbank file(s)&#34;)
+        if args.genbank:
+            fastapath = guidemaker.get_fastas(args.genbank, input_format=&#34;genbank&#34;, tempdir=tempdir)
+        elif args.fasta:
+            fastapath = guidemaker.get_fastas(args.fasta, input_format=&#34;fasta&#34;, tempdir=tempdir)
+        logger.info(&#34;Identifying PAM sites in the genome&#34;)
+        pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation, args.dtype)
+        seq_record_iter = SeqIO.parse(fastapath, &#34;fasta&#34;)
+        pamtargets = pamobj.find_targets(
+            seq_record_iter=seq_record_iter, target_len=args.guidelength)
+        tl = guidemaker.core.TargetProcessor(
+            targets=pamtargets, lsr=args.lsr, editdist=args.dist, knum=args.knum)
+        lengthoftl = len(tl.targets)
+        logger.info(&#34;Checking guides for restriction enzymes&#34;)
+        tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
+        logger.info(&#34;Number of guides removed after checking for restriction enzymes: %d&#34;,
+                     (lengthoftl - len(tl.targets)))
+        logger.info(&#34;Identifing guides that are unique near the PAM site&#34;)
+        tl.find_unique_near_pam()
+        logger.info(&#34;Number of guides with non unique seed sequence: %d&#34;,
+                     (tl.targets.isseedduplicated.sum()))
+        logger.info(&#34;Indexing all potential guide sites: %s. This is the longest step.&#34; %
+                     len(list(set(tl.targets[&#39;target&#39;].tolist()))))
+        tl.create_index(num_threads=args.threads, configpath=args.config)
+        logger.info(
+            &#34;Identifying guides that have a hamming distance &lt;= %s to all other potential guides&#34;, str(args.dist))
+        tl.get_neighbors(num_threads=args.threads, configpath=args.config)
+        logger.info(&#34;Formatting data for BedTools&#34;)
+        tf_df = tl.export_bed()
+        logger.info(&#34;Create GuideMaker Annotation object&#34;)
+        if args.genbank:
+            anno = guidemaker.core.Annotation(annotation_list=args.genbank, annotation_type=&#34;genbank&#34;,
+                                              target_bed_df=tf_df)
+        elif args.gff:
+            anno = guidemaker.core.Annotation(annotation_list=args.gff, annotation_type=&#34;gff&#34;,
+                                              target_bed_df=tf_df)
+        logger.info(&#34;Identify genomic features&#34;)
+        anno.get_annotation_features()
+        logger.info(&#34;Total number of CDS/locus in the input genome: %d&#34; % anno.locuslen())
+        logger.info(&#34;Find genomic features closest the guides&#34;)
+        anno._get_nearby_features()
+        logger.info(&#34;Select guides that start between +%s and -%s of a feature start&#34; %
+                     (args.before, args.into))
+        anno._filter_features(before_feat=args.before, after_feat=args.into)
+        logger.info(&#34;Select description columns&#34;)
+        anno._get_qualifiers(configpath=args.config)
+        logger.info(&#34;Format the output&#34;)
+        anno._format_guide_table(tl)
+        prettydf = anno._filterlocus(args.filter_by_locus)
+        # prettydf = anno.filter_pretty_df
+        if args.doench_efficiency_score:
+            logger.info(&#34;Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...&#34;)
+            prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation, num_threads=args.threads)
+
+        if args.cfd_score:
+            logger.info(&#34;Calculating CFD score for assessing off-target activity of gRNAs&#34;)
+            prettydf = guidemaker.core.cfd_score(df=prettydf)
+
+        fd_zero = prettydf[&#39;Feature distance&#39;].isin([0]).sum()
+        logger.info(&#34;Number of Guides within a gene coordinates i.e. zero Feature distance: %d&#34;, fd_zero)
+        if not os.path.exists(args.outdir):
+            os.makedirs(args.outdir)
+        csvpath = os.path.join(args.outdir, &#34;targets.csv&#34;)
+        prettydf.to_csv(csvpath, index=False)
+        logger.info(&#34;Creating random control guides&#34;)
+        contpath = os.path.join(args.outdir, &#34;controls.csv&#34;)
+        seq_record_iter = SeqIO.parse(fastapath, &#34;fasta&#34;)
+        cmin, cmed, randomdf = tl.get_control_seqs(
+            seq_record_iter, configpath=args.config, length=args.guidelength, n=args.controls, num_threads=args.threads)
+        logger.info(&#34;Number of random control searched: %d&#34; % tl.ncontrolsearched)
+        logger.info(&#34;Percentage of GC content in the input genome: &#34; +
+                     &#34;{:.2f}&#34;.format(tl.gc_percent))
+        logger.info(&#34;Total length of the genome: &#34; + &#34;{:.1f} MB&#34;.format(tl.genomesize))
+        logger.info(&#34;Created %i control guides with a minimum distance of %d and a median distance of %d&#34; % (
+            args.controls, cmin, cmed))
+        randomdf.to_csv(contpath)
+        logger.info(&#34;GuideMaker completed, results are at %s&#34; % args.outdir)
+        logger.info(&#34;PAM sequence: %s&#34; % args.pamseq)
+        logger.info(&#34;PAM orientation: %s&#34; % args.pam_orientation)
+        logger.info(&#34;Genome strand(s) searched: %s&#34; % &#34;both&#34;)
+        logger.info(&#34;Total PAM sites considered: %d&#34; % lengthoftl)
+        logger.info(&#34;Guide RNA candidates found: %d&#34; % len(prettydf))
+    except Exception as e:
+        logger.exception(&#34;GuideMaker terminated with errors. See the log file for details.&#34;)
+        raise SystemExit(1)
+    try:
+        if args.plot:
+            logger.info(&#34;Creating Plots...&#34;)
+            guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
+            logger.info(&#34;Plots saved at: %s&#34; % args.outdir)
+    except Exception as e:
+        logger.exception(e)
+        raise SystemExit(1)
+    try:
+        if not args.keeptemp:
+            shutil.rmtree(tempdir)
+    except UnboundLocalError as e:
+        logger.exception(e)
+        raise SystemExit(1)
+    except AttributeError as e:
+        logger.exception(e)
+        raise SystemExit(1)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="guidemaker.cli.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>arglist: list = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Run The complete GuideMaker workflow.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(arglist: list = None):
+    &#34;&#34;&#34;Run The complete GuideMaker workflow.&#34;&#34;&#34;
+    # Set up logging
+    parser = myparser()
+    args = parser.parse_args(arglist)
+    logger = _logger_setup(args.log)
+    parserval(args)
+
+
+
+    try:
+        with open(args.config) as cf:
+            config = yaml.safe_load(cf)
+    except:
+        print(&#34;Could not parse the configuration file.&#34;)
+        raise SystemExit(1)
+
+    try:
+        logger.info(&#34;Configuration data loaded from {}:&#34;.format(args.config))
+        logger.info(config)
+    except:
+        print(&#34;Could not find config file, exiting.&#34;)
+        raise SystemExit(1)
+
+    try:
+
+        if args.tempdir:
+            if not os.path.exists(args.tempdir):
+                logger.warning(&#34;Specified location for tempfile (%s) does not \
+                                 exist, using default location.&#34; % args.tempdir)
+                os.mkdir(args.tempdir)
+                tempdir = args.tempdir
+            else:
+                tempdir = tempfile.mkdtemp
+        else:
+            tempdir = tempfile.mkdtemp(prefix=&#39;guidemaker_&#39;, dir=args.tempdir)
+            pybedtools.helpers.set_tempdir(tempdir)
+        logger.info(&#34;Temp directory is: %s&#34; % (tempdir))
+        logger.info(&#34;Writing fasta file from genbank file(s)&#34;)
+        if args.genbank:
+            fastapath = guidemaker.get_fastas(args.genbank, input_format=&#34;genbank&#34;, tempdir=tempdir)
+        elif args.fasta:
+            fastapath = guidemaker.get_fastas(args.fasta, input_format=&#34;fasta&#34;, tempdir=tempdir)
+        logger.info(&#34;Identifying PAM sites in the genome&#34;)
+        pamobj = guidemaker.core.PamTarget(args.pamseq, args.pam_orientation, args.dtype)
+        seq_record_iter = SeqIO.parse(fastapath, &#34;fasta&#34;)
+        pamtargets = pamobj.find_targets(
+            seq_record_iter=seq_record_iter, target_len=args.guidelength)
+        tl = guidemaker.core.TargetProcessor(
+            targets=pamtargets, lsr=args.lsr, editdist=args.dist, knum=args.knum)
+        lengthoftl = len(tl.targets)
+        logger.info(&#34;Checking guides for restriction enzymes&#34;)
+        tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
+        logger.info(&#34;Number of guides removed after checking for restriction enzymes: %d&#34;,
+                     (lengthoftl - len(tl.targets)))
+        logger.info(&#34;Identifing guides that are unique near the PAM site&#34;)
+        tl.find_unique_near_pam()
+        logger.info(&#34;Number of guides with non unique seed sequence: %d&#34;,
+                     (tl.targets.isseedduplicated.sum()))
+        logger.info(&#34;Indexing all potential guide sites: %s. This is the longest step.&#34; %
+                     len(list(set(tl.targets[&#39;target&#39;].tolist()))))
+        tl.create_index(num_threads=args.threads, configpath=args.config)
+        logger.info(
+            &#34;Identifying guides that have a hamming distance &lt;= %s to all other potential guides&#34;, str(args.dist))
+        tl.get_neighbors(num_threads=args.threads, configpath=args.config)
+        logger.info(&#34;Formatting data for BedTools&#34;)
+        tf_df = tl.export_bed()
+        logger.info(&#34;Create GuideMaker Annotation object&#34;)
+        if args.genbank:
+            anno = guidemaker.core.Annotation(annotation_list=args.genbank, annotation_type=&#34;genbank&#34;,
+                                              target_bed_df=tf_df)
+        elif args.gff:
+            anno = guidemaker.core.Annotation(annotation_list=args.gff, annotation_type=&#34;gff&#34;,
+                                              target_bed_df=tf_df)
+        logger.info(&#34;Identify genomic features&#34;)
+        anno.get_annotation_features()
+        logger.info(&#34;Total number of CDS/locus in the input genome: %d&#34; % anno.locuslen())
+        logger.info(&#34;Find genomic features closest the guides&#34;)
+        anno._get_nearby_features()
+        logger.info(&#34;Select guides that start between +%s and -%s of a feature start&#34; %
+                     (args.before, args.into))
+        anno._filter_features(before_feat=args.before, after_feat=args.into)
+        logger.info(&#34;Select description columns&#34;)
+        anno._get_qualifiers(configpath=args.config)
+        logger.info(&#34;Format the output&#34;)
+        anno._format_guide_table(tl)
+        prettydf = anno._filterlocus(args.filter_by_locus)
+        # prettydf = anno.filter_pretty_df
+        if args.doench_efficiency_score:
+            logger.info(&#34;Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...&#34;)
+            prettydf = guidemaker.core.get_doench_efficiency_score(df=prettydf, pam_orientation=args.pam_orientation, num_threads=args.threads)
+
+        if args.cfd_score:
+            logger.info(&#34;Calculating CFD score for assessing off-target activity of gRNAs&#34;)
+            prettydf = guidemaker.core.cfd_score(df=prettydf)
+
+        fd_zero = prettydf[&#39;Feature distance&#39;].isin([0]).sum()
+        logger.info(&#34;Number of Guides within a gene coordinates i.e. zero Feature distance: %d&#34;, fd_zero)
+        if not os.path.exists(args.outdir):
+            os.makedirs(args.outdir)
+        csvpath = os.path.join(args.outdir, &#34;targets.csv&#34;)
+        prettydf.to_csv(csvpath, index=False)
+        logger.info(&#34;Creating random control guides&#34;)
+        contpath = os.path.join(args.outdir, &#34;controls.csv&#34;)
+        seq_record_iter = SeqIO.parse(fastapath, &#34;fasta&#34;)
+        cmin, cmed, randomdf = tl.get_control_seqs(
+            seq_record_iter, configpath=args.config, length=args.guidelength, n=args.controls, num_threads=args.threads)
+        logger.info(&#34;Number of random control searched: %d&#34; % tl.ncontrolsearched)
+        logger.info(&#34;Percentage of GC content in the input genome: &#34; +
+                     &#34;{:.2f}&#34;.format(tl.gc_percent))
+        logger.info(&#34;Total length of the genome: &#34; + &#34;{:.1f} MB&#34;.format(tl.genomesize))
+        logger.info(&#34;Created %i control guides with a minimum distance of %d and a median distance of %d&#34; % (
+            args.controls, cmin, cmed))
+        randomdf.to_csv(contpath)
+        logger.info(&#34;GuideMaker completed, results are at %s&#34; % args.outdir)
+        logger.info(&#34;PAM sequence: %s&#34; % args.pamseq)
+        logger.info(&#34;PAM orientation: %s&#34; % args.pam_orientation)
+        logger.info(&#34;Genome strand(s) searched: %s&#34; % &#34;both&#34;)
+        logger.info(&#34;Total PAM sites considered: %d&#34; % lengthoftl)
+        logger.info(&#34;Guide RNA candidates found: %d&#34; % len(prettydf))
+    except Exception as e:
+        logger.exception(&#34;GuideMaker terminated with errors. See the log file for details.&#34;)
+        raise SystemExit(1)
+    try:
+        if args.plot:
+            logger.info(&#34;Creating Plots...&#34;)
+            guidemaker.core.GuideMakerPlot(prettydf=prettydf, outdir=args.outdir)
+            logger.info(&#34;Plots saved at: %s&#34; % args.outdir)
+    except Exception as e:
+        logger.exception(e)
+        raise SystemExit(1)
+    try:
+        if not args.keeptemp:
+            shutil.rmtree(tempdir)
+    except UnboundLocalError as e:
+        logger.exception(e)
+        raise SystemExit(1)
+    except AttributeError as e:
+        logger.exception(e)
+        raise SystemExit(1)</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.cli.myparser"><code class="name flex">
+<span>def <span class="ident">myparser</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def myparser():
+    parser = argparse.ArgumentParser(
+        description=&#39;GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems&#39;,
+        epilog=textwrap.dedent(&#39;&#39;&#39; To run the web app locally, in terminal run:
+        -----------------------------------------------------------------------
+        streamlit run &#39;&#39;&#39; + guidemaker.WEB_APP + &#39;&#39;&#39;
+        -----------------------------------------------------------------------&#39;&#39;&#39;))
+    parser.add_argument(&#39;--genbank&#39;, &#39;-i&#39;, nargs=&#39;+&#39;, type=str, required=False,
+                        help=&#39;One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or GFF/GTF and fasta files&#39;)
+    parser.add_argument(&#39;--fasta&#39;, &#39;-f&#39;, nargs=&#39;+&#39;, type=str, required=False,
+                        help=&#39;One or more fasta or gzipped fasta files for a single genome. If using a fasta, a GFF/GTF file must also be provided but not a genbank file.&#39;)
+    parser.add_argument(&#39;--gff&#39;, &#39;-g&#39;, nargs=&#39;+&#39;, type=str, required=False,
+                        help=&#39;One or more GFF or GTF files (optionally gzipped) for a single genome. If using a GFF/GTF a fasta file  must also be provided but not a genbank file.&#39;)
+    parser.add_argument(&#39;--pamseq&#39;, &#39;-p&#39;, type=str, required=True,
+                        help=&#39;A short PAM motif to search for, it may use IUPAC ambiguous alphabet&#39;)
+    parser.add_argument(&#39;--outdir&#39;, &#39;-o&#39;, type=str, required=True,
+                        help=&#39;The directory for data output&#39;)
+    parser.add_argument(&#39;--pam_orientation&#39;, &#39;-r&#39;, choices=[&#39;5prime&#39;, &#39;3prime&#39;], default=&#39;3prime&#39;,
+                        help=&#34;The PAM position relative to the target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, SpCas9 is 3prime. Default: &#39;3prime&#39;.&#34;)
+    parser.add_argument(&#39;--guidelength&#39;, &#39;-l&#39;, type=int, default=20, choices=range(10,
+                        28, 1), metavar=&#34;[10-27]&#34;, help=&#39;Length of the guide sequence. Default: 20.&#39;)
+    parser.add_argument(&#39;--lsr&#39;, type=int, default=10, choices=range(0, 28, 1),
+                        metavar=&#34;[0-27]&#34;, help=&#39;Length of a seed region near the PAM site required to be unique. Default: 10.&#39;)
+    parser.add_argument(&#39;--dtype&#39;, type=str, choices=[&#39;hamming&#39;, &#39;leven&#39;], default=&#39;hamming&#39;,
+                        help=&#39;Select the distance type. Default: hamming.&#39;)
+    parser.add_argument(&#39;--dist&#39;, type=int, choices=range(0, 6, 1),
+                        metavar=&#34;[0-5]&#34;, default=2, help=&#39;Minimum edit distance from any other potential guide. Default: 2.&#39;)
+    parser.add_argument(&#39;--before&#39;, type=int, default=100, choices=range(1, 501, 1), metavar=&#34;[1-500]&#34;,
+                        help=&#39;keep guides this far in front of a feature. Default: 100.&#39;)
+    parser.add_argument(&#39;--into&#39;, type=int, default=200, choices=range(1, 501, 1), metavar=&#34;[1-500]&#34;,
+                        help=&#39;keep guides this far inside (past the start site)of a feature. Default: 200.&#39;)
+    parser.add_argument(&#39;--knum&#39;, type=int, default=5, choices=range(2, 21, 1),
+                        metavar=&#34;[2-20]&#34;, help=&#39;how many sequences similar to the guide to report. Default: 5.&#39;)
+    parser.add_argument(&#39;--controls&#39;, type=int, default=1000,
+                        help=&#39;Number of random control RNAs to generate. Default: 1000.&#39;)
+    parser.add_argument(&#39;--threads&#39;, help=&#39;The number of cpu threads to use. Default: 2&#39;, type=int, default=2)
+    parser.add_argument(&#39;--log&#39;, help=&#34;Log file&#34;, default=&#34;guidemaker.log&#34;)
+    parser.add_argument(&#39;--tempdir&#39;, help=&#39;The temp file directory&#39;, default=None)
+    parser.add_argument(&#39;--restriction_enzyme_list&#39;, nargs=&#34;*&#34;,
+                        help=&#39;List of sequence representing restriction enzymes. Default: None.&#39;, default=[])
+    parser.add_argument(&#39;--filter_by_locus&#39;, nargs=&#34;*&#34;,
+                        help=&#39;List of locus tag. Default: None.&#39;, default=[])
+    parser.add_argument(&#39;--doench_efficiency_score&#39;,help=&#34;On-target scoring from Doench et al. 2016 - only for NGG PAM and guidelength=25: Default: None.&#34;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--cfd_score&#39;,help=&#39;CFD score for assessing off-target activity of gRNAs with NGG pam: Default: None.&#39;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--keeptemp&#39;, help=&#34;Option to keep intermediate files be kept&#34;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--plot&#39;, help=&#34;Option to create GuideMaker plots&#34;, action=&#39;store_true&#39;)
+    parser.add_argument(&#39;--config&#39;, help=&#34;Path to YAML formatted configuration file, default is &#34; +
+                        guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
+    parser.add_argument(&#39;-V&#39;, &#39;--version&#39;, action=&#39;version&#39;,
+                        version=&#34;%(prog)s (&#34; + guidemaker.__version__ + &#34;)&#34;)
+    return parser</code></pre>
+</details>
+</dd>
+<dt id="guidemaker.cli.parserval"><code class="name flex">
+<span>def <span class="ident">parserval</span></span>(<span>args)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parserval(args):
+    try:
+        assert(args.lsr &lt;= args.guidelength), &#34;The length of sequence near the PAM .i.e seed sequence that must be less than the guide length&#34;
+        # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
+        assert(1 &lt; len(args.pamseq) &lt; 9), &#34;The length of the PAM sequence must be between 2-8&#34;
+        assert ((args.genbank is not None and args.fasta is None and args.gff is None) or
+                (args.genbank is None and args.fasta is not  None and args.gff is not None)),&#34;Please provide either Genbank files or Fasta and GFF files&#34;
+    except AssertionError as err:
+        raise err</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="guidemaker" href="index.html">guidemaker</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="guidemaker.cli.main" href="#guidemaker.cli.main">main</a></code></li>
+<li><code><a title="guidemaker.cli.myparser" href="#guidemaker.cli.myparser">myparser</a></code></li>
+<li><code><a title="guidemaker.cli.parserval" href="#guidemaker.cli.parserval">parserval</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
