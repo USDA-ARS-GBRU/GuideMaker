@@ -319,11 +319,11 @@ def test_cfd_score():
 def test_levin_dist():
     """Test that levin and hamming distance are being claculated correctly.
 
-        The test sequece has three guides embeded in it:
+        The test sequence has three guides embedded in it:
         1. CGTAGCTAG[T]CACTAGCTGACA_GCA|AGG
         2. CGTAGCTAG[A]CACTAGCTGACA_GCA|AGG
         3. CGTAGCTAG[T]CACTAGCTGACTAGCA|AGG
-        guide 2 has 1 substutution and guide 3 has 1 insertion relative to guide 1.
+        guide 2 has 1 substitution and guide 3 has 1 insertion relative to guide 1.
          The levin distances for seq 1 vs  [2, 3] are [1, 2], while the hamming distances for seq 1 vd/ [2, 3] are [1,16] 
     """
     distseq = [SeqRecord(Seq.Seq(
