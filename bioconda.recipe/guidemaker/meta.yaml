@@ -1,6 +1,6 @@
-{% set version = "0.2.0" %}
+{% set version = "0.3.4" %}
 {% set name = "GuideMaker" %}
-{% set sha256 = "24704654e4f37107267f825cb103b219f7bde8ea92d53ededf90582903cf139a" %}
+{% set sha256 = "cff826d21a17a040158c00cf3f84cee2f1b712a21ac381c7931caec54a095bbd" %}
 {% set user = "USDA-ARS-GBRU" %}
 
 
@@ -8,7 +8,7 @@ package:
   name: '{{ name|lower }}'
   version: '{{ version }}'
 
-
+# source
 source:
   url: https://github.com/{{ user }}/{{ name }}/archive/v{{ version }}.tar.gz
   sha256: {{ sha256 }}
@@ -30,7 +30,7 @@ requirements:
   run:
     - pip
     - python >=3.6
-    - biopython==1.76
+    - biopython>=1.79
     - numpy >=1.11
     - pybedtools>=0.8.2
     - nmslib>=2.0.6
@@ -48,8 +48,7 @@ requirements:
 
 test:
   commands:
-    - {{ name }} --version | grep '{{ version }}'
-    - {{ name }} --help
+    - guidemaker --version
 
 
 
