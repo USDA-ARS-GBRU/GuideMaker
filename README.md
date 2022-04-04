@@ -6,21 +6,21 @@ CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria 
 
 GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file or Fasta and GFF/GTF file. The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
-GuideMaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a **[web application](https://guidemaker.app.scinet.usda.gov)** at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://cyverse.org/discovery-environment)**.
+GuideMaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a **[web application](https://guidemaker.app.scinet.usda.gov)** at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://de.cyverse.org//apps/de/16686f2a-3ca9-11ec-ba43-008cfa5ae621)**.
 
 ## Methods to access GuideMaker
 
 GuideMaker can be easily accessed via:
 - Web Application
 - CyVerse Discovery Environment
-- Command Line 
+- Command Line
 - Local Web Application
 
 **NOTE:** *Our web application runs on a small server instance and is primarily designed for the lower-memory requirements bacterial genomes. We recommend that users run larger genomes on the **[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)**  or run GuideMaker locally as a command-line or web browser-based application.
 
-1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
+1.[Web Application](https://guidemaker.app.scinet.usda.gov)|  2.[CyCverse Discovery Environment](https://de.cyverse.org//apps/de/16686f2a-3ca9-11ec-ba43-008cfa5ae621)
 :-------------------------:|:-------------------------:
-[![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://de.cyverse.org/apps/de/518589c0-994a-11ea-9ea3-008cfa5ae621)
+[![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)](https://guidemaker.app.scinet.usda.gov)|[![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/cyverse.png)](https://de.cyverse.org//apps/de/16686f2a-3ca9-11ec-ba43-008cfa5ae621)
 
 
 ## 3.Command Line
@@ -57,11 +57,18 @@ guidemaker -h
     guidemaker -h
 ```
 
-### 3.3. Docker image: Available at [Github Registry](https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
+### 3.3. Docker image
+
+Available at the Github Container Registry (https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
 
 ```bash
 
-docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-9be9fe1c9dca
+# AVX Version
+docker pull ghcr.io/usda-ars-gbru/guidemaker-avx:sha-15fad1af431a
+
+#Non-AVX version
+docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-15fad1af431a
+
 
 ```
 
@@ -157,14 +164,15 @@ unique in each guide is 11 nucleotides.
     --lsr 11 \
     -o OUTDIR \
     --doench_efficiency_score \
-    --threads 2 
+    --threads 2
 
 ```
 
 ## 4. Running Web App locally
+
 To run the web app locally, you first need to complete the command line installation described above.
 
-If the path of the `app.py` differs from the one displayed below, you can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. 
+If the path of the `app.py` differs from the one displayed below, you can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output.
 
 ```bash
 
@@ -182,12 +190,12 @@ _This section provides information on how to use GuideMaker's results to create 
 	>Pooled CRISPR Experiments
 </h4>
 
-Experiments that target the entire genome, or many genes at once, are typically performed in pooled experiments where 100-100,000+ targets are tested simultaneously. The pooled oligonucleotides for each gRNA are cloned in one batch and used simultaneously in the designed experiment. Each gRNA sequence acts as a barcode that can be quantified with high-throughput sequencing to elucidate each target's relative importance under the experimental conditions. 
+Experiments that target the entire genome, or many genes at once, are typically performed in pooled experiments where 100-100,000+ targets are tested simultaneously. The pooled oligonucleotides for each gRNA are cloned in one batch and used simultaneously in the designed experiment. Each gRNA sequence acts as a barcode that can be quantified with high-throughput sequencing to elucidate each target's relative importance under the experimental conditions.
 
 
 <h4 style="color: #003087" >Vectors for gRNA Cloning</h4>
 
-Genome-scale CRISPR experiments require a gRNA vector amenable to high-throughput cloning, most often through [Golden Gate cloning](https://blog.addgene.org/plasmids-101-golden-gate-cloning), a restriction enzyme-dependent reaction. Plasmids to express gRNA are available from Addgene can be found at the link below, though not all of these are compatible with high-throughput cloning. 
+Genome-scale CRISPR experiments require a gRNA vector amenable to high-throughput cloning, most often through [Golden Gate cloning](https://blog.addgene.org/plasmids-101-golden-gate-cloning), a restriction enzyme-dependent reaction. Plasmids to express gRNA are available from Addgene can be found at the link below, though not all of these are compatible with high-throughput cloning.
 
 
 <h4 style="color: #003087" >Addgene: CRISPR Plasmids - Empty gRNA Vectors</h4>
@@ -201,13 +209,13 @@ Some example vendors are:
 *   [Agilent](https://www.agilent.com/en/product/sureprint-oligonucleotide-library-synthesis/oligonucleotide-library-synthesis/sureprint-oligonucleotide-libraries-288039)
 *   [Arbor Biosciences](https://arborbiosci.com/oligos-and-arrays/dna-and-rna-oligo-pools/)
 
-Most pools require amplification before cloning to convert the ssDNA to dsDNA and increase the concentration for efficient cloning. Accordingly, adding a constant region at the 3' end for primer binding is recommended. Sub-pools can also be amplified by adding unique constant regions to some oligos, enabling the large-scale synthesis to be split amongst organisms or specific targets in a single organism. Because Golden Gate cloning utilizes restriction enzymes, filtering gRNA designs with the cognate restriction enzyme recognition sites is necessary, a feature found in GuideMaker. A general protocol for cloning pooled gRNA from synthesized oligonucleotides from IDT is linked below, though similar workflows can be used for pools from other vendors. 
+Most pools require amplification before cloning to convert the ssDNA to dsDNA and increase the concentration for efficient cloning. Accordingly, adding a constant region at the 3' end for primer binding is recommended. Sub-pools can also be amplified by adding unique constant regions to some oligos, enabling the large-scale synthesis to be split amongst organisms or specific targets in a single organism. Because Golden Gate cloning utilizes restriction enzymes, filtering gRNA designs with the cognate restriction enzyme recognition sites is necessary, a feature found in GuideMaker. A general protocol for cloning pooled gRNA from synthesized oligonucleotides from IDT is linked below, though similar workflows can be used for pools from other vendors.
 
 *   [Cloning high-quality CRISPR libraries with oPool Oligo Pools (SYB-10182-PR12/2019)](https://sfvideo.blob.core.windows.net/sitefinity/docs/default-source/user-submitted-method/cloning-high-quality-crispr-libraries-with-opools-oligo-pools-user-method.pdf?sfvrsn=3db31607_7)
 *   [Addgene: Guide to Using Pooled Libraries](https://www.addgene.org/guides/pooled-libraries/)
 
 <h4 style="color: #003087">Pooled CRISPR Data Analysis</h4>
-After the experiment, the cells are collected and DNA is isolated. The target sequence is then amplified and adaptors for high-throughput sequencing added. Several data analysis pipelines have been developed to identify target sequences over-represented or under-represented in the pool. The manuscript by Wang et al. (2019) provides a protocol for using a high-quality tool with these capabilities. 
+After the experiment, the cells are collected and DNA is isolated. The target sequence is then amplified and adaptors for high-throughput sequencing added. Several data analysis pipelines have been developed to identify target sequences over-represented or under-represented in the pool. The manuscript by Wang et al. (2019) provides a protocol for using a high-quality tool with these capabilities.
 
 <h4 style="color: #003087">Citation</h4>
 Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genetic screens using MAGeCKFlute. Nat Protoc 14, 756–780 (2019). https://doi.org/10.1038/s41596-018-0113-7
@@ -217,21 +225,24 @@ Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genet
 Coming soon...
 
 ### Reporting Errors and Suggestions
-Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to the `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. Also, check **FAQs** section prior submitting an issue. 
+
+Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to the `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. Also, check **FAQs** section prior submitting an issue.
 
 ![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
 
 
 ## Citation
-*Poudel R, Rodriguez LT, Reisch CR, Rivers AR. GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes. 2021. In Review.
+
+Ravin Poudel, Lidimarie Trujillo Rodriguez, Christopher R Reisch, Adam R Rivers, GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes, GigaScience, Volume 11, 2022, giac007, [DOI: 10.1093/gigascience/giac007](https://doi.org/10.1093/gigascience/giac007)
 
 ## API documentation
 
 API documentation for the module can be found [here](https://usda-ars-gbru.github.io/GuideMaker/docs/index.html)
 
 ## License information
-GuideMaker was created by the [United States Department of Agriculture - Agricultural Research Service 
-(USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government, this software is available under 
+
+GuideMaker was created by the [United States Department of Agriculture - Agricultural Research Service
+(USDA-ARS)](https://www.ars.usda.gov/). As a work of the United States Government, this software is available under
 the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
 
 
