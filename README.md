@@ -217,8 +217,8 @@ Most pools require amplification before cloning to convert the ssDNA to dsDNA an
 <h4 style="color: #003087">Pooled CRISPR Data Analysis</h4>
 After the experiment, the cells are collected and DNA is isolated. The target sequence is then amplified and adaptors for high-throughput sequencing added. Several data analysis pipelines have been developed to identify target sequences over-represented or under-represented in the pool. The manuscript by Wang et al. (2019) provides a protocol for using a high-quality tool with these capabilities.
 
-<h4 style="color: #003087">Citation</h4>
-Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genetic screens using MAGeCKFlute. Nat Protoc 14, 756–780 (2019). https://doi.org/10.1038/s41596-018-0113-7
+
+| Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genetic screens using MAGeCKFlute. Nat Protoc 14, 756–780 (2019). https://doi.org/10.1038/s41596-018-0113-7
 
 ### FAQs
 
@@ -231,7 +231,7 @@ Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), 
 ![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
 
 
-## Citation
+## GuideMaker Citation
 
 Ravin Poudel, Lidimarie Trujillo Rodriguez, Christopher R Reisch, Adam R Rivers, GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes, GigaScience, Volume 11, 2022, giac007, [DOI: 10.1093/gigascience/giac007](https://doi.org/10.1093/gigascience/giac007)
 
