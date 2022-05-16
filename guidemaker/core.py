@@ -663,7 +663,7 @@ class Annotation:
         self.qualifiers: object = None
 
     def check_annotation_type(self):
-        """determine if the file provided by the GFF argument is a GFF or GTF file
+        """open GTF/GFF and determine if the file provided by the GFF argument is a GFF or GTF file
 
             Args: None
 
@@ -676,7 +676,10 @@ class Annotation:
                 return "gff"
             gtfmatch = re.search("gtf-version", line1)
             if gtfmatch is not None:
-                return "gtf" 
+                return "gtf"
+            else:
+                logger.error("Could not verify the GFF/GTF file type. Please make sure your GFF/GTF file starts with '#gtf-version' or '##gff-version'")
+                raise ValueError
         testfile = self.annotation_list[0]
         if is_gzip(testfile):
             with gzip.open(testfile, 'rt') as f:
@@ -742,20 +745,28 @@ class Annotation:
                         pddict["name"].append(featid)
                         featlist = rec[8].split(';')
                         for feat in featlist:
-                            if feat.isspace():
+                            try:
+                                if feat.isspace(): # this handles whitespace strings
+                                    continue
+                                if not feat: # this handles empty strings
+                                    continue
+                                if anno_format == 'gtf':
+                                    fl = re.search('^[^"]*', feat)
+                                    fv = re.search('"([^"]*)"', feat)
+                                    feat_key = fl.group(0).strip()
+                                    feat_val = fv.group(0).strip('"')
+                                elif anno_format =='gff':
+                                    fl = feat.split('=')
+                                    feat_key = fl[0]
+                                    feat_val = fl[1]
+                                if not feat_key in feature_dict:
+                                    feature_dict[feat_key] = {}
+                                feature_dict[feat_key][featid] = feat_val
+                            except:
+                                logger.warning("There appears to be an error in the formatting of an attribute in the "
+                                               "record below. Please check your input GFF or GTF file. The record is: {rec} "
+                                               "and the attribute is: {att}. Skipping this feature.".format(rec=featlist, att=feat))
                                 continue
-                            if anno_format == 'gtf':
-                                fl = re.search('^[^"]*', feat)
-                                fv = re.search('"([^"]*)"', feat)
-                                feat_key = fl.group(0).strip()
-                                feat_val = fv.group(0).strip('"')
-                            elif anno_format =='gff':
-                                fl = feat.split('=')
-                                feat_key = fl[0]
-                                feat_val = fl[1]
-                            if not feat_key in feature_dict:
-                                feature_dict[feat_key] = {}
-                            feature_dict[feat_key][featid] = feat_val
             genbankbed = pd.DataFrame.from_dict(pddict)
             self.genbank_bed_df = genbankbed
             self.feature_dict = feature_dict
@@ -963,9 +974,14 @@ class Annotation:
         Returns:
             (int): Number of locus tag
         """
-
-        locus_count = len(self.feature_dict['locus_tag' or 'locus'].keys())
-        return(locus_count)
+        da_keys = self.feature_dict.keys()
+        firsttag = (list(da_keys)[0])
+        if firsttag:
+            locus_count = len(self.feature_dict[firsttag].keys())
+            return firsttag, locus_count
+        else:
+            logger.warning("A locus key could not be found.")
+            return "notag", 0
 
 
 
