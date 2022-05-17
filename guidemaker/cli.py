@@ -191,7 +191,7 @@ def main(arglist: list = None):
                                               target_bed_df=tf_df)
         logger.info("Identify genomic features")
         anno.get_annotation_features()
-        logger.info("Total number of CDS/locus in the input genome: %d" % anno.locuslen())
+        logger.info("Total number of %s in the input genome: %d" % anno.locuslen())
         logger.info("Find genomic features closest the guides")
         anno._get_nearby_features()
         logger.info("Select guides that start between +%s and -%s of a feature start" %

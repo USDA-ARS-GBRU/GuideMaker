@@ -215,6 +215,7 @@ Most pools require amplification before cloning to convert the ssDNA to dsDNA an
 *   [Addgene: Guide to Using Pooled Libraries](https://www.addgene.org/guides/pooled-libraries/)
 
 <h4 style="color: #003087">Pooled CRISPR Data Analysis</h4>
+
 After the experiment, the cells are collected and DNA is isolated. The target sequence is then amplified and adaptors for high-throughput sequencing added. Several data analysis pipelines have been developed to identify target sequences over-represented or under-represented in the pool. The manuscript by Wang et al. (2019) provides a protocol for using a high-quality tool with these capabilities.
 
 
