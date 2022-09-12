@@ -52,7 +52,7 @@ def myparser():
                         help='keep guides this far inside (past the start site)of a feature. Default: 200.')
     parser.add_argument('--knum', type=int, default=5, choices=range(2, 21, 1),
                         metavar="[2-20]", help='how many sequences similar to the guide to report. Default: 5.')
-    parser.add_argument('--controls', type=int, default=1000,
+    parser.add_argument('--controls', type=int, default=1000, choices=range(0, 100001, 1),  metavar="[0-100000]",
                         help='Number of random control RNAs to generate. Default: 1000.')
     parser.add_argument('--threads', help='The number of cpu threads to use. Default: 2', type=int, default=2)
     parser.add_argument('--log', help="Log file", default="guidemaker.log")
@@ -217,18 +217,24 @@ def main(arglist: list = None):
             os.makedirs(args.outdir)
         csvpath = os.path.join(args.outdir, "targets.csv")
         prettydf.to_csv(csvpath, index=False)
-        logger.info("Creating random control guides")
-        contpath = os.path.join(args.outdir, "controls.csv")
-        seq_record_iter = SeqIO.parse(fastapath, "fasta")
-        cmin, cmed, randomdf = tl.get_control_seqs(
-            seq_record_iter, configpath=args.config, length=args.guidelength, n=args.controls, num_threads=args.threads)
-        logger.info("Number of random control searched: %d" % tl.ncontrolsearched)
-        logger.info("Percentage of GC content in the input genome: " +
-                     "{:.2f}".format(tl.gc_percent))
-        logger.info("Total length of the genome: " + "{:.1f} MB".format(tl.genomesize))
-        logger.info("Created %i control guides with a minimum distance of %d and a median distance of %d" % (
-            args.controls, cmin, cmed))
-        randomdf.to_csv(contpath)
+        if args.controls > 0:
+            logger.info("Creating random control guides")
+            contpath = os.path.join(args.outdir, "controls.csv")
+            seq_record_iter = SeqIO.parse(fastapath, "fasta")
+            cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter,
+                                                       configpath=args.config,
+                                                       length=args.guidelength,
+                                                       n=args.controls,
+                                                       num_threads=args.threads)
+            randomdf.to_csv(contpath)
+            logger.info("Number of random control searched: %d" % tl.ncontrolsearched)
+            logger.info("Created %i control guides with a minimum distance of %d and a median distance of %d" % (
+                args.controls, cmin, cmed))
+            logger.info("Percentage of GC content in the input genome: " +
+                        "{:.2f}".format(tl.gc_percent))
+            logger.info("Total length of the genome: " + "{:.1f} MB".format(tl.genomesize))
+
+
         logger.info("GuideMaker completed, results are at %s" % args.outdir)
         logger.info("PAM sequence: %s" % args.pamseq)
         logger.info("PAM orientation: %s" % args.pam_orientation)
