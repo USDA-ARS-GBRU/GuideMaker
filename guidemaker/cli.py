@@ -148,7 +148,7 @@ def main(arglist: list = None):
                 os.mkdir(args.tempdir)
                 tempdir = args.tempdir
             else:
-                tempdir = tempfile.mkdtemp
+                tempdir = tempfile.mkdtemp()
         else:
             tempdir = tempfile.mkdtemp(prefix='guidemaker_', dir=args.tempdir)
             pybedtools.helpers.set_tempdir(tempdir)
