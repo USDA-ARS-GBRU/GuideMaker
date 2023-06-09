@@ -11,7 +11,7 @@ requirements = [
     'numpy >=1.11',
     'pybedtools>=0.8.2',
     'nmslib>=2.0.6',
-    'pandas>=1.0.0',
+    'pandas=1.5',
     'pyyaml>=5.4.1',
     'regex==2020.11.13',
     'altair==4.1.0',
