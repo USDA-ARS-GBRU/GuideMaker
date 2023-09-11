@@ -948,7 +948,7 @@ class Annotation:
         pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
         self.pretty_df = pretty_df
 
-    def _filterlocus(self, attribute:str, filter_by_locus:list = []) -> PandasDataFrame:
+    def _filterlocus(self, attribute:str , filter_by_locus:list = []) -> PandasDataFrame:
         """
         Create guide table for output for a selected attribute type
 
