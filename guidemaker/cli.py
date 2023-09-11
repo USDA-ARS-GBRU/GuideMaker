@@ -59,8 +59,10 @@ def myparser():
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*",
                         help='List of sequence representing restriction enzymes. Default: None.', default=[])
-    parser.add_argument('--filter_by_locus', nargs="*",
-                        help='List of locus tag. Default: None.', default=[])
+    parser.add_argument('--attribute_key', type=str,
+                        help='the attribute key in column 9 of the GFF/GTF file to use for filtering. Default: ID', default="ID")
+    parser.add_argument('--filter_by_attribute', nargs="*",
+                        help='List of locus ids. Default: None.', default=[])
     parser.add_argument('--doench_efficiency_score',help="On-target scoring from Doench et al. 2016 - only for NGG PAM and guidelength=25: Default: None.", action='store_true')
     parser.add_argument('--cfd_score',help='CFD score for assessing off-target activity of gRNAs with NGG pam: Default: None.', action='store_true')
     parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
@@ -153,8 +155,8 @@ def main(arglist: list = None):
             tempdir = tempfile.mkdtemp(prefix='guidemaker_', dir=args.tempdir)
             pybedtools.helpers.set_tempdir(tempdir)
         logger.info("Temp directory is: %s" % (tempdir))
-        logger.info("Writing fasta file from genbank file(s)")
         if args.genbank:
+            logger.info("Writing fasta file from genbank file(s)")
             fastapath = guidemaker.get_fastas(args.genbank, input_format="genbank", tempdir=tempdir)
         elif args.fasta:
             fastapath = guidemaker.get_fastas(args.fasta, input_format="fasta", tempdir=tempdir)
@@ -201,7 +203,7 @@ def main(arglist: list = None):
         anno._get_qualifiers(configpath=args.config)
         logger.info("Format the output")
         anno._format_guide_table(tl)
-        prettydf = anno._filterlocus(args.filter_by_locus)
+        prettydf = anno._filterlocus(args.attribute_key, args.filter_by_attribute)
         # prettydf = anno.filter_pretty_df
         if args.doench_efficiency_score:
             logger.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")

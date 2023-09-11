@@ -948,12 +948,13 @@ class Annotation:
         pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
         self.pretty_df = pretty_df
 
-    def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
+    def _filterlocus(self, attribute:str, filter_by_locus:list = []) -> PandasDataFrame:
         """
-        Create guide table for output for a selected locus_tag
+        Create guide table for output for a selected attribute type
 
         Args:
-            target- a dataframe with targets from targetclass
+            attribute: The key in the attributes column (column 9) of the GFF/GTF file to filter on
+            filter_by_locus: A list of Identifiers to filter the full data frame by
 
         Returns:
             (PandasDataFrame): A formated pandas dataframe
@@ -961,7 +962,7 @@ class Annotation:
 
         df = deepcopy(self.pretty_df)  # anno class object
         if len (filter_by_locus) > 0:
-            df = df[df['locus_tag'].isin(filter_by_locus)]
+            df = df[df[attribute].isin(filter_by_locus)]
         return df
 
     def locuslen(self) -> int:
