@@ -844,7 +844,7 @@ class Annotation:
         downstream['direction'] = 'downstream'
         upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
         upstream['direction'] = 'upstream'
-        upstream = upstream.append(downstream)
+        upstream = pd.concat([downstream, upstream], axis = 0)
         self.nearby = upstream.rename(columns=headers)
 
 
@@ -864,27 +864,26 @@ class Annotation:
         filtered_df = self.nearby.query(
             '`Guide strand` == `Feature strand` and 0 < `Feature distance` < @before_feat')
         # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
+        p1 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
                                              and `Feature distance` == 0 and \
                                              `Guide end` - `Feature start` < @after_feat'))
         # for guides in the -/- orientation select guides where the end is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "-" \
+        p2 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "-" \
                                                      and `Feature distance` == 0 \
                                                      and `Feature end` - `Guide start` < @after_feat'))
         # Select guides where target is + and guide is - and the guide is infront of the gene
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
+        p3 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
                                                      0 <`Feature start` - `Guide end` < @before_feat'))
         # Select guides where target is - and guide is + and the guide is infront of the gene
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
+        p4 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
                                                      0 <`Guide start` - `Feature end` < @before_feat'))
         # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
+        p5 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
                                                              0 <`Guide end` -`Feature start`  < @after_feat'))
         # Select guides where target is - and guide is + and the guide is is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
+        p6 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
                                                              0 <`Feature end` - `Guide start` < @after_feat'))
-
-        self.filtered_df = filtered_df
+        self.filtered_df = pd.concat([filtered_df, p1, p2, p3, p4, p5, p6], axis=0)
 
     def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
         """
