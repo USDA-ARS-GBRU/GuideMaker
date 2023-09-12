@@ -90,7 +90,7 @@ def gff_connect(db_bytes):
     finally:
         pass
 
-@st.cache(suppress_st_warning=True)
+@st.cache_data()
 def run_command(args):
     """Run command, transfer stdout/stderr back into Streamlit and manage error."""
     st.info(f"Running:: '{' '.join(args)}'")

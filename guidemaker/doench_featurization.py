@@ -9,8 +9,8 @@ Miles Smith worked on porting to Python3 in this repo: https://github.com/milesc
 that used Poetry to build. The work is not complete.
 
 This work is derivitive of that BSD 3-clause licensed work. The key changes are:
- 1. uch of the code needed for tasks other thant prediction of the V3_model_nopos was removed.
- 2. The Calculation of NGGX features was re-written. A bug that prevented scaling to thousands guides efficiently.
+ 1. Much of the code needed for tasks other than prediction of the V3_model_nopos was removed.
+ 2. The Calculation of NGGX features was re-written to fix a bug that prevented scaling to thousands guides efficiently.
  3. the Pickle model and scikit-learn were replaced with an Onnx model and onnxruntime for better persistance,
     security, and performance.
 

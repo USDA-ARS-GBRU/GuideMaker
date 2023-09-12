@@ -12,7 +12,7 @@ import gc
 from typing import List, Dict, TypeVar, Generator
 from itertools import product
 from Bio import SeqIO
-from Bio.SeqUtils import GC
+from Bio.SeqUtils import gc_fraction
 from pybedtools import BedTool
 from Bio import Seq
 from copy import deepcopy
@@ -572,9 +572,9 @@ class TargetProcessor:
         totlen = 0
         gccnt = 0
         for record in seq_record_iter:
-            gccnt += GC(record.seq) * len(record)
+            gccnt += gc_fraction(record.seq) * len(record)
             totlen += len(record)
-        gc = gccnt / (totlen * 100)
+        gc = gccnt / (totlen)
         self.gc_percent = gc * 100
         self.genomesize = totlen / (1024 * 1024)
 
@@ -720,8 +720,8 @@ class Annotation:
                                 pddict["strand"].append("-" if str(record.strand) in ['-1', '-' ] else "+")
                             featid = hashlib.md5(str(record).encode()).hexdigest()
                             pddict['chrom'].append(entry.id)
-                            pddict["chromStart"].append(record.location.start.position)
-                            pddict["chromEnd"].append(record.location.end.position)
+                            pddict["chromStart"].append(int(record.location.start))
+                            pddict["chromEnd"].append(int(record.location.end))
                             pddict["name"].append(featid)
                             for qualifier_key, qualifier_val in record.qualifiers.items():
                                 if not qualifier_key in feature_dict:
