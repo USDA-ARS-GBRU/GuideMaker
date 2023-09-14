@@ -15,7 +15,7 @@ requirements = [
     'pyyaml>=6.0.1',
     'regex==2020.11.13',
     'altair==4.1.0',
-    'jsonschema==3.2.0'
+    'jsonschema==3.2.0',
     'streamlit>=1.26.0',
     'streamlit_tags>=1.2.8',
     'pytest>=7.4',
