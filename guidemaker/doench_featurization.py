@@ -35,7 +35,7 @@ from Bio.SeqUtils import MeltingTemp as Tm
 
 logger = logging.getLogger(__name__)
 
-def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> dict:
+def featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True, length_audit :bool=True) -> dict:
     """Creates a dictionary of feature data
 
     Args:
@@ -85,7 +85,7 @@ def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> di
 
     return feature_sets
 
-def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=True, num_threads=1) -> dict:
+def parallel_featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True, length_audit: bool=True, num_threads: int=1) -> dict:
     """ Use multprocessing to divide up the creation of ML features for Doench scoring
         Creates a dictionary of feature data
 
@@ -115,7 +115,7 @@ def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=Tr
         return featurize_data(data=data, learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit)
 
 
-def get_nuc_features(data):
+def get_nuc_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """ Create first and second order nucleotide features
 
         Args:
@@ -221,7 +221,7 @@ def get_nuc_features(data):
 
 
 
-def check_feature_set(feature_sets):
+def check_feature_set(feature_sets: dict) -> None:
     """Ensure the number of features is the same in each feature set
 
     Args:
@@ -250,7 +250,7 @@ def check_feature_set(feature_sets):
             raise Exception(f"found Nan in set {item}")
 
 
-def nggx_interaction_feature(data, pam_audit=True):
+def nggx_interaction_feature(data: pd.DataFrame, pam_audit: bool=True) -> pd.DataFrame:
     """ One hot encode the sequence of NX aroung pam site NGGX
 
     Args:
@@ -284,15 +284,15 @@ def nggx_interaction_feature(data, pam_audit=True):
 
 
 
-def countGC(s, length_audit=True):
+def countGC(s: str, length_audit: bool=True) -> int:
     """
     GC content for only the 20mer, as per the Doench paper/code
     """
     if length_audit:
         if len(s) != 30:
             raise AssertionError("seems to assume 30mer")
-    return len(s[4:24].replace("A", "").replace("T", ""))
-
+    #return len(s[4:24].replace("A", "").replace("T", ""))
+    return s[4:24].count("G") + s[4:24].count("C")
 
 def organism_feature(data):
     """

@@ -42,7 +42,7 @@ MODEL = os.path.join(DIR,"data/V3_model_nopos.onnx")
 #MODEL_META = "guidemaker/data/V3_model_nopos_options.json"
 MODEL_META = os.path.join(DIR,"data/V3_model_nopos_options.json")
 
-def concatenate_feature_sets(feature_sets, keys: List[str] = None):
+def concatenate_feature_sets(feature_sets: dict, keys: List[str] = None) -> tuple:
     """ Combine features
 
     Given a dictionary of sets of features, each in a pd.DataFrame,

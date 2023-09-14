@@ -23,7 +23,6 @@ from guidemaker import doench_predict
 from guidemaker import cfd_score_calculator
 
 logger = logging.getLogger(__name__)
-PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
 
 pd.options.mode.chained_assignment = None
 
@@ -81,7 +80,7 @@ class PamTarget:
         """
         return "A PAM object: {self.pam}".format(self=self)
 
-    def find_targets(self, seq_record_iter: object, target_len: int) -> PandasDataFrame:
+    def find_targets(self, seq_record_iter: object, target_len: int) -> pd.DataFrame:
         """
         Find all targets on a sequence that match for the PAM on both strand(s)
 
@@ -301,7 +300,7 @@ class TargetProcessor:
 
     """
 
-    def __init__(self, targets: PandasDataFrame, lsr: int, editdist: int = 2, knum: int = 2) -> None:
+    def __init__(self, targets: pd.DataFrame, lsr: int, editdist: int = 2, knum: int = 2) -> None:
         """
         TargetProcessor __init__
 
@@ -320,7 +319,7 @@ class TargetProcessor:
         self.knum: int = knum
         self.nmslib_index: object = None
         self.neighbors: dict = {}
-        self.closest_neighbor_df: PandasDataFrame = None
+        self.closest_neighbor_df: pd.DataFrame = None
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
         self.genomesize: float = None
@@ -543,7 +542,7 @@ class TargetProcessor:
         return df
 
     def get_control_seqs(self, seq_record_iter: object, configpath, length: int = 20, n: int = 10,
-                         num_threads: int = 2) -> PandasDataFrame:
+                         num_threads: int = 2) -> pd.DataFrame:
         """
         Create random sequences with a specified GC probability and find seqs with the greatest
         distance to any sequence flanking a PAM site
@@ -885,7 +884,7 @@ class Annotation:
                                                              0 <`Feature end` - `Guide start` < @after_feat'))
         self.filtered_df = pd.concat([filtered_df, p1, p2, p3, p4, p5, p6], axis=0)
 
-    def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
+    def _format_guide_table(self, targetprocessor_object) -> pd.DataFrame:
         """
         Create guide table for output
 
@@ -947,7 +946,7 @@ class Annotation:
         pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
         self.pretty_df = pretty_df
 
-    def _filterlocus(self, attribute:str , filter_by_locus:list = []) -> PandasDataFrame:
+    def _filterlocus(self, attribute:str , filter_by_locus:list = []) -> pd.DataFrame:
         """
         Create guide table for output for a selected attribute type
 
@@ -992,7 +991,7 @@ class GuideMakerPlot:
 
     """
 
-    def __init__(self, prettydf: PandasDataFrame, outdir: str) -> None:
+    def __init__(self, prettydf: pd.DataFrame, outdir: str) -> None:
         """
         GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
 
