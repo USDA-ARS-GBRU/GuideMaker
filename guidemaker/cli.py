@@ -11,6 +11,7 @@ import shutil
 import os
 import yaml
 import textwrap
+import pandas as pd
 
 import pybedtools
 from Bio import SeqIO
@@ -36,6 +37,8 @@ def myparser():
                         help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True,
                         help='The directory for data output')
+    parser.add_argument('--raw_output_only', action='store_true',
+                        help='if selected only the raw guide RNAs their positions will be returned the meet lsr and dist criteria')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='3prime',
                         help="The PAM position relative to the target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, SpCas9 is 3prime. Default: '3prime'.")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10,
@@ -81,7 +84,8 @@ def parserval(args):
         # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
         assert(1 < len(args.pamseq) < 9), "The length of the PAM sequence must be between 2-8"
         assert ((args.genbank is not None and args.fasta is None and args.gff is None) or
-                (args.genbank is None and args.fasta is not  None and args.gff is not None)),"Please provide either Genbank files or Fasta and GFF files"
+                (args.genbank is None and args.fasta is not  None and args.gff is not None) or
+                ((args.genbank is not None or args.fasta is not None) and args.raw_output_only)),"Please provide either Genbank files or Fasta and GFF files. If raw_output_onl is selected Genbank or Fasta files are requried."
     except AssertionError as err:
         raise err
 
@@ -184,6 +188,11 @@ def main(arglist: list = None):
         tl.get_neighbors(num_threads=args.threads, configpath=args.config)
         logger.info("Formatting data for BedTools")
         tf_df = tl.export_bed()
+        if args.raw_output_only:
+            tf_df.to_csv(os.path.join(args.outdir, "rawguides.csv.gz"), index=False, header=["Chromosome", "Start", "Stop","gRNA", "Strand"])
+            logger.info("Raw guides options was selected Guidemaker, so has completed opperations")
+            raise SystemExit(0)
+
         logger.info("Create GuideMaker Annotation object")
         if args.genbank:
             anno = guidemaker.core.Annotation(annotation_list=args.genbank, annotation_type="genbank",
@@ -217,11 +226,11 @@ def main(arglist: list = None):
         logger.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):
             os.makedirs(args.outdir)
-        csvpath = os.path.join(args.outdir, "targets.csv")
+        csvpath = os.path.join(args.outdir, "targets.csv.gz")
         prettydf.to_csv(csvpath, index=False)
         if args.controls > 0:
             logger.info("Creating random control guides")
-            contpath = os.path.join(args.outdir, "controls.csv")
+            contpath = os.path.join(args.outdir, "controls.csv.gz")
             seq_record_iter = SeqIO.parse(fastapath, "fasta")
             cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter,
                                                        configpath=args.config,

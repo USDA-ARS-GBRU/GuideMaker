@@ -27,26 +27,40 @@ GuideMaker can be easily accessed via:
 
 GuideMaker can be installed from:
 
-### 3.1. Bioconda: (preferred method because it handles dependencies):
+### Docker image (prefered method)
+
+Guidemaker is available at the Github Container Registry (https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
+
+```bash
+
+# AVX Version
+docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
+
+#Non-AVX version
+docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx
+```
+
+
+### Bioconda
 
 ```bash
 # Create a conda environment and install GuideMaker via Bioconda.
 
-conda create --strict-channel-priority --override-channels --channel conda-forge --channel bioconda --channel defaults --name gmenv guidemaker
+mamba create --strict-channel-priority --override-channels --channel conda-forge --channel bioconda --channel defaults --name gmenv guidemaker
 
 # Activate conda env
-conda activate gmenv
+mamba  activate gmenv
 
 # Test the installation
 guidemaker -h
 
 ```
 
-### 3.2. [Github](https://github.com/USDA-ARS-GBRU/GuideMaker)
+### [Github](https://github.com/USDA-ARS-GBRU/GuideMaker)
 
 ```bash
     # Create a conda environment and install and pybedtools
-    conda create -n gmenv python=3.7 pybedtools=0.8.2
+    mamba create -n gmenv python=3.9 pybedtools=0.9.1
     conda activate gmenv
 
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
@@ -56,18 +70,6 @@ guidemaker -h
     # check if the installation works
     guidemaker -h
 ```
-
-### 3.3. Docker image
-
-Available at the Github Container Registry (https://github.com/orgs/USDA-ARS-GBRU/packages?repo_name=GuideMaker)
-
-```bash
-
-# AVX Version
-docker pull ghcr.io/usda-ars-gbru/guidemaker-avx:sha-15fad1af431a
-
-#Non-AVX version
-docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-15fad1af431a
 
 
 ```
@@ -87,34 +89,29 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx:sha-15fad1af431a
 ### Command Line Usage
 
 ```
-usage: guidemaker [-h] --genbank GENBANK [GENBANK ...] --pamseq PAMSEQ
-                  --outdir OUTDIR [--pam_orientation {5prime,3prime}]
-                  [--guidelength [10-27]] [--lsr [0-27]]
-                  [--dtype {hamming,leven}] [--dist [0-5]] [--before [1-500]]
-                  [--into [1-500]] [--knum [2-20]] [--controls CONTROLS]
-                  [--threads THREADS] [--log LOG] [--tempdir TEMPDIR]
-                  [--restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]]
-                  [--filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]]
-                  [--doench_efficiency_score] [--cfd_score] [--keeptemp]
-                  [--plot] [--config CONFIG] [-V]
+usage: guidemaker [-h] [--genbank GENBANK [GENBANK ...]] [--fasta FASTA [FASTA ...]] [--gff GFF [GFF ...]] --pamseq PAMSEQ --outdir OUTDIR [--raw_output_only]
+                  [--pam_orientation {5prime,3prime}] [--guidelength [10-27]] [--lsr [0-27]] [--dtype {hamming,leven}] [--dist [0-5]] [--before [1-500]] [--into [1-500]]
+                  [--knum [2-20]] [--controls [0-100000]] [--threads THREADS] [--log LOG] [--tempdir TEMPDIR] [--restriction_enzyme_list [RESTRICTION_ENZYME_LIST ...]]
+                  [--attribute_key ATTRIBUTE_KEY] [--filter_by_attribute [FILTER_BY_ATTRIBUTE ...]] [--doench_efficiency_score] [--cfd_score] [--keeptemp] [--plot] [--config CONFIG]
+                  [-V]
 
-GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas
-systems
+GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems
 
 optional arguments:
   -h, --help            show this help message and exit
   --genbank GENBANK [GENBANK ...], -i GENBANK [GENBANK ...]
-                        One or more genbank .gbk or gzipped .gbk files for a single genome. Provide this or GFF and fasta files
+                        One or more genbank .gbk or gzipped .gbk files for a single genome. Provide this or GFF/GTF and fasta files
   --fasta FASTA [FASTA ...], -f FASTA [FASTA ...]
-                        One or more fasta or gzipped fasta files for a single genome. If using a fasta, a GFF must also be provided but not a genbank file.
+                        One or more fasta or gzipped fasta files for a single genome. If using a fasta, a GFF/GTF file must also be provided but not a genbank file.
   --gff GFF [GFF ...], -g GFF [GFF ...]
-                        One or more genbank GFF files for a single genome. If using a GFF a fasta file must also be provided but not a genbank file.
+                        One or more GFF or GTF files (optionally gzipped) for a single genome. If using a GFF/GTF a fasta file must also be provided but not a genbank file.
   --pamseq PAMSEQ, -p PAMSEQ
                         A short PAM motif to search for, it may use IUPAC ambiguous alphabet
   --outdir OUTDIR, -o OUTDIR
                         The directory for data output
+  --raw_output_only     if selected only the raw guide RNAs their positions will be returned the meet lsr and dist criteria
   --pam_orientation {5prime,3prime}, -r {5prime,3prime}
-                        PAM position relative to target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, Cas9 is 3prime. Default: '5prime'.
+                        The PAM position relative to the target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, SpCas9 is 3prime. Default: '3prime'.
   --guidelength [10-27], -l [10-27]
                         Length of the guide sequence. Default: 20.
   --lsr [0-27]          Length of a seed region near the PAM site required to be unique. Default: 10.
@@ -124,28 +121,29 @@ optional arguments:
   --before [1-500]      keep guides this far in front of a feature. Default: 100.
   --into [1-500]        keep guides this far inside (past the start site)of a feature. Default: 200.
   --knum [2-20]         how many sequences similar to the guide to report. Default: 5.
-  --controls CONTROLS   Number or random control RNAs to generate. Default: 1000.
+  --controls [0-100000]
+                        Number of random control RNAs to generate. Default: 1000.
   --threads THREADS     The number of cpu threads to use. Default: 2
   --log LOG             Log file
   --tempdir TEMPDIR     The temp file directory
-  --restriction_enzyme_list [RESTRICTION_ENZYME_LIST [RESTRICTION_ENZYME_LIST ...]]
+  --restriction_enzyme_list [RESTRICTION_ENZYME_LIST ...]
                         List of sequence representing restriction enzymes. Default: None.
-  --filter_by_locus [FILTER_BY_LOCUS [FILTER_BY_LOCUS ...]]
-                        List of locus tag. Default: None.
+  --attribute_key ATTRIBUTE_KEY
+                        the attribute key in column 9 of the GFF/GTF file to use for filtering. Default: ID
+  --filter_by_attribute [FILTER_BY_ATTRIBUTE ...]
+                        List of locus ids. Default: None.
   --doench_efficiency_score
-                        Doench et al. 2016 - only for NGG PAM: Default: None.
-  --cfd_score           CFD score for assessing off-target activity of gRNAs: Default: None.
+                        On-target scoring from Doench et al. 2016 - only for NGG PAM and guidelength=25: Default: None.
+  --cfd_score           CFD score for assessing off-target activity of gRNAs with NGG pam: Default: None.
   --keeptemp            Option to keep intermediate files be kept
-  --plot                Option to genereate guidemaker plots
+  --plot                Option to create GuideMaker plots
   --config CONFIG       Path to YAML formatted configuration file, default is /Users/rivers/Documents/guidemaker/guidemaker/data/config_default.yaml
   -V, --version         show program's version number and exit
 
-
-To run the web app locally, in terminal run:
------------------------------------------------------------------------
-streamlit run [Dynamically created path to app file]
------------------------------------------------------------------------
-
+To run the web app locally, in your terminal run: 
+----------------------------------------------------------------------- 
+streamlit run /your/path/to/guidemaker/guidemaker/data/app.py
+ -----------------------------------------------------------------------
 
 ```
 
@@ -180,6 +178,26 @@ streamlit run /[user path prefix]/anaconda3/envs/gmenv/lib/python3.7/site-packag
 
 ```
 ![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
+
+## Running the docker image
+
+Command line usage: on a computer with AVX (most modern computers) you can run these commands:
+
+```bash
+
+docker pull  docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
+docker run  -it ghcr.io/usda-ars-gbru/guidemaker-webapp guidemaker -h
+```
+
+Web App usage: on a computer with AVX (most modern computers) you can run these commands:
+
+```bash
+docker pull  docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
+docker run -p8501:8501 -it ghcr.io/usda-ars-gbru/guidemaker-webapp
+```
+Now if you open your browser you can access the app at `http://127.0.0.1:8501`
+
+
 
 ## Using GuideMaker's results
 
@@ -221,9 +239,7 @@ After the experiment, the cells are collected and DNA is isolated. The target se
 
 > Wang, B., Wang, M., Zhang, W. et al. Integrative analysis of pooled CRISPR genetic screens using MAGeCKFlute. Nat Protoc 14, 756–780 (2019). https://doi.org/10.1038/s41596-018-0113-7
 
-### FAQs
 
-Coming soon...
 
 ### Reporting Errors and Suggestions
 
@@ -247,7 +263,6 @@ GuideMaker was created by the [United States Department of Agriculture - Agricul
 the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
 
 
-[![CircleCI](https://img.shields.io/circleci/build/github/USDA-ARS-GBRU/GuideMaker?logo=CircleCi&token=802d114b3ec676d153b4b9fa6a781f9345756fc9)](https://app.circleci.com/pipelines/github/USDA-ARS-GBRU/GuideMaker)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
 [![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
 [![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)

@@ -1,36 +1,36 @@
-FROM continuumio/miniconda3:4.9.2
+FROM ghcr.io/mamba-org/micromamba:1.5.1-bullseye AS guidemaker
 LABEL maintainer="Adam R. Rivers"
-LABEL version="0.2.0"
 LABEL Description="GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems"
 
-RUN apt-get --allow-releaseinfo-change -y update && apt-get install -y \
-    build-essential \
-    zlib1g-dev
-
-SHELL ["/bin/bash", "--login", "-c"]
-
-# installation specific to GuideMaker
-RUN conda install --yes --channel conda-forge --channel bioconda --channel gagan3012 --freeze-installed \
+RUN micromamba install --channel conda-forge --channel bioconda -y -n base \
     nomkl \
     python=3.9 \
+    pip=23.2\
     pybedtools=0.9.1 \
-    biopython=1.81 \
-    pyyaml=6.0.1 \
-    jsonschema==3.2 \
-    && conda clean -afy
+    && \
+    micromamba clean --all --yes
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    zlib1g-dev \
+    git
+USER $MAMBA_USER
 
 RUN pip install --no-binary :all: nmslib
 
-ENV PATH="~/miniconda3/bin:$PATH"
-RUN git clone -b iss_tempdir https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
+RUN git clone -b iss_tempfile https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
 
 # port on the docker container
 EXPOSE 8501 
 
-ENTRYPOINT ["conda", "run", "-n", "base"]
 
-RUN cp /GuideMaker/guidemaker/data/Pseudomonas_aeruginosa.gbk.gz .
-RUN cp /GuideMaker/guidemaker/data/Carsonella_ruddii.gbk.gz .
+ENTRYPOINT ["micromamba", "run", "-n", "base"]
+
+RUN cp GuideMaker/guidemaker/data/Pseudomonas_aeruginosa.gbk.gz .
+RUN cp GuideMaker/guidemaker/data/Carsonella_ruddii.gbk.gz .
 
 # run web app
-CMD streamlit run /GuideMaker/guidemaker/data/app.py --server.maxUploadSize 500
+CMD streamlit run GuideMaker/guidemaker/data/app.py --server.maxUploadSize 500

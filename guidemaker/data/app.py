@@ -121,7 +121,7 @@ def read_markdown_file(markdown_file):
 def guidemakerplot(df):
     """Returns guidemaker plot describing PAM targets."""
     source = df
-    brush = alt.selection(type='interval', encodings=['x'])
+    brush = alt.selection_interval( encodings=['x'])
     binnum = int(round(source['Feature end'].max() / 200, 0))
     display_info = source.columns.tolist()
 
@@ -145,7 +145,7 @@ def guidemakerplot(df):
     ).mark_area(color='pink', opacity=0.6).encode(
     x=alt.X('Guide start', axis=alt.Axis(title='Genome Coordinates (bp)', tickCount=5)),
     y='Guide Density:Q',
-    ).properties(height=50).add_selection(brush)
+    ).properties(height=50).add_params(brush)
 
     # locus tag
     locus = alt.Chart(source).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
@@ -303,7 +303,7 @@ def main(arglist: list = None):
     if os.path.exists(sessionID):
 
         #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
-        source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
+        source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv.gz'), low_memory=False)
 
         accession_list = list(set(source['Accession']))
         for accession in accession_list:
@@ -314,14 +314,14 @@ def main(arglist: list = None):
 
 
         # Targets
-        target_tab = "✅ [Target Data](downloads/targets.csv)"
-        targets = pd.read_csv(os.path.join("./", sessionID, 'targets.csv'), low_memory=False)
-        targets.to_csv(str(DOWNLOADS_PATH / "targets.csv"), index=False)
+        target_tab = "✅ [Target Data](downloads/targets.csv.gz)"
+        targets = pd.read_csv(os.path.join("./", sessionID, 'targets.csv.gz'), low_memory=False)
+        targets.to_csv(str(DOWNLOADS_PATH / "targets.csv.gz"), index=False)
 
         # Controls
-        control_tab = "✅ [Control Data](downloads/controls.csv)"
-        controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv'), low_memory=False)
-        controls.to_csv(str(DOWNLOADS_PATH / "controls.csv"), index=False)
+        control_tab = "✅ [Control Data](downloads/controls.csv.gz)"
+        controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv.gz'), low_memory=False)
+        controls.to_csv(str(DOWNLOADS_PATH / "controls.csv.gz"), index=False)
 
         # logs
         with st.expander("Results"):

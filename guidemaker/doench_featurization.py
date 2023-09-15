@@ -60,7 +60,7 @@ def featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True
         logger.info("Creating nucleotide features")
         feature_sets["_nuc_pd_Order1"], feature_sets["_nuc_pi_Order1"], feature_sets["_nuc_pd_Order2"], feature_sets["_nuc_pi_Order2"] = get_nuc_features(data)
 
-    logger.info("Verifing nucleotide features")
+    logger.info("Verifying nucleotide features")
     check_feature_set(feature_sets)
 
     if learn_options["gc_features"]:
@@ -76,12 +76,12 @@ def featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True
         feature_sets["NGGX"] = nggx_interaction_feature(data, pam_audit)
 
     if learn_options["include_Tm"]:
-        logger.info("Creattng Tm features")
+        logger.info("Creating Tm features")
         feature_sets["Tm"] = Tm_feature(data, pam_audit, learn_options=None)
 
 
     check_feature_set(feature_sets)
-    logger.info("final feature check complte")
+    logger.info("final feature check complete")
 
     return feature_sets
 

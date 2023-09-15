@@ -11,17 +11,18 @@ requirements = [
     'numpy >=1.11',
     'pybedtools>=0.9.1',
     'nmslib>=2.1.1',
-    'pandas>=1.5',
+    'pandas>=2.1',
     'pyyaml>=6.0.1',
     'regex==2020.11.13',
-    'altair==4.1.0',
-    'jsonschema==3.2.0',
+    'altair>=5.1.1',
+    'jsonschema>=4.19.0',
     'streamlit>=1.26.0',
-    'streamlit_tags>=1.2.8',
+    'streamlit-tags>=1.2.8',
     'pytest>=7.4',
     'pytest-cov>=4.1',
     'pdoc3>=0.10.0',
     'onnxruntime>=1.15.1',
+    'importlib-resources>=6.0'
 ]
 
 

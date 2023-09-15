@@ -283,6 +283,7 @@ class PamTarget:
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
                 target_list.append(rev3p)
             gc.collect()  # clear memory after each chromosome
+        target_list = [item for item in target_list if not item.empty]
         df_targets = pd.concat(target_list, ignore_index=True)
         df_targets = df_targets.assign(seedseq=np.nan, hasrestrictionsite=np.nan, isseedduplicated=np.nan)
         df_targets = df_targets.astype({"seedseq": 'str', "isseedduplicated": 'bool'})
