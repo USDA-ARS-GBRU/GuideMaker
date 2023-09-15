@@ -20,7 +20,7 @@ from guidemaker.definitions import ROOT_DIR
 # from pathlib import Path
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
+configpath = os.path.join(str(ROOT_DIR),"data","config_default.yaml")
 
 
 #PamTarget Class

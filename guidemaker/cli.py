@@ -16,7 +16,6 @@ import pandas as pd
 import pybedtools
 from Bio import SeqIO
 
-
 import guidemaker
 
 
@@ -25,7 +24,7 @@ def myparser():
         description='GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems',
         epilog=textwrap.dedent(''' To run the web app locally, in terminal run:
         -----------------------------------------------------------------------
-        streamlit run ''' + guidemaker.WEB_APP + '''
+        streamlit run ''' + str(guidemaker.WEB_APP) + '''
         -----------------------------------------------------------------------'''))
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=False,
                         help='One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or GFF/GTF and fasta files')
@@ -71,7 +70,7 @@ def myparser():
     parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to create GuideMaker plots", action='store_true')
     parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " +
-                        guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
+                        str(guidemaker.CONFIG_PATH), default=str(guidemaker.CONFIG_PATH))
     parser.add_argument('-V', '--version', action='version',
                         version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
