@@ -40,7 +40,6 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
 docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx
 ```
 
-
 ### Bioconda
 
 ```bash
@@ -70,10 +69,6 @@ guidemaker -h
     # check if the installation works
     guidemaker -h
 ```
-
-
-```
-
 
 ### Dependencies
 
