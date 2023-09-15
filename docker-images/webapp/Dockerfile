@@ -21,7 +21,7 @@ USER $MAMBA_USER
 
 RUN pip install --no-binary :all: nmslib
 
-RUN git clone -b iss_tempdir https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
+RUN git clone -b https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
 
 # port on the docker container
 EXPOSE 8501 
