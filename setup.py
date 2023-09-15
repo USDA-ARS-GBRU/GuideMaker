@@ -7,20 +7,22 @@ import versioneer
 
 requirements = [
     # package requirements go here
-    'biopython>=1.79',
+    'biopython>=1.81',
     'numpy >=1.11',
-    'pybedtools>=0.8.2',
-    'nmslib>=2.0.6',
-    'pandas=1.5',
-    'pyyaml>=5.4.1',
+    'pybedtools>=0.9.1',
+    'nmslib>=2.1.1',
+    'pandas>=2.1',
+    'pyyaml>=6.0.1',
     'regex==2020.11.13',
-    'altair==4.1.0',
-    'streamlit>=0.86.0',
-    'pytest>=4.6',
-    'pytest-cov',
-    'streamlit_tags>=1.2.6',
-    'pdoc3',
-    'onnxruntime>=1.8.1',
+    'altair>=5.1.1',
+    'jsonschema>=4.19.0',
+    'streamlit>=1.26.0',
+    'streamlit-tags>=1.2.8',
+    'pytest>=7.4',
+    'pytest-cov>=4.1',
+    'pdoc3>=0.10.0',
+    'onnxruntime>=1.15.1',
+    'importlib-resources>=6.0'
 ]
 
 
@@ -42,14 +44,14 @@ setup(
         ]
     },
     install_requires=requirements,
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     test_suite='pytest',
     tests_require=['pytest'],
     keywords='CRISPR-Cas',
     include_package_data=True,
     zip_safe=False,
     classifiers=[
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.8',
         'Development Status :: 3 - Alpha'
     ]

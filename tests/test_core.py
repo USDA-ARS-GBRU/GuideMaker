@@ -20,7 +20,7 @@ from guidemaker.definitions import ROOT_DIR
 # from pathlib import Path
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-configpath = os.path.join(ROOT_DIR,"data","config_default.yaml")
+configpath = os.path.join(str(ROOT_DIR),"data","config_default.yaml")
 
 
 #PamTarget Class
@@ -240,7 +240,7 @@ def test_filterlocus():
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    filter_prettydf = anno._filterlocus(filter_by_locus=['CRP_001'])
+    filter_prettydf = anno._filterlocus(attribute='locus_tag', filter_by_locus=['CRP_001'])
     assert filter_prettydf.shape == (4, 23)
 
 # Function : get_fastas
@@ -287,7 +287,7 @@ def test_get_doench_efficiency_score():
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    filter_pretty_30mer_df = anno._filterlocus()
+    filter_pretty_30mer_df = anno._filterlocus(attribute = "locus_tag")
     doench_df = guidemaker.core.get_doench_efficiency_score(df=filter_pretty_30mer_df, pam_orientation=pamobj.pam_orientation)
     assert abs(doench_df.Efficiency[213] - 0.3245381) < 0.0001
 
@@ -310,7 +310,7 @@ def test_cfd_score():
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    filter_pretty_30mer_df = anno._filterlocus()
+    filter_pretty_30mer_df = anno._filterlocus(attribute='locus_tag')
     cfd_df = guidemaker.core.cfd_score(df=filter_pretty_30mer_df)
     assert abs(cfd_df['Max CFD'][0] > 0)
 

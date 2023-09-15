@@ -9,8 +9,8 @@ Miles Smith worked on porting to Python3 in this repo: https://github.com/milesc
 that used Poetry to build. The work is not complete.
 
 This work is derivitive of that BSD 3-clause licensed work. The key changes are:
- 1. uch of the code needed for tasks other thant prediction of the V3_model_nopos was removed.
- 2. The Calculation of NGGX features was re-written. A bug that prevented scaling to thousands guides efficiently.
+ 1. Much of the code needed for tasks other than prediction of the V3_model_nopos was removed.
+ 2. The Calculation of NGGX features was re-written to fix a bug that prevented scaling to thousands guides efficiently.
  3. the Pickle model and scikit-learn were replaced with an Onnx model and onnxruntime for better persistance,
     security, and performance.
 
@@ -35,7 +35,7 @@ from Bio.SeqUtils import MeltingTemp as Tm
 
 logger = logging.getLogger(__name__)
 
-def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> dict:
+def featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True, length_audit :bool=True) -> dict:
     """Creates a dictionary of feature data
 
     Args:
@@ -60,7 +60,7 @@ def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> di
         logger.info("Creating nucleotide features")
         feature_sets["_nuc_pd_Order1"], feature_sets["_nuc_pi_Order1"], feature_sets["_nuc_pd_Order2"], feature_sets["_nuc_pi_Order2"] = get_nuc_features(data)
 
-    logger.info("Verifing nucleotide features")
+    logger.info("Verifying nucleotide features")
     check_feature_set(feature_sets)
 
     if learn_options["gc_features"]:
@@ -76,16 +76,16 @@ def featurize_data(data, learn_options, pam_audit=True, length_audit=True) -> di
         feature_sets["NGGX"] = nggx_interaction_feature(data, pam_audit)
 
     if learn_options["include_Tm"]:
-        logger.info("Creattng Tm features")
+        logger.info("Creating Tm features")
         feature_sets["Tm"] = Tm_feature(data, pam_audit, learn_options=None)
 
 
     check_feature_set(feature_sets)
-    logger.info("final feature check complte")
+    logger.info("final feature check complete")
 
     return feature_sets
 
-def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=True, num_threads=1) -> dict:
+def parallel_featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True, length_audit: bool=True, num_threads: int=1) -> dict:
     """ Use multprocessing to divide up the creation of ML features for Doench scoring
         Creates a dictionary of feature data
 
@@ -115,7 +115,7 @@ def parallel_featurize_data(data, learn_options, pam_audit=True, length_audit=Tr
         return featurize_data(data=data, learn_options=learn_options, pam_audit=pam_audit, length_audit=length_audit)
 
 
-def get_nuc_features(data):
+def get_nuc_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """ Create first and second order nucleotide features
 
         Args:
@@ -221,7 +221,7 @@ def get_nuc_features(data):
 
 
 
-def check_feature_set(feature_sets):
+def check_feature_set(feature_sets: dict) -> None:
     """Ensure the number of features is the same in each feature set
 
     Args:
@@ -250,7 +250,7 @@ def check_feature_set(feature_sets):
             raise Exception(f"found Nan in set {item}")
 
 
-def nggx_interaction_feature(data, pam_audit=True):
+def nggx_interaction_feature(data: pd.DataFrame, pam_audit: bool=True) -> pd.DataFrame:
     """ One hot encode the sequence of NX aroung pam site NGGX
 
     Args:
@@ -284,15 +284,15 @@ def nggx_interaction_feature(data, pam_audit=True):
 
 
 
-def countGC(s, length_audit=True):
+def countGC(s: str, length_audit: bool=True) -> int:
     """
     GC content for only the 20mer, as per the Doench paper/code
     """
     if length_audit:
         if len(s) != 30:
             raise AssertionError("seems to assume 30mer")
-    return len(s[4:24].replace("A", "").replace("T", ""))
-
+    #return len(s[4:24].replace("A", "").replace("T", ""))
+    return s[4:24].count("G") + s[4:24].count("C")
 
 def organism_feature(data):
     """

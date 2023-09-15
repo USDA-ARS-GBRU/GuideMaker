@@ -12,7 +12,7 @@ import gc
 from typing import List, Dict, TypeVar, Generator
 from itertools import product
 from Bio import SeqIO
-from Bio.SeqUtils import GC
+from Bio.SeqUtils import gc_fraction
 from pybedtools import BedTool
 from Bio import Seq
 from copy import deepcopy
@@ -23,7 +23,6 @@ from guidemaker import doench_predict
 from guidemaker import cfd_score_calculator
 
 logger = logging.getLogger(__name__)
-PandasDataFrame = TypeVar('pandas.core.frame.DataFrame')
 
 pd.options.mode.chained_assignment = None
 
@@ -81,7 +80,7 @@ class PamTarget:
         """
         return "A PAM object: {self.pam}".format(self=self)
 
-    def find_targets(self, seq_record_iter: object, target_len: int) -> PandasDataFrame:
+    def find_targets(self, seq_record_iter: object, target_len: int) -> pd.DataFrame:
         """
         Find all targets on a sequence that match for the PAM on both strand(s)
 
@@ -284,6 +283,7 @@ class PamTarget:
                                      "stop": 'uint32', "strand": 'bool', "pam_orientation": 'bool', "seqid": 'category'})
                 target_list.append(rev3p)
             gc.collect()  # clear memory after each chromosome
+        target_list = [item for item in target_list if not item.empty]
         df_targets = pd.concat(target_list, ignore_index=True)
         df_targets = df_targets.assign(seedseq=np.nan, hasrestrictionsite=np.nan, isseedduplicated=np.nan)
         df_targets = df_targets.astype({"seedseq": 'str', "isseedduplicated": 'bool'})
@@ -301,7 +301,7 @@ class TargetProcessor:
 
     """
 
-    def __init__(self, targets: PandasDataFrame, lsr: int, editdist: int = 2, knum: int = 2) -> None:
+    def __init__(self, targets: pd.DataFrame, lsr: int, editdist: int = 2, knum: int = 2) -> None:
         """
         TargetProcessor __init__
 
@@ -320,7 +320,7 @@ class TargetProcessor:
         self.knum: int = knum
         self.nmslib_index: object = None
         self.neighbors: dict = {}
-        self.closest_neighbor_df: PandasDataFrame = None
+        self.closest_neighbor_df: pd.DataFrame = None
         self.ncontrolsearched: int = None
         self.gc_percent: float = None
         self.genomesize: float = None
@@ -543,7 +543,7 @@ class TargetProcessor:
         return df
 
     def get_control_seqs(self, seq_record_iter: object, configpath, length: int = 20, n: int = 10,
-                         num_threads: int = 2) -> PandasDataFrame:
+                         num_threads: int = 2) -> pd.DataFrame:
         """
         Create random sequences with a specified GC probability and find seqs with the greatest
         distance to any sequence flanking a PAM site
@@ -572,9 +572,9 @@ class TargetProcessor:
         totlen = 0
         gccnt = 0
         for record in seq_record_iter:
-            gccnt += GC(record.seq) * len(record)
+            gccnt += gc_fraction(record.seq) * len(record)
             totlen += len(record)
-        gc = gccnt / (totlen * 100)
+        gc = gccnt / (totlen)
         self.gc_percent = gc * 100
         self.genomesize = totlen / (1024 * 1024)
 
@@ -720,8 +720,8 @@ class Annotation:
                                 pddict["strand"].append("-" if str(record.strand) in ['-1', '-' ] else "+")
                             featid = hashlib.md5(str(record).encode()).hexdigest()
                             pddict['chrom'].append(entry.id)
-                            pddict["chromStart"].append(record.location.start.position)
-                            pddict["chromEnd"].append(record.location.end.position)
+                            pddict["chromStart"].append(int(record.location.start))
+                            pddict["chromEnd"].append(int(record.location.end))
                             pddict["name"].append(featid)
                             for qualifier_key, qualifier_val in record.qualifiers.items():
                                 if not qualifier_key in feature_dict:
@@ -844,7 +844,7 @@ class Annotation:
         downstream['direction'] = 'downstream'
         upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
         upstream['direction'] = 'upstream'
-        upstream = upstream.append(downstream)
+        upstream = pd.concat([downstream, upstream], axis = 0)
         self.nearby = upstream.rename(columns=headers)
 
 
@@ -864,29 +864,28 @@ class Annotation:
         filtered_df = self.nearby.query(
             '`Guide strand` == `Feature strand` and 0 < `Feature distance` < @before_feat')
         # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
+        p1 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
                                              and `Feature distance` == 0 and \
                                              `Guide end` - `Feature start` < @after_feat'))
         # for guides in the -/- orientation select guides where the end is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "-" \
+        p2 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "-" \
                                                      and `Feature distance` == 0 \
                                                      and `Feature end` - `Guide start` < @after_feat'))
         # Select guides where target is + and guide is - and the guide is infront of the gene
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
+        p3 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
                                                      0 <`Feature start` - `Guide end` < @before_feat'))
         # Select guides where target is - and guide is + and the guide is infront of the gene
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
+        p4 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
                                                      0 <`Guide start` - `Feature end` < @before_feat'))
         # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
+        p5 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
                                                              0 <`Guide end` -`Feature start`  < @after_feat'))
         # Select guides where target is - and guide is + and the guide is is within [before_feat] of the gene start
-        filtered_df = filtered_df.append(self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
+        p6 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
                                                              0 <`Feature end` - `Guide start` < @after_feat'))
+        self.filtered_df = pd.concat([filtered_df, p1, p2, p3, p4, p5, p6], axis=0)
 
-        self.filtered_df = filtered_df
-
-    def _format_guide_table(self, targetprocessor_object) -> PandasDataFrame:
+    def _format_guide_table(self, targetprocessor_object) -> pd.DataFrame:
         """
         Create guide table for output
 
@@ -948,12 +947,13 @@ class Annotation:
         pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
         self.pretty_df = pretty_df
 
-    def _filterlocus(self, filter_by_locus:list = []) -> PandasDataFrame:
+    def _filterlocus(self, attribute:str , filter_by_locus:list = []) -> pd.DataFrame:
         """
-        Create guide table for output for a selected locus_tag
+        Create guide table for output for a selected attribute type
 
         Args:
-            target- a dataframe with targets from targetclass
+            attribute: The key in the attributes column (column 9) of the GFF/GTF file to filter on
+            filter_by_locus: A list of Identifiers to filter the full data frame by
 
         Returns:
             (PandasDataFrame): A formated pandas dataframe
@@ -961,7 +961,7 @@ class Annotation:
 
         df = deepcopy(self.pretty_df)  # anno class object
         if len (filter_by_locus) > 0:
-            df = df[df['locus_tag'].isin(filter_by_locus)]
+            df = df[df[attribute].isin(filter_by_locus)]
         return df
 
     def locuslen(self) -> int:
@@ -992,7 +992,7 @@ class GuideMakerPlot:
 
     """
 
-    def __init__(self, prettydf: PandasDataFrame, outdir: str) -> None:
+    def __init__(self, prettydf: pd.DataFrame, outdir: str) -> None:
         """
         GuideMakerPlot class for visualizing distrubution of gRNA, features, and locus.
 

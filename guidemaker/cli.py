@@ -11,10 +11,10 @@ import shutil
 import os
 import yaml
 import textwrap
+import pandas as pd
 
 import pybedtools
 from Bio import SeqIO
-
 
 import guidemaker
 
@@ -24,7 +24,7 @@ def myparser():
         description='GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas systems',
         epilog=textwrap.dedent(''' To run the web app locally, in terminal run:
         -----------------------------------------------------------------------
-        streamlit run ''' + guidemaker.WEB_APP + '''
+        streamlit run ''' + str(guidemaker.WEB_APP) + '''
         -----------------------------------------------------------------------'''))
     parser.add_argument('--genbank', '-i', nargs='+', type=str, required=False,
                         help='One or more genbank .gbk  or gzipped .gbk files for a single genome. Provide this or GFF/GTF and fasta files')
@@ -36,6 +36,8 @@ def myparser():
                         help='A short PAM motif to search for, it may use IUPAC ambiguous alphabet')
     parser.add_argument('--outdir', '-o', type=str, required=True,
                         help='The directory for data output')
+    parser.add_argument('--raw_output_only', action='store_true',
+                        help='if selected only the raw guide RNAs their positions will be returned the meet lsr and dist criteria')
     parser.add_argument('--pam_orientation', '-r', choices=['5prime', '3prime'], default='3prime',
                         help="The PAM position relative to the target: 5prime: [PAM][target], 3prime: [target][PAM]. For example, SpCas9 is 3prime. Default: '3prime'.")
     parser.add_argument('--guidelength', '-l', type=int, default=20, choices=range(10,
@@ -59,14 +61,16 @@ def myparser():
     parser.add_argument('--tempdir', help='The temp file directory', default=None)
     parser.add_argument('--restriction_enzyme_list', nargs="*",
                         help='List of sequence representing restriction enzymes. Default: None.', default=[])
-    parser.add_argument('--filter_by_locus', nargs="*",
-                        help='List of locus tag. Default: None.', default=[])
+    parser.add_argument('--attribute_key', type=str,
+                        help='the attribute key in column 9 of the GFF/GTF file to use for filtering. Default: ID', default="ID")
+    parser.add_argument('--filter_by_attribute', nargs="*",
+                        help='List of locus ids. Default: None.', default=[])
     parser.add_argument('--doench_efficiency_score',help="On-target scoring from Doench et al. 2016 - only for NGG PAM and guidelength=25: Default: None.", action='store_true')
     parser.add_argument('--cfd_score',help='CFD score for assessing off-target activity of gRNAs with NGG pam: Default: None.', action='store_true')
     parser.add_argument('--keeptemp', help="Option to keep intermediate files be kept", action='store_true')
     parser.add_argument('--plot', help="Option to create GuideMaker plots", action='store_true')
     parser.add_argument('--config', help="Path to YAML formatted configuration file, default is " +
-                        guidemaker.CONFIG_PATH, default=guidemaker.CONFIG_PATH)
+                        str(guidemaker.CONFIG_PATH), default=str(guidemaker.CONFIG_PATH))
     parser.add_argument('-V', '--version', action='version',
                         version="%(prog)s (" + guidemaker.__version__ + ")")
     return parser
@@ -79,7 +83,8 @@ def parserval(args):
         # Campylobacter jejuni Cas9 (CjCas9) has a 8bp long 5’-NNNNRYAC-3’ PAM site
         assert(1 < len(args.pamseq) < 9), "The length of the PAM sequence must be between 2-8"
         assert ((args.genbank is not None and args.fasta is None and args.gff is None) or
-                (args.genbank is None and args.fasta is not  None and args.gff is not None)),"Please provide either Genbank files or Fasta and GFF files"
+                (args.genbank is None and args.fasta is not  None and args.gff is not None) or
+                ((args.genbank is not None or args.fasta is not None) and args.raw_output_only)),"Please provide either Genbank files or Fasta and GFF files. If raw_output_onl is selected Genbank or Fasta files are requried."
     except AssertionError as err:
         raise err
 
@@ -153,8 +158,8 @@ def main(arglist: list = None):
             tempdir = tempfile.mkdtemp(prefix='guidemaker_', dir=args.tempdir)
             pybedtools.helpers.set_tempdir(tempdir)
         logger.info("Temp directory is: %s" % (tempdir))
-        logger.info("Writing fasta file from genbank file(s)")
         if args.genbank:
+            logger.info("Writing fasta file from genbank file(s)")
             fastapath = guidemaker.get_fastas(args.genbank, input_format="genbank", tempdir=tempdir)
         elif args.fasta:
             fastapath = guidemaker.get_fastas(args.fasta, input_format="fasta", tempdir=tempdir)
@@ -182,6 +187,11 @@ def main(arglist: list = None):
         tl.get_neighbors(num_threads=args.threads, configpath=args.config)
         logger.info("Formatting data for BedTools")
         tf_df = tl.export_bed()
+        if args.raw_output_only:
+            tf_df.to_csv(os.path.join(args.outdir, "rawguides.csv.gz"), index=False, header=["Chromosome", "Start", "Stop","gRNA", "Strand"])
+            logger.info("Raw guides options was selected Guidemaker, so has completed opperations")
+            raise SystemExit(0)
+
         logger.info("Create GuideMaker Annotation object")
         if args.genbank:
             anno = guidemaker.core.Annotation(annotation_list=args.genbank, annotation_type="genbank",
@@ -201,7 +211,7 @@ def main(arglist: list = None):
         anno._get_qualifiers(configpath=args.config)
         logger.info("Format the output")
         anno._format_guide_table(tl)
-        prettydf = anno._filterlocus(args.filter_by_locus)
+        prettydf = anno._filterlocus(args.attribute_key, args.filter_by_attribute)
         # prettydf = anno.filter_pretty_df
         if args.doench_efficiency_score:
             logger.info("Creating Efficiency Score based on Doench et al. 2016 - only for NGG PAM...")
@@ -215,11 +225,11 @@ def main(arglist: list = None):
         logger.info("Number of Guides within a gene coordinates i.e. zero Feature distance: %d", fd_zero)
         if not os.path.exists(args.outdir):
             os.makedirs(args.outdir)
-        csvpath = os.path.join(args.outdir, "targets.csv")
+        csvpath = os.path.join(args.outdir, "targets.csv.gz")
         prettydf.to_csv(csvpath, index=False)
         if args.controls > 0:
             logger.info("Creating random control guides")
-            contpath = os.path.join(args.outdir, "controls.csv")
+            contpath = os.path.join(args.outdir, "controls.csv.gz")
             seq_record_iter = SeqIO.parse(fastapath, "fasta")
             cmin, cmed, randomdf = tl.get_control_seqs(seq_record_iter,
                                                        configpath=args.config,
