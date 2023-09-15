@@ -16,12 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-dev \
     zlib1g-dev \
-    git
+    git && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
 # RUN pip install --no-binary :all: nmslib
 
-RUN git clone -b https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
+RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
 
 # port on the docker container
 EXPOSE 8501 

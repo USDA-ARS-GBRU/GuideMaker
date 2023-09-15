@@ -11,7 +11,7 @@ import shutil
 import os
 import yaml
 import textwrap
-import pandas as pd
+
 
 import pybedtools
 from Bio import SeqIO

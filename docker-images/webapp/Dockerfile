@@ -13,15 +13,16 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    python3-dev \
-    zlib1g-dev \
-    git
+    build-essential=12.9 \
+    python3-dev=3.9 \
+    zlib1g-dev=1.2 \
+    git=2.30 && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
 RUN pip install --no-binary :all: nmslib
 
-RUN git clone -b https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
+RUN git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git && cd GuideMaker && pip install .
 
 # port on the docker container
 EXPOSE 8501 
