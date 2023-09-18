@@ -29,13 +29,13 @@ jobs:
         name: Build and push AVX version of guidemaker
         uses: docker/build-push-action@v5
         with:
-          context: docker-images/avx
+          context: "{{defaultContext}}:docker-images/avx"
           push: true
           tags: ghcr.io/usda-ars-gbru/guidemaker-avx:sha-${{ env.SHORT_SHA }}
       -
         name: Build and push noavx version of guidemaker
         uses: docker/build-push-action@v5
         with:
-          context: docker-images/noavx
+          context: "{{defaultContext}}:docker-images/avx"
           push: true
           tags: ghcr.io/usda-ars-gbru/guidemaker-noavx:sha-${{ env.SHORT_SHA }}
