@@ -14,9 +14,9 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential=12.9 \
-    python3-dev=3.9 \
-    zlib1g-dev=1.2 \
-    git=2.30 && apt-get clean \
+    python3-dev=3.9.2-3 \
+    zlib1g-dev=1:1.2.11.dfsg-2+deb11u2 \
+    git=1:2.30.2-1+deb11u2 && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
