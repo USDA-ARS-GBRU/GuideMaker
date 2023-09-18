@@ -13,10 +13,10 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    python3-dev \
-    zlib1g-dev \
-    git && apt-get clean \
+    build-essential=12.9 \
+    python3-dev=3.9 \
+    zlib1g-dev=1.2 \
+    git=2.30 && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
@@ -34,4 +34,4 @@ RUN cp GuideMaker/guidemaker/data/Pseudomonas_aeruginosa.gbk.gz .
 RUN cp GuideMaker/guidemaker/data/Carsonella_ruddii.gbk.gz .
 
 # run web app
-CMD streamlit run GuideMaker/guidemaker/data/app.py --server.maxUploadSize 500
+CMD streamlit run GuideMaker/guidemaker/data/app.py --server.maxUploadSize 5000
