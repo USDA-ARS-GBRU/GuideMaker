@@ -2,11 +2,20 @@
 
 **GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes** 🦠 🧬
 
+[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/guidemaker/badges/downloads.svg)](https://anaconda.org/bioconda/guidemaker)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
+[![Publish Docker images](https://github.com/USDA-ARS-GBRU/GuideMaker/actions/workflows/docker_ghcr_io.yml/badge.svg)](https://github.com/USDA-ARS-GBRU/GuideMaker/actions/workflows/docker_ghcr_io.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
+[![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
+
+
 CRISPR-Cas systems have expanded the possibilities for gene editing in bacteria and eukaryotes. There are many excellent tools for designing the CRISPR-Cas guide RNAs for model organisms with standard Cas enzymes. GuideMaker is intended as a fast and easy-to-use design tool for atypical projects with 1) non-standard Cas enzymes, 2) non-model organisms, or 3) projects that need to design a panel of guide RNAs (gRNA) for genome-wide screens.
 
 GuideMaker can rapidly design gRNAs for gene targets across the genome from a degenerate protospacer adjacent motif (PAM) and a GenBank file or Fasta and GFF/GTF file. The tool applies Hierarchical Navigable Small World (HNSW) graphs to speed up the comparison of guide RNAs enabling the user to design gRNAs for all genes for a typical bacterial genome and PAM sequence in about 1-2 minutes on a laptop.
 
 GuideMaker enables the rapid design of genome-wide CRISPR/Cas gene function studies in non-model organisms with any Cas enzyme. While GuideMaker is designed with prokaryotic genomes in mind, it can process smaller eukaryotic genomes as well. GuideMaker is available as command-line software and as a **[web application](https://guidemaker.app.scinet.usda.gov)** at **https://guidemaker.app.scinet.usda.gov** and in the **[CyCverse Discovery Environment](https://de.cyverse.org//apps/de/16686f2a-3ca9-11ec-ba43-008cfa5ae621)**.
+
 
 ## Methods to access GuideMaker
 
@@ -34,10 +43,10 @@ Guidemaker is available at the Github Container Registry (https://github.com/org
 ```bash
 
 # AVX Version
-docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
+docker pull ghcr.io/usda-ars-gbru/guidemaker-avx
 
 #Non-AVX version
-docker pull ghcr.io/usda-ars-gbru/guidemaker-nonavx
+docker pull ghcr.io/usda-ars-gbru/guidemaker-noavx
 ```
 
 ### Bioconda
@@ -165,11 +174,11 @@ unique in each guide is 11 nucleotides.
 
 To run the web app locally, you first need to complete the command line installation described above.
 
-If the path of the `app.py` differs from the one displayed below, you can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output.
+If the path of the `app.py` differs from the one displayed below, you can locate the path by first running `guidemaker --help`. Script to run the web app locally is available at the bottom of the help command output. If you need to upload larger genomes you can change the `server.maxUploadSize` parameter which id in MB.
 
 ```bash
 
-streamlit run /[user path prefix]/anaconda3/envs/gmenv/lib/python3.7/site-packages/guidemaker/data/app.py --server.maxUploadSize 500
+streamlit run /[user path prefix]/guidemaker/data/app.py --server.maxUploadSize 500
 
 ```
 ![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/scinet.png)
@@ -180,15 +189,16 @@ Command line usage: on a computer with AVX (most modern computers) you can run t
 
 ```bash
 
-docker pull  docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
-docker run  -it ghcr.io/usda-ars-gbru/guidemaker-webapp guidemaker -h
+docker pull  docker pull ghcr.io/usda-ars-gbru/guidemaker-avx
+docker run  -it ghcr.io/usda-ars-gbru/guidemaker-avx guidemaker -h
 ```
+
 
 Web App usage: on a computer with AVX (most modern computers) you can run these commands:
 
 ```bash
-docker pull  docker pull ghcr.io/usda-ars-gbru/guidemaker-webapp
-docker run -p8501:8501 -it ghcr.io/usda-ars-gbru/guidemaker-webapp
+docker pull  docker pull ghcr.io/usda-ars-gbru/guidemaker-avx
+docker run -p8501:8501 -it ghcr.io/usda-ars-gbru/guidemaker-avx
 ```
 Now if you open your browser you can access the app at `http://127.0.0.1:8501`
 
@@ -238,7 +248,7 @@ After the experiment, the cells are collected and DNA is isolated. The target se
 
 ### Reporting Errors and Suggestions
 
-Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to the `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. Also, check **FAQs** section prior submitting an issue.
+Open the GuideMaker [github repo](https://github.com/USDA-ARS-GBRU/GuideMaker), navigate to the `Issues` page and submit an `issue` to report difficulties, errors, or suggestions for improvements. 
 
 ![Image of GuideMaker Web App](https://raw.githubusercontent.com/USDA-ARS-GBRU/GuideMaker/main/guidemaker/data/gitissue.png)
 
@@ -258,11 +268,7 @@ GuideMaker was created by the [United States Department of Agriculture - Agricul
 the [CC0 1.0 Universal Public Domain Dedication (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0)
 
 
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0f49664d414e44159c1f195474027eae)](https://www.codacy.com/gh/USDA-ARS-GBRU/GuideMaker/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=USDA-ARS-GBRU/GuideMaker&amp;utm_campaign=Badge_Grade)
-[![Codecov](https://img.shields.io/codecov/c/github/USDA-ARS-GBRU/GuideMaker?logo=codecov)](https://app.codecov.io/gh/USDA-ARS-GBRU/GuideMaker)
-[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/guidemaker/badges/downloads.svg)](https://anaconda.org/bioconda/guidemaker)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
+
 
 ## About us
 
