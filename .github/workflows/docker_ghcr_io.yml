@@ -29,7 +29,7 @@ jobs:
         name: Build and push AVX version of guidemaker
         uses: docker/build-push-action@v5
         with:
-          context: docker-images/webapp
+          context: docker-images/avx
           push: true
           tags: ghcr.io/usda-ars-gbru/guidemaker-webapp:sha-${{ steps.slug.outputs.sha12 }}
       -
