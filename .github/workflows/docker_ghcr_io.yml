@@ -24,18 +24,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Get short SHA
         id: slug
-        run: echo "::set-output name=sha12::$(echo ${GITHUB_SHA} | cut -c1-12)"
+        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
       -
         name: Build and push AVX version of guidemaker
         uses: docker/build-push-action@v5
         with:
           context: docker-images/avx
           push: true
-          tags: ghcr.io/usda-ars-gbru/guidemaker-webapp:sha-${{ steps.slug.outputs.sha12 }}
+          tags: ghcr.io/usda-ars-gbru/guidemaker-avx:sha-${{ env.SHORT_SHA }}
       -
         name: Build and push noavx version of guidemaker
         uses: docker/build-push-action@v5
         with:
           context: docker-images/noavx
           push: true
-          tags: ghcr.io/usda-ars-gbru/guidemaker-noavx:sha-${{ steps.slug.outputs.sha12 }}
+          tags: ghcr.io/usda-ars-gbru/guidemaker-noavx:sha-${{ env.SHORT_SHA }}
