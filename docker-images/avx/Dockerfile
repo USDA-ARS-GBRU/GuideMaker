@@ -34,4 +34,4 @@ RUN cp GuideMaker/guidemaker/data/Pseudomonas_aeruginosa.gbk.gz .
 RUN cp GuideMaker/guidemaker/data/Carsonella_ruddii.gbk.gz .
 
 # run web app
-CMD streamlit run GuideMaker/guidemaker/data/app.py --server.maxUploadSize 500
+CMD streamlit run GuideMaker/guidemaker/data/app.py --server.maxUploadSize 5000
