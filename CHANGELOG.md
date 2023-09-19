@@ -1,3 +1,10 @@
+# v0.4.1
+
+* Changed how Guidemaker handles DNA sequenses that are soft-masked with lower case letters. The new behavior unmasks all 
+    sequences and finds guide candidates (and filters them for distance) against the entire sequence.  It also fixes a a key value error in computing the doench efficency scores when mixed case sequences were used. Prevously, guides were only identified in regions where the PAM was all capital and edit distance was different if the case was different (a capitalized and lowercase guide were not considered the same).
+* Dockerfiles now have more version information
+* Github build actions were impoved
+
 # v0.4.0
 
 *  changed the cli flag `--filter_by_locus` to `--filter_by_attribute`  and added the flag `--attribute_key` so that keys other than the addribute key "locus_tag" can be filtered.
