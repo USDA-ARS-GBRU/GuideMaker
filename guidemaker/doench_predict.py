@@ -92,7 +92,7 @@ def predict(
 
     Args:
         seq (numpy.ndarray) numpy array of 30 nt sequences with 25 nt of guide, NGG pam in 25:27 and the following 2 nts.
-        model_file (str): file path of the onnx Boosted Gradien Regressor model file without position data
+        model_file (str): file path of the onnx Boosted Gradient Regressor model file without position data
         model_metadata (str): file path of the json model parameters metadata file.
         pam_audit (bool): check PAM of each sequence.
         length_audit(bool) : check length of each sequence.
