@@ -22,8 +22,6 @@ Optimized sgRNA design to maximize activity and minimize off-target effects for 
 Nature Biotechnology Jan 2016, doi:10.1038/nbt.3437.
 """
 from itertools import product, islice
-from time import time
-from typing import List
 import logging
 from functools import partial
 from multiprocessing import Pool
@@ -51,7 +49,6 @@ def featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True
     logger.info("Creating features for Doench et al. 2016 score prediction")
     if np.any(data["30mer"].str.len() != 30):
         raise AssertionError(f"Sequences should be 30 nt long")
-
 
     feature_sets = {}
 
@@ -171,6 +168,7 @@ def get_nuc_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd
             pos  = lookup[let]
             featurevect.extend(list(idmat[pos,:]))
         return pd.Series(featurevect)
+        
 
     def sliding_window(iterable, n):
         """Create a generator of substrings

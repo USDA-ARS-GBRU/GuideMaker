@@ -1079,11 +1079,11 @@ def get_fastas(filelist, input_format="genbank", tempdir=None):
                 if is_gzip(file):
                     with gzip.open(file, 'rt') as f:
                         records = SeqIO.parse(f, input_format)
-                        SeqIO.write(records, f1, "fasta")
+                        SeqIO.write(map(lambda obj: obj.upper(), records), f1, "fasta")
                 else:
                     with open(file, 'r') as f:
                         records = (SeqIO.parse(f, input_format))
-                        SeqIO.write(records, f1, "fasta")
+                        SeqIO.write(map(lambda obj: obj.upper(), records), f1, "fasta")
         return fastpath
     except Exception as e:
         logger.exception("An error occurred in the input file %s" % file)
@@ -1152,7 +1152,8 @@ def cfd_score(df):
 def get_doench_efficiency_score(df, pam_orientation, num_threads=1):
     checkset={'AGG','CGG','TGG','GGG'}
     if pam_orientation == "3prime" and set(df.PAM)==checkset:
-        doenchscore = doench_predict.predict(np.array(df.target_seq30), num_threads=num_threads)
+
+        doenchscore = doench_predict.predict(np.array([x.upper() for x in df.target_seq30]), num_threads=num_threads)
         df["Efficiency"] = doenchscore
     else:
         logger.warning("NOTE: doench_efficiency_score based on Doench et al. 2016 - can only  be used for NGG PAM).Check PAM sequence and PAM orientation")
