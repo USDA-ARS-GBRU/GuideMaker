@@ -88,7 +88,7 @@ def predict(
     length_audit: bool = False,
     num_threads: int = 1
 ) -> np.array:
-    """Pedicts regressions scored from sequences.
+    """Predicts regression scores from sequences.
 
     Args:
         seq (numpy.ndarray) numpy array of 30 nt sequences with 25 nt of guide, NGG pam in 25:27 and the following 2 nts.

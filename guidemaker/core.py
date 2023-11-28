@@ -1151,11 +1151,16 @@ def cfd_score(df):
 
 def get_doench_efficiency_score(df, pam_orientation, num_threads=1):
     checkset={'AGG','CGG','TGG','GGG'}
-    if pam_orientation == "3prime" and set(df.PAM)==checkset:
+    # filter out lines with N'safter the PAM, these cannot be scored
+    df2 = df[-df.target_seq30.str.contains('N')]
+    if len(df) != len(df2):
+        n_removed = len(df) - len(df2)
+        logger.warning("{} guides were removed from consideration becasue there were N's in the region flanking the PAM site. These cannot be scored.".format(n_removed) )
+    if pam_orientation == "3prime" and set(df2.PAM)==checkset:
 
-        doenchscore = doench_predict.predict(np.array([x.upper() for x in df.target_seq30]), num_threads=num_threads)
-        df["Efficiency"] = doenchscore
+        doenchscore = doench_predict.predict(np.array([x.upper() for x in df2.target_seq30]), num_threads=num_threads)
+        df2["Efficiency"] = doenchscore
     else:
         logger.warning("NOTE: doench_efficiency_score based on Doench et al. 2016 - can only  be used for NGG PAM).Check PAM sequence and PAM orientation")
-        df["Efficiency"] = "Not Available"
-    return df.drop('target_seq30', axis=1)
+        df2["Efficiency"] = "Not Available"
+    return df2.drop('target_seq30', axis=1)

@@ -1,3 +1,7 @@
+# v0.4.2
+
+Fixed a bug where calulating Doench efficiency scores raised an error if there was an 'N' in the first three nucleotides past the PAM in the flanking genomic sequence.  Guidemaker now removes those guides from consideration and reports it as a warning if the flag `--doench_efficiency_score` is used.
+
 # v0.4.1
 
 * Changed how Guidemaker handles DNA sequences that are soft-masked with lowercase letters. The new behavior unmasks all 
@@ -15,3 +19,4 @@
 *  output data is now gzipped
 *  updated Dockerfile to use Minimamba base image
 *  Updates to Python dependencies
+
