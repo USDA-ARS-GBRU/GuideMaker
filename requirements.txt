@@ -59,7 +59,7 @@ rich==13.5.2
 rpds-py==0.10.2
 six==1.16.0
 smmap==5.0.0
-streamlit==1.26.0
+streamlit==1.30.0
 streamlit-tags==1.2.8
 sympy==1.12
 tenacity==8.2.3
