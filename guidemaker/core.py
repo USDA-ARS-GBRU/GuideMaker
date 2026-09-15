@@ -375,7 +375,7 @@ class TargetProcessor:
             self.targets['hasrestrictionsite'] = self.targets['target'].str.contains('|'.join(element_to_exclude))
         else:
             self.targets['hasrestrictionsite'] = False
-    
+
     def _one_hot_encode(self, seq_list: List[object]) -> List[str]:
         """One hot encode Target DNA as a binary string representation for NMSLIB."""
         charmap = {'A': '1 0 0 0', 'C': '0 1 0 0', 'G': '0 0 1 0', 'T': '0 0 0 1'}
@@ -507,15 +507,15 @@ class TargetProcessor:
             hitseqidx = entry[0].tolist()
             editdist = entry[1].tolist()
             if self.targets['dtype'].iat[0] == "hamming":
-                # check that the closest sequence meets the min. dist. requirment. We multiply by 2 b/c each 
+                # check that the closest sequence meets the min. dist. requirment. We multiply by 2 b/c each
                 # base is one hot encoded. e.g. 1000 vs 0100 = 2 differences
                 if editdist[1] >= 2 * self.editdist:
                     neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
-                                "dist": [int(x / 2) for x in editdist]} 
+                                "dist": [int(x / 2) for x in editdist]}
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
             else:
-               if editdist[1] >= self.editdist: 
+               if editdist[1] >= self.editdist:
                     neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
                                 "dist": [int(x) for x in editdist]}
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
@@ -716,8 +716,8 @@ class Annotation:
                 for entry in genbank_file:
                     for record in entry.features:
                         if record.type in feature_types:
-                            if record.strand in [1, -1, "+", "-"]:
-                                pddict["strand"].append("-" if str(record.strand) in ['-1', '-' ] else "+")
+                            if record.location.strand in [1, -1, "+", "-"]:
+                                pddict["strand"].append("-" if str(record.location.strand) in ['-1', '-' ] else "+")
                             featid = hashlib.md5(str(record).encode()).hexdigest()
                             pddict['chrom'].append(entry.id)
                             pddict["chromStart"].append(int(record.location.start))
@@ -863,26 +863,36 @@ class Annotation:
         #  before_feat of the gene start
         filtered_df = self.nearby.query(
             '`Guide strand` == `Feature strand` and 0 < `Feature distance` < @before_feat')
+
         # for guides in the +/+ orientation select guides where the end is within [before_feat] of the gene start
         p1 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "+" \
-                                             and `Feature distance` == 0 and \
-                                             `Guide end` - `Feature start` < @after_feat'))
+                                 and `Feature distance` == 0 \
+                                 and `Guide end` - `Feature start` < @after_feat \
+                                 and `Guide end` <= `Feature end`'))
+
         # for guides in the -/- orientation select guides where the end is within [before_feat] of the gene start
         p2 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "-" \
-                                                     and `Feature distance` == 0 \
-                                                     and `Feature end` - `Guide start` < @after_feat'))
+                                 and `Feature distance` == 0 \
+                                 and `Feature end` - `Guide start` < @after_feat \
+                                 and `Guide end` <= `Feature end`'))
+
         # Select guides where target is + and guide is - and the guide is infront of the gene
         p3 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
-                                                     0 <`Feature start` - `Guide end` < @before_feat'))
+                                 0 <`Feature start` - `Guide end` < @before_feat'))
+
         # Select guides where target is - and guide is + and the guide is infront of the gene
         p4 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
-                                                     0 <`Guide start` - `Feature end` < @before_feat'))
+                                 0 <`Guide start` - `Feature end` < @before_feat'))
+
         # Select guides where target is + and guide is - and the guide is is within [before_feat] of the gene start
         p5 = (self.nearby.query('`Guide strand` == "-" and `Feature strand` == "+" and \
-                                                             0 <`Guide end` -`Feature start`  < @after_feat'))
+                                 0 <`Guide end` -`Feature start` < @after_feat \
+                                 and `Guide end` <= `Feature end`'))
+
         # Select guides where target is - and guide is + and the guide is is within [before_feat] of the gene start
         p6 = (self.nearby.query('`Guide strand` == "+" and `Feature strand` == "-" and \
-                                                             0 <`Feature end` - `Guide start` < @after_feat'))
+                                 0 <`Feature end` - `Guide start` < @after_feat \
+                                 and `Guide end` <= `Feature end`'))
         self.filtered_df = pd.concat([filtered_df, p1, p2, p3, p4, p5, p6], axis=0)
 
     def _format_guide_table(self, targetprocessor_object) -> pd.DataFrame:
@@ -1152,10 +1162,10 @@ def cfd_score(df):
 def get_doench_efficiency_score(df, pam_orientation, num_threads=1):
     checkset={'AGG','CGG','TGG','GGG'}
     # filter out lines with N'safter the PAM, these cannot be scored
-    df2 = df[-df.target_seq30.str.contains('N')]
+    df2 = df[-df.target_seq30.str.contains("WSKMYRVHDBN")]
     if len(df) != len(df2):
         n_removed = len(df) - len(df2)
-        logger.warning("{} guides were removed from consideration becasue there were N's in the region flanking the PAM site. These cannot be scored.".format(n_removed) )
+        logger.warning("{} guides were removed from consideration becasue there were ambiguous nucleotides in the region flanking the PAM site. These cannot be scored.".format(n_removed) )
     if pam_orientation == "3prime" and set(df2.PAM)==checkset:
 
         doenchscore = doench_predict.predict(np.array([x.upper() for x in df2.target_seq30]), num_threads=num_threads)
