@@ -79,7 +79,7 @@ tardict = {'target': ['AAATGGTACGTTATGTGTTA','AAATGGTACGTTATGTGTTA','AACAGTAAAAT
     
 
 targets = pd.DataFrame(tardict)
-targets = targets.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category'})
+targets = targets.astype({"target":'str', "exact_pam": 'category', "start": 'uint32', "stop": 'uint32',"strand": 'bool', "pam_orientation": 'bool',"seqid": 'category', "seedseq": 'object', "isseedduplicated": 'object', "hasrestrictionsite": 'object'})
 
 
 # TargetProcessor Class
