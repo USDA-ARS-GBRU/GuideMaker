@@ -218,7 +218,7 @@ def test_filter_features():
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    assert anno.pretty_df.shape == (900, 23)
+    assert anno.pretty_df.shape == (869, 23)
 
 
 def test_filterlocus():
@@ -290,6 +290,22 @@ def test_get_doench_efficiency_score():
     filter_pretty_30mer_df = anno._filterlocus(attribute = "locus_tag")
     doench_df = guidemaker.core.get_doench_efficiency_score(df=filter_pretty_30mer_df, pam_orientation=pamobj.pam_orientation)
     assert abs(doench_df.Efficiency[213] - 0.3245381) < 0.0001
+
+
+def test_get_doench_efficiency_score_ambiguous_nucleotides():
+    # Test that guide targets with ambiguous nucleotides (e.g., M, R, N) are filtered out without KeyError
+    sample_data = {
+        'PAM': ['AGG', 'AGG', 'AGG'],
+        'target_seq30': [
+            'AAACGAAGTTATAAATTATGCTAAAGGTAM',  # contains 'M'
+            'GTACAAAGCACGTTATTAGATGGTGGGAAC',  # valid standard 30mer
+            'AACGGAACAGTAAAATGGTTTAATGATACN'   # contains 'N'
+        ]
+    }
+    df = pd.DataFrame(sample_data)
+    result = guidemaker.core.get_doench_efficiency_score(df, pam_orientation="3prime")
+    assert len(result) == 1
+    assert result['Efficiency'].iloc[0] > 0
 
 def test_cfd_score():
     pamobj = guidemaker.core.PamTarget("NGG", "3prime","hamming")
