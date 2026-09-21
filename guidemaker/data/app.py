@@ -353,7 +353,7 @@ def main(arglist: list = None):
     # Parameters Dictionary
     image = Image.open(guidemaker.APP_PARAMETER_IMG)
     optionals = st.expander("Parameter Dictionary", False)
-    optionals.image(image, caption='GuideMaker Parameters', use_column_width=True)
+    optionals.image(image, caption='GuideMaker Parameters', width='stretch')
 
     with st.expander("Designing Experiments with GuideMaker Results"):
         intro_markdown = read_markdown_file(guidemaker.APP_EXPERIMENT_FILE)
