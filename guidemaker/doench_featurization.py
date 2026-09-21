@@ -47,8 +47,15 @@ def featurize_data(data: pd.DataFrame, learn_options: dict, pam_audit: bool=True
     """
 
     logger.info("Creating features for Doench et al. 2016 score prediction")
+    
+    # Coerce and explicitly restore the column name expected by the rest of the script
+    data = pd.DataFrame(data)
+    data.columns = ["30mer"] + list(data.columns[1:])
+
     if np.any(data["30mer"].str.len() != 30):
         raise AssertionError(f"Sequences should be 30 nt long")
+
+
 
     feature_sets = {}
 

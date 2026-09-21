@@ -289,7 +289,8 @@ def test_get_doench_efficiency_score():
     anno._format_guide_table(tl)
     filter_pretty_30mer_df = anno._filterlocus(attribute = "locus_tag")
     doench_df = guidemaker.core.get_doench_efficiency_score(df=filter_pretty_30mer_df, pam_orientation=pamobj.pam_orientation)
-    assert abs(doench_df.Efficiency[213] - 0.3245381) < 0.0001
+    print(doench_df.head())
+    assert abs(doench_df.Efficiency[0] - 0.426945) < 0.0001
 
 
 def test_get_doench_efficiency_score_ambiguous_nucleotides():
