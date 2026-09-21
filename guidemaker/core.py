@@ -948,7 +948,7 @@ class Annotation:
         # to match with the numbering with other tools- offset
         pretty_df['Guide start'] = pretty_df['Guide start'] + 1
         pretty_df['Feature start'] = pretty_df['Feature start'] + 1
-        pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True]
+        pretty_df=pretty_df.loc[pretty_df['target_seq30'].apply(checklen30)==True].reset_index(drop=True)
         self.pretty_df = pretty_df
 
     def _filterlocus(self, attribute:str , filter_by_locus:list = []) -> pd.DataFrame:
@@ -1173,12 +1173,12 @@ def cfd_score(df):
 
 def get_doench_efficiency_score(df, pam_orientation, num_threads=1):
     checkset={'AGG','CGG','TGG','GGG'}
-    # filter out lines with N'safter the PAM, these cannot be scored
-    df2 = df[-df.target_seq30.str.contains('N')]
+    # filter out lines with non-ACGT bases (ambiguous nucleotides or Ns) in the region flanking the PAM site
+    df2 = df[~df.target_seq30.str.contains(r'[^ATCGatcg]')]
     if len(df) != len(df2):
         n_removed = len(df) - len(df2)
-        logger.warning("{} guides were removed from consideration becasue there were N's in the region flanking the PAM site. These cannot be scored.".format(n_removed) )
-    if pam_orientation == "3prime" and set(df2.PAM)==checkset:
+        logger.warning("{} guides were removed from consideration because there were non-ACGT or ambiguous nucleotides in the region flanking the PAM site. These cannot be scored.".format(n_removed) )
+    if pam_orientation == "3prime" and set(df2.PAM).issubset(checkset):
 
         doenchscore = doench_predict.predict(np.array([x.upper() for x in df2.target_seq30]), num_threads=num_threads)
         df2["Efficiency"] = doenchscore

@@ -164,9 +164,13 @@ def get_nuc_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd
             pd.Series: one hot encoding
         """
         featurevect = []
+        num_cols = idmat.shape[1]
         for let in seq:
-            pos  = lookup[let]
-            featurevect.extend(list(idmat[pos,:]))
+            if let in lookup:
+                pos = lookup[let]
+                featurevect.extend(list(idmat[pos, :]))
+            else:
+                featurevect.extend([0.0] * num_cols)
         return pd.Series(featurevect)
         
 
@@ -193,7 +197,8 @@ def get_nuc_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd
         # add order 1 frequency features
         pi1dict = dict.fromkeys(nuc_pi_Order1_header, 0)
         for let in seq:
-            pi1dict[let] += 1
+            if let in pi1dict:
+                pi1dict[let] += 1
         nuc_pi_Order1_list.append(pi1dict)
         # add order 1 positon features
         nuc_pd_Order1_list.append(one_hot(seq, o1_id, o1_lookup))
@@ -202,7 +207,8 @@ def get_nuc_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd
         # add order two frequency features
         pi2dict = dict.fromkeys(nuc_pi_Order2_header, 0)
         for let in seq_2mers:
-            pi2dict[let] += 1
+            if let in pi2dict:
+                pi2dict[let] += 1
         nuc_pi_Order2_list.append(pi2dict)
         # add order 2 positon features
         nuc_pd_Order2_list.append(one_hot(seq_2mers, o2_id, o2_lookup))
