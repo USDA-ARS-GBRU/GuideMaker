@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guidemaker"
+dynamic = ["version"]
+description = "GuideMaker: Software to design gRNAs pools in non-model genomes and CRISPR-Cas"
+readme = "README.md"
+authors = [
+    { name = "Adam Rivers", email = "adam.rivers@usda.gov" }
+]
+license = { text = "CC0 1.0 Universal (CC0 1.0) Public Domain Dedication" }
+keywords = ["CRISPR-Cas"]
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Development Status :: 3 - Alpha"
+]
+dependencies = [
+    "biopython>=1.81",
+    "numpy>=1.25.2,<2.0",        # ⬅️ CRITICAL: Excludes breaking NumPy 2.x changes
+    "pandas>=2.1.1,<2.2",         # ⬅️ Protects your exact row filtering logic
+    "pybedtools>=0.9.1",
+    "nmslib>=2.1.1",
+    "pyyaml>=6.0.1",
+    "regex>=2020.11.13",
+    "altair>=5.1.1",
+    "jsonschema>=4.19.0",
+    "streamlit>=1.30.0",         # ⬅️ Updated to match your working version
+    "streamlit-tags>=1.2.8",
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "pdoc3>=0.10.0",
+    "onnxruntime>=1.15.1",
+    "importlib-resources>=6.0"
+]
+
+[project.urls]
+Homepage = "https://guidemaker.org"
+
+[project.scripts]
+guidemaker = "guidemaker.cli:main"
+
+[tool.setuptools]
+packages = ["guidemaker"]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools-scm]
+# This automatically generates a clean version file at build time so your package can read its own version
+write_to = "guidemaker/_version.py"
+
+[tool.pytest.ini_options]
+norecursedirs = [".*", "*.egg*", "build", "dist"]
+addopts = """
+    --cov=guidemaker --cov-report xml
+    --ignore run_test.py
+    --cov-report term-missing
+    --tb native
+    --strict-markers
+    --durations=20
+"""
+markers = [
+    "serial: execute test serially (to avoid race conditions)"
+]
+
+[tool.ruff]
+line-length = 100
+exclude = [
+    "build",
+    "guidemaker/_version.py",
+    "tests",
+    ".git",
+    "versioneer.py",
+    "benchmarks",
+    ".asv"
+]
+
+[tool.ruff.lint]
+# Select the default rules plus Flake8 rules you care about
+select = ["E", "F", "W"]
+# Mirroring your old Flake8 ignores
+ignore = ["E122", "E123", "E126", "E127", "E128", "E731", "E722"]
