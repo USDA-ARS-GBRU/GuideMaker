@@ -49,46 +49,82 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Ro
 
 
 @contextmanager
-def genome_connect(db_bytes):
+def genome_connect(db_bytes, filename):
     """Write input genome to local disk and clean after using."""
-    fp = Path(str(uuid4()))
-    with open('input.gbk', 'wb') as file:
-        for i in db_bytes:
-            fp = bytearray(i)
-            file.write(fp)
-    conn = str(fp)
+    filepath = Path(filename)
+    with open(filepath, 'wb') as file:
+        if isinstance(db_bytes, (bytes, bytearray)):
+            file.write(db_bytes)
+        elif hasattr(db_bytes, 'read'):
+            file.write(db_bytes.read())
+        elif isinstance(db_bytes, list):
+            for i in db_bytes:
+                if isinstance(i, (bytes, bytearray)):
+                    file.write(i)
+                elif hasattr(i, 'read'):
+                    file.write(i.read())
+                else:
+                    file.write(bytearray(i))
     try:
-        yield conn
+        yield str(filepath)
     finally:
-        pass
+        if filepath.exists():
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
 
 @contextmanager
-def fasta_connect(db_bytes):
+def fasta_connect(db_bytes, filename):
     """Write input genome to local disk and clean after using."""
-    fp = Path(str(uuid4()))
-    with open('input.fasta', 'wb') as file:
-        for i in db_bytes:
-            fp = bytearray(i)
-            file.write(fp)
-    conn = str(fp)
+    filepath = Path(filename)
+    with open(filepath, 'wb') as file:
+        if isinstance(db_bytes, (bytes, bytearray)):
+            file.write(db_bytes)
+        elif hasattr(db_bytes, 'read'):
+            file.write(db_bytes.read())
+        elif isinstance(db_bytes, list):
+            for i in db_bytes:
+                if isinstance(i, (bytes, bytearray)):
+                    file.write(i)
+                elif hasattr(i, 'read'):
+                    file.write(i.read())
+                else:
+                    file.write(bytearray(i))
     try:
-        yield conn
+        yield str(filepath)
     finally:
-        pass
+        if filepath.exists():
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
 
 @contextmanager
-def gff_connect(db_bytes):
+def gff_connect(db_bytes, filename):
     """Write input genome to local disk and clean after using."""
-    fp = Path(str(uuid4()))
-    with open('input.gff', 'wb') as file:
-        for i in db_bytes:
-            fp = bytearray(i)
-            file.write(fp)
-    conn = str(fp)
+    filepath = Path(filename)
+    with open(filepath, 'wb') as file:
+        if isinstance(db_bytes, (bytes, bytearray)):
+            file.write(db_bytes)
+        elif hasattr(db_bytes, 'read'):
+            file.write(db_bytes.read())
+        elif isinstance(db_bytes, list):
+            for i in db_bytes:
+                if isinstance(i, (bytes, bytearray)):
+                    file.write(i)
+                elif hasattr(i, 'read'):
+                    file.write(i.read())
+                else:
+                    file.write(bytearray(i))
     try:
-        yield conn
+        yield str(filepath)
     finally:
-        pass
+        if filepath.exists():
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
 
 @st.cache_data()
 def run_command(args):
@@ -97,10 +133,8 @@ def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
     try:
         result.check_returncode()
-        # st.info(result.stdout)
-        # st.text(result.stderr)
     except subprocess.CalledProcessError as e:
-        st.error(result.stderr)
+        st.error("An error occurred while executing GuideMaker. Please check your inputs and logs.")
         raise e
 
 
@@ -224,16 +258,44 @@ def main(arglist: list = None):
     #threads = st.sidebar.number_input('Threads [ Options: 2, 4, 6, 8]', 2, 8, step=2)
                                                                   
 
-    if demo and "input.gbk":
-        with genome_connect(demo):
-            #st.write("Connection object:", conn)
-            args = ["guidemaker",
-            "-i", "input.gbk",
+    # Validate restriction enzyme tags to prevent CLI option injection (F-01)
+    clean_enzyme_list = []
+    for tag in restriction_enzyme_list:
+        tag_str = str(tag).strip()
+        if tag_str.startswith('-') or any(c not in 'ACGTMRWSYKVHDBXNacgtmrwsykvhdbxn' for c in tag_str):
+            st.error(f"Invalid restriction enzyme tag '{tag_str}'. Tags cannot start with '-' or contain non-IUPAC DNA characters.")
+            return
+        clean_enzyme_list.append(tag_str.upper())
+
+    gbk_filename = f"input_{sessionID}.gbk"
+    fasta_filename = f"input_{sessionID}.fasta"
+    gff_filename = f"input_{sessionID}.gff"
+
+    scriptorun = None
+    input_context = None
+
+    if genome:
+        input_context = genome_connect(genome, gbk_filename)
+        input_args = ["-i", gbk_filename]
+    elif fasta and gff:
+        @contextmanager
+        def combined_fasta_gff():
+            with fasta_connect(fasta, fasta_filename) as f_conn:
+                with gff_connect(gff, gff_filename) as g_conn:
+                    yield (f_conn, g_conn)
+        input_context = combined_fasta_gff()
+        input_args = ["-f", fasta_filename, "-g", gff_filename]
+    elif demo:
+        input_context = genome_connect(demo, gbk_filename)
+        input_args = ["-i", gbk_filename]
+
+    if input_context is not None:
+        args = ["guidemaker"] + input_args + [
             "-p", pam,
             "--guidelength", str(guidelength),
             "--pam_orientation", pam_orientation,
             "--lsr", str(lsr),
-            "--dtype", str("hamming"),
+            "--dtype", "hamming",
             "--dist", str(dist),
             "--outdir", sessionID,
             "--log", logfilename,
@@ -241,68 +303,19 @@ def main(arglist: list = None):
             "--before", str(before),
             "--knum", str(knum),
             "--controls", str(controls),
-            "--threads", str(2),
+            "--threads", "2",
             "--cfd_score",
             "--doench_efficiency_score",
-            "--restriction_enzyme_list"]
-            scriptorun = args + restriction_enzyme_list
+            "--restriction_enzyme_list"
+        ] + clean_enzyme_list
+        scriptorun = args
 
-    if genome and "input.gbk":
-        with genome_connect(genome):
-            #st.write("Connection object:", conn)
-            args = ["guidemaker",
-            "-i", "input.gbk",
-            "-p", pam,
-            "--guidelength", str(guidelength),
-            "--pam_orientation", pam_orientation,
-            "--lsr", str(lsr),
-             "--dtype", str("hamming"),
-            "--dist", str(dist),
-            "--outdir", sessionID,
-            "--log", logfilename,
-            "--into", str(into),
-            "--before", str(before),
-            "--knum", str(knum),
-            "--controls", str(controls),
-            "--threads", str(2),
-            "--cfd_score",
-            "--doench_efficiency_score",
-            "--restriction_enzyme_list"]
-            scriptorun = args + restriction_enzyme_list
-
-    if fasta and gff:
-        with fasta_connect(fasta):
-            with gff_connect(gff):
-                #st.write("Connection object:", conn)
-                args = ["guidemaker",
-                "-f", "input.fasta",
-                "-g", "input.gff",
-                "-p", pam,
-                "--guidelength", str(guidelength),
-                "--pam_orientation", pam_orientation,
-                "--lsr", str(lsr),
-                "--dtype", str("hamming"),
-                "--dist", str(dist),
-                "--outdir", sessionID,
-                "--log", logfilename,
-                "--into", str(into),
-                "--before", str(before),
-                "--knum", str(knum),
-                "--controls", str(controls),
-                "--threads", str(2),
-                "--cfd_score",
-                "--doench_efficiency_score",
-                "--restriction_enzyme_list"]
-                scriptorun = args + restriction_enzyme_list
-
-    if(st.sidebar.button("SUBMIT")):
-        # st.markdown("""🏃🏃🏃🏃🏃🏃🏃🏃""")
-        run_command(scriptorun)
-    
+    if st.sidebar.button("SUBMIT"):
+        if scriptorun and input_context:
+            with input_context:
+                run_command(scriptorun)
 
     if os.path.exists(sessionID):
-
-        #source = pd.read_csv(os.path.join("./", sessionID,'targets.csv'))
         source = pd.read_csv(os.path.join("./", sessionID, 'targets.csv.gz'), low_memory=False)
 
         accession_list = list(set(source['Accession']))
@@ -312,25 +325,30 @@ def main(arglist: list = None):
             st.markdown(accession_info)
             st.write(guidemakerplot(accession_df))
 
+        # F-02: Isolated downloads path per session
+        session_downloads_path = DOWNLOADS_PATH / sessionID
+        session_downloads_path.mkdir(parents=True, exist_ok=True)
+
+        targets_out_path = session_downloads_path / "targets.csv.gz"
+        controls_out_path = session_downloads_path / "controls.csv.gz"
 
         # Targets
-        target_tab = "✅ [Target Data](downloads/targets.csv.gz)"
+        target_tab = f"✅ [Target Data](downloads/{sessionID}/targets.csv.gz)"
         targets = pd.read_csv(os.path.join("./", sessionID, 'targets.csv.gz'), low_memory=False)
-        targets.to_csv(str(DOWNLOADS_PATH / "targets.csv.gz"), index=False)
+        targets.to_csv(str(targets_out_path), index=False)
 
         # Controls
-        control_tab = "✅ [Control Data](downloads/controls.csv.gz)"
+        control_tab = f"✅ [Control Data](downloads/{sessionID}/controls.csv.gz)"
         controls = pd.read_csv(os.path.join("./", sessionID, 'controls.csv.gz'), low_memory=False)
-        controls.to_csv(str(DOWNLOADS_PATH / "controls.csv.gz"), index=False)
+        controls.to_csv(str(controls_out_path), index=False)
 
         # logs
         with st.expander("Results"):
             st.write(target_tab)
             st.write(control_tab)
-            st.write(get_binary_file_downloader_html(
-                logfilename, '✅ Log File'), unsafe_allow_html=True)
-    else:
-        pass
+            if os.path.exists(logfilename):
+                st.write(get_binary_file_downloader_html(
+                    logfilename, '✅ Log File'), unsafe_allow_html=True)
 
     # Parameters Dictionary
     image = Image.open(guidemaker.APP_PARAMETER_IMG)
@@ -354,14 +372,15 @@ def main(arglist: list = None):
     """)
     
 
-    # Check if the output dir exist, if yes, delete so that previous results are not display
+    # Cleanup session-specific files
     try:
         shutil.rmtree(sessionID, ignore_errors=True)
-        os.remove(logfilename)
-        os.remove('input.gbk')
-        os.remove('input.fasta')
-        os.remove('input.gff')
-    except FileNotFoundError as e:
+        if os.path.exists(logfilename):
+            os.remove(logfilename)
+        for fn in [gbk_filename, fasta_filename, gff_filename]:
+            if os.path.exists(fn):
+                os.remove(fn)
+    except Exception:
         pass
 
 if __name__ == "__main__":

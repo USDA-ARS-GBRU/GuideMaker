@@ -412,8 +412,8 @@ class TargetProcessor:
                     return tseq[(len(tseq) - self.lsr):]
         # https://stackoverflow.com/questions/12555323/adding-new-column-to-existing-dataframe-in-python-pandas
         self.targets = deepcopy(self.targets)
-        self.targets.loc[:, 'seedseq'] = self.targets.loc[:, 'target'].apply(_get_prox)
-        self.targets.loc[:, 'isseedduplicated'] = self.targets.loc[:, 'seedseq'].duplicated()
+        self.targets['seedseq'] = self.targets['target'].apply(_get_prox)
+        self.targets['isseedduplicated'] = self.targets['seedseq'].duplicated()
 
     def create_index(self, configpath: str, num_threads=2):
         """
@@ -443,7 +443,8 @@ class TargetProcessor:
         M, efC, post = config['NMSLIB']['M'], config['NMSLIB']['efc'], config['NMSLIB']['post']
 
         # index everything but not duplicates
-        notduplicated_targets = list(set(self.targets['target'].tolist()))
+        self.notduplicated_targets = list(set(self.targets['target'].tolist()))
+        notduplicated_targets = self.notduplicated_targets
         #mod_logger.info("unique targets for index: %s" % len(notduplicated_targets))
         if self.targets['dtype'].iat[0] == "hamming":
             bintargets = self._one_hot_encode(notduplicated_targets)
@@ -492,7 +493,7 @@ class TargetProcessor:
         # unique_targets = self.targets.loc[self.targets['isseedduplicated']
         #     == False]['target'].tolist()
         # For indexing we need to use all targets -- for checking off-targets. For searching neighbours remove seed duplicated and one wiht restriction site.
-        unique_targets = self.targets.loc[(self.targets['isseedduplicated']==False) | (self.targets['hasrestrictionsite']==False)]['target'].tolist()
+        unique_targets = self.targets.loc[(self.targets['isseedduplicated']==False) & (self.targets['hasrestrictionsite']==False)]['target'].tolist()
         if self.targets['dtype'].iat[0] == "hamming":
             unique_bintargets = self._one_hot_encode(unique_targets)  # search unique seed one
         else:
@@ -502,6 +503,7 @@ class TargetProcessor:
         results_list = self.nmslib_index.knnQueryBatch(unique_bintargets,
                                                k=self.knum, num_threads=num_threads)
         neighbor_dict = {}
+        target_lookup = getattr(self, 'notduplicated_targets', self.targets['target'].values)
         for i, entry in enumerate(results_list):
             queryseq = unique_targets[i]
             hitseqidx = entry[0].tolist()
@@ -510,13 +512,13 @@ class TargetProcessor:
                 # check that the closest sequence meets the min. dist. requirment. We multiply by 2 b/c each 
                 # base is one hot encoded. e.g. 1000 vs 0100 = 2 differences
                 if editdist[1] >= 2 * self.editdist:
-                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
+                    neighbors = {"seqs": [target_lookup[x] for x in hitseqidx],
                                 "dist": [int(x / 2) for x in editdist]} 
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
             else:
                if editdist[1] >= self.editdist: 
-                    neighbors = {"seqs": [self.targets['target'].values[x] for x in hitseqidx],  # reverse this?
+                    neighbors = {"seqs": [target_lookup[x] for x in hitseqidx],
                                 "dist": [int(x) for x in editdist]}
                     neighbor_dict[queryseq] = {"target": unique_targets[i],
                                             "neighbors": neighbors}
@@ -537,7 +539,8 @@ class TargetProcessor:
         # select only guides that are not duplecated in the seedseq
         df = deepcopy(self.targets.loc[self.targets['isseedduplicated'] == False])
         df = df[["seqid", "start", "stop", "target", "strand"]]
-        df.loc[:, 'strand'] = df.loc[:, 'strand'].apply(lambda x: '+' if x == True else '-')
+        strand_col = df['strand'].apply(lambda x: '+' if x in [True, '+', 'true', 'True'] else '-')
+        df = df.assign(strand=strand_col)
         df.columns = ["chrom", "chromstart", "chromend", "name", "strand"]
         df.sort_values(by=['chrom', 'chromstart'], inplace=True)
         return df
@@ -716,8 +719,9 @@ class Annotation:
                 for entry in genbank_file:
                     for record in entry.features:
                         if record.type in feature_types:
-                            if record.strand in [1, -1, "+", "-"]:
-                                pddict["strand"].append("-" if str(record.strand) in ['-1', '-' ] else "+")
+                            strand_val = getattr(record, 'strand', getattr(record.location, 'strand', None))
+                            if strand_val in [1, -1, "+", "-"]:
+                                pddict["strand"].append("-" if str(strand_val) in ['-1', '-'] else "+")
                             featid = hashlib.md5(str(record).encode()).hexdigest()
                             pddict['chrom'].append(entry.id)
                             pddict["chromStart"].append(int(record.location.start))
@@ -1055,47 +1059,59 @@ class GuideMakerPlot:
             guidemakerChart = (densityF & densityG & locus)
             return(guidemakerChart)
 
+        outdir_real = os.path.realpath(outdir)
         for accession in self.accession:
             df = self.prettydf[self.prettydf['Accession'] == accession]
             accession_plot = _singleplot(df)
-            plot_file_name = f"{outdir}/{accession}.html"
+            clean_accession = re.sub(r'[^A-Za-z0-9._-]', '_', str(accession))
+            plot_file_name = os.path.join(outdir, f"{clean_accession}.html")
+            plot_file_real = os.path.realpath(plot_file_name)
+            if not plot_file_real.startswith(outdir_real):
+                raise ValueError(f"Path traversal detected in plot filename for accession: {accession}")
             accession_plot.save(plot_file_name)
 
 
-def get_fastas(filelist, input_format="genbank", tempdir=None):
+def get_fastas(filelist, input_format="genbank", tempdir=None, max_decompressed_bytes=500 * 1024 * 1024):
     """
     Saves a Fasta and from 1 or more Genbank files (may be gzipped)
 
     Args:
         filelist (str): Genbank file to process
+        max_decompressed_bytes (int): Maximum decompressed size limit in bytes (default 500MB)
 
     Returns:
         None
     """
     try:
         fastpath = os.path.join(tempdir, "forward.fasta")
+        bytes_written = 0
         with open(fastpath, "w") as f1:
             for file in filelist:
                 if is_gzip(file):
-                    with gzip.open(file, 'rt') as f:
-                        records = SeqIO.parse(f, input_format)
-                        SeqIO.write(map(lambda obj: obj.upper(), records), f1, "fasta")
+                    f_in = gzip.open(file, 'rt')
                 else:
-                    with open(file, 'r') as f:
-                        records = (SeqIO.parse(f, input_format))
-                        SeqIO.write(map(lambda obj: obj.upper(), records), f1, "fasta")
+                    f_in = open(file, 'r')
+                with f_in as f:
+                    records = SeqIO.parse(f, input_format)
+                    for record in records:
+                        record_str = f">{record.id}\n{str(record.seq).upper()}\n"
+                        bytes_written += len(record_str.encode('utf-8'))
+                        if bytes_written > max_decompressed_bytes:
+                            raise ValueError(f"Decompressed genome file size exceeds maximum limit of {max_decompressed_bytes / (1024*1024):.0f}MB")
+                        f1.write(record_str)
         return fastpath
     except Exception as e:
         logger.exception("An error occurred in the input file %s" % file)
         raise e
 
 
-def extend_ambiguous_dna(seq: str) -> List[str]:
+def extend_ambiguous_dna(seq: str, max_expansion: int = 256) -> List[str]:
     """
     Return list of all possible sequences given an ambiguous DNA input
 
     Args:
         seq(str): A DNA string
+        max_expansion(int): Maximum permitted combinations (default 256)
 
     Return:
         List[str]: A list of DNA string with expanded ambiguous DNA values
@@ -1118,8 +1134,14 @@ def extend_ambiguous_dna(seq: str) -> List[str]:
     "X": "GATC",
     "N": "GATC",
     }
+    prod_count = 1
+    for char in seq.upper():
+        prod_count *= len(ambiguous_dna_values.get(char, char))
+    if prod_count > max_expansion:
+        raise ValueError(f"Restriction enzyme sequence '{seq}' produces {prod_count} combinations, exceeding maximum expansion limit of {max_expansion}.")
+
     extend_list = []
-    for i in product(*[ambiguous_dna_values[j] for j in seq]):
+    for i in product(*[ambiguous_dna_values[j] for j in seq.upper()]):
         extend_list.append("".join(i))
     return extend_list
 
