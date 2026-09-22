@@ -1,0 +1,29 @@
+name: Deploy Autodocs
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Package and Docs Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install . # Installs your local package so mkdocstrings can parse it
+          pip install mkdocs-material mkdocstrings[python]
+
+      - name: Build and Deploy Docs
+        run: mkdocs gh-deploy --force

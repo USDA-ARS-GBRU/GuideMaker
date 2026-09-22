@@ -1,0 +1,14 @@
+site_name: My Python Package Docs
+theme:
+  name: material
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.] # Tells it to look in the root folder for your package code
+
+nav:
+  - Home: index.md
+  - API Reference: api.md

@@ -2,7 +2,8 @@
 
 **GuideMaker: Software to design CRISPR-Cas guide RNA pools in non-model genomes** 🦠 🧬
 
-[![DOI](https://zenodo.org/badge/217529920.svg)](https://zenodo.org/badge/latestdoi/217529920)
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10215053.svg)](https://doi.org/10.5281/zenodo.10215053)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/guidemaker/badges/downloads.svg)](https://anaconda.org/bioconda/guidemaker)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/USDA-ARS-GBRU/GuideMaker?style=social)
 [![Publish Docker images](https://github.com/USDA-ARS-GBRU/GuideMaker/actions/workflows/docker_ghcr_io.yml/badge.svg)](https://github.com/USDA-ARS-GBRU/GuideMaker/actions/workflows/docker_ghcr_io.yml)
