@@ -59,9 +59,9 @@ jobs:
       - name: Build and push GuideMaker Image
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}"
+          context: .
+          file: ./docker-images/Dockerfile
           push: true
-          # Compiles and bundles packages for both standard PCs and ARM machines
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
