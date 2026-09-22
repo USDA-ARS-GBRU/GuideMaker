@@ -23,7 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install . # Installs your local package so mkdocstrings can parse it
-          pip install mkdocs-material mkdocstrings[python]
+          pip install mkdocs-material "mkdocstrings[python]" mkdocs-include-markdown-plugin
 
       - name: Build and Deploy Docs
         run: mkdocs gh-deploy --force
