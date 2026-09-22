@@ -1,4 +1,6 @@
 site_name: GuideMaker Documentation
+site_url: https://guidemaker.org  # <-- ADD THIS LINE
+
 theme:
   name: material
 
@@ -16,7 +18,3 @@ plugins:
 nav:
   - Home: index.md
   - API Reference: api.md
-
-# Add this to preserve your custom domain name:
-extra:
-  cname: guidemaker.org

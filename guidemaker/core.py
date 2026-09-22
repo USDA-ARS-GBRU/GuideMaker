@@ -13,7 +13,7 @@ from typing import List, Dict, TypeVar, Generator
 from itertools import product
 from Bio import SeqIO
 from Bio.SeqUtils import gc_fraction
-from pybedtools import BedTool
+import pyranges as pr
 from Bio import Seq
 from copy import deepcopy
 import pandas as pd
@@ -738,39 +738,25 @@ class Annotation:
         elif self.annotation_type == "gff":
             anno_format = self.check_annotation_type()
             for gff in self.annotation_list:
-                bedfile = BedTool(gff)
-                for rec in bedfile:
-                    if rec[2] in feature_types:
-                        pddict["chrom"].append(rec[0])
-                        pddict["chromStart"].append(rec[3])
-                        pddict["chromEnd"].append(rec[4])
-                        pddict["strand"].append(rec[6])
-                        featid = hashlib.md5(str(rec).encode()).hexdigest()
-                        pddict["name"].append(featid)
-                        featlist = rec[8].split(';')
-                        for feat in featlist:
-                            try:
-                                if feat.isspace(): # this handles whitespace strings
-                                    continue
-                                if not feat: # this handles empty strings
-                                    continue
-                                if anno_format == 'gtf':
-                                    fl = re.search('^[^"]*', feat)
-                                    fv = re.search('"([^"]*)"', feat)
-                                    feat_key = fl.group(0).strip()
-                                    feat_val = fv.group(0).strip('"')
-                                elif anno_format =='gff':
-                                    fl = feat.split('=')
-                                    feat_key = fl[0]
-                                    feat_val = fl[1]
-                                if not feat_key in feature_dict:
-                                    feature_dict[feat_key] = {}
-                                feature_dict[feat_key][featid] = feat_val
-                            except:
-                                logger.warning("There appears to be an error in the formatting of an attribute in the "
-                                               "record below. Please check your input GFF or GTF file. The record is: {rec} "
-                                               "and the attribute is: {att}. Skipping this feature.".format(rec=featlist, att=feat))
-                                continue
+                gr = pr.read_gff3(gff) if anno_format == 'gff' else pr.read_gtf(gff)
+                df = gr.df
+                filtered_df = df[df['Feature'].isin(feature_types)]
+                for idx, row in filtered_df.iterrows():
+                    pddict['chrom'].append(str(row['Chromosome']))
+                    pddict['chromStart'].append(int(row['Start']))
+                    pddict['chromEnd'].append(int(row['End']))
+                    pddict['strand'].append(str(row['Strand']))
+                    rec_str = f"{row['Chromosome']}_{row['Start']}_{row['End']}_{row['Feature']}_{idx}"
+                    featid = hashlib.md5(rec_str.encode()).hexdigest()
+                    pddict['name'].append(featid)
+
+                    for col in df.columns:
+                        if col not in ['Chromosome', 'Source', 'Feature', 'Start', 'End', 'Score', 'Strand', 'Frame', 'Attribute']:
+                            val = row[col]
+                            if pd.notna(val) and str(val).strip() != '':
+                                if col not in feature_dict:
+                                    feature_dict[col] = {}
+                                feature_dict[col][featid] = str(val)
             genbankbed = pd.DataFrame.from_dict(pddict)
             self.genbank_bed_df = genbankbed
             self.feature_dict = feature_dict
@@ -820,7 +806,7 @@ class Annotation:
 
     def _get_nearby_features(self) -> None:
         """
-        Adds downstream information to the given target sequences and mapping information
+        Adds downstream and upstream feature information to target sequences using NumPy regional window search.
 
         Args:
             None
@@ -831,25 +817,108 @@ class Annotation:
         Note:
             Writes a dataframe of nearby features to self.nearby
         """
-        # Import Features and sort by chromosome and then by start position in ascending order
-        featurebed = BedTool.from_dataframe(self.genbank_bed_df)
-        featurebed = featurebed.sort()
-        # import guide files and sort by chromosome and then by start position in ascending order
-        mapbed = BedTool.from_dataframe(self.target_bed_df)
-        mapbed = mapbed.sort()
-        # get feature downstream of target sequence
-        downstream = mapbed.closest(featurebed, d=True, fd=True, D="a", t="first")
-        # get feature upstream of target sequence
-        upstream = mapbed.closest(featurebed, d=True, id=True, D="a", t="first")
-        headers = {0: "Accession", 1: "Guide start", 2: "Guide end", 3: "Guide sequence",
-                   4: "Guide strand", 5: "Feature Accession", 6: "Feature start", 7: "Feature end", 8: "Feature id",
-                   9: "Feature strand", 10: "Feature distance"}
-        downstream: pd.DataFrame = downstream.to_dataframe(disable_auto_names=True, header=None)
-        downstream['direction'] = 'downstream'
-        upstream = upstream.to_dataframe(disable_auto_names=True, header=None)
-        upstream['direction'] = 'upstream'
-        upstream = pd.concat([downstream, upstream], axis = 0)
-        self.nearby = upstream.rename(columns=headers)
+        target_sorted = self.target_bed_df.sort_values(by=['chrom', 'chromstart']).reset_index(drop=True)
+        feature_sorted = self.genbank_bed_df.sort_values(by=['chrom', 'chromStart']).reset_index(drop=True)
+
+        rows_down = []
+        rows_up = []
+
+        for chrom, t_sub in target_sorted.groupby('chrom', observed=True):
+            f_sub = feature_sorted[feature_sorted['chrom'] == chrom]
+            if f_sub.empty:
+                continue
+
+            f_starts = f_sub['chromStart'].to_numpy(dtype=np.int64)
+            f_ends = f_sub['chromEnd'].to_numpy(dtype=np.int64)
+            f_strands = f_sub['strand'].to_numpy()
+            f_ids = f_sub['name'].to_numpy()
+            max_feat_len = int(np.max(f_ends - f_starts)) if len(f_starts) > 0 else 0
+
+            t_starts = t_sub['chromstart'].to_numpy(dtype=np.int64)
+            t_ends = t_sub['chromend'].to_numpy(dtype=np.int64)
+            t_seqs = t_sub['name'].to_numpy()
+            t_strands = t_sub['strand'].to_numpy()
+
+            n_targets = len(t_starts)
+            batch_size = 5000
+
+            for b_i in range(0, n_targets, batch_size):
+                b_s = t_starts[b_i:b_i + batch_size]
+                b_e = t_ends[b_i:b_i + batch_size]
+                b_seq = t_seqs[b_i:b_i + batch_size]
+                b_str = t_strands[b_i:b_i + batch_size]
+                B = len(b_s)
+
+                w_start = max(0, b_s[0] - 100000)
+                w_end = b_e[-1] + 100000
+
+                f_idx_start = np.searchsorted(f_starts, max(0, w_start - max_feat_len), side='left')
+                f_idx_end = np.searchsorted(f_starts, w_end, side='right')
+
+                s_f_starts = f_starts[f_idx_start:f_idx_end]
+                s_f_ends = f_ends[f_idx_start:f_idx_end]
+                s_f_strands = f_strands[f_idx_start:f_idx_end]
+                s_f_ids = f_ids[f_idx_start:f_idx_end]
+
+                if len(s_f_starts) == 0:
+                    s_f_starts = f_starts
+                    s_f_ends = f_ends
+                    s_f_strands = f_strands
+                    s_f_ids = f_ids
+
+                K = len(s_f_starts)
+
+                fs_2d = s_f_starts[None, :]  # 1 x K
+                fe_2d = s_f_ends[None, :]    # 1 x K
+                bs_2d = b_s[:, None]         # B x 1
+                be_2d = b_e[:, None]         # B x 1
+
+                # Downstream features: f_end > g_start
+                down_valid = fe_2d > bs_2d
+                overlaps_down = (fs_2d < be_2d) & (fe_2d > bs_2d)
+                dists_down = np.where(overlaps_down, 0, np.where(fs_2d >= be_2d, fs_2d - be_2d, bs_2d - fe_2d))
+                dists_down = np.where(down_valid, dists_down, np.inf)
+
+                best_down_idx = np.argmin(dists_down, axis=1)
+                has_down = np.min(dists_down, axis=1) < np.inf
+
+                for i in range(B):
+                    if has_down[i]:
+                        idx = best_down_idx[i]
+                        rows_down.append({
+                            'Accession': chrom, 'Guide start': b_s[i], 'Guide end': b_e[i],
+                            'Guide sequence': b_seq[i], 'Guide strand': b_str[i],
+                            'Feature Accession': chrom, 'Feature start': s_f_starts[idx],
+                            'Feature end': s_f_ends[idx], 'Feature id': s_f_ids[idx],
+                            'Feature strand': s_f_strands[idx], 'Feature distance': int(dists_down[i, idx]),
+                            'direction': 'downstream'
+                        })
+
+                # Upstream features: f_start < g_end
+                up_valid = fs_2d < be_2d
+                overlaps_up = (fs_2d < be_2d) & (fe_2d > bs_2d)
+                dists_up = np.where(overlaps_up, 0, np.where(fs_2d >= be_2d, fs_2d - be_2d, bs_2d - fe_2d))
+                dists_up = np.where(up_valid, dists_up, np.inf)
+
+                best_up_idx = np.argmin(dists_up, axis=1)
+                has_up = np.min(dists_up, axis=1) < np.inf
+
+                for i in range(B):
+                    if has_up[i]:
+                        idx = best_up_idx[i]
+                        rows_up.append({
+                            'Accession': chrom, 'Guide start': b_s[i], 'Guide end': b_e[i],
+                            'Guide sequence': b_seq[i], 'Guide strand': b_str[i],
+                            'Feature Accession': chrom, 'Feature start': s_f_starts[idx],
+                            'Feature end': s_f_ends[idx], 'Feature id': s_f_ids[idx],
+                            'Feature strand': s_f_strands[idx], 'Feature distance': int(dists_up[i, idx]),
+                            'direction': 'upstream'
+                        })
+
+        df_down = pd.DataFrame(rows_down)
+        df_up = pd.DataFrame(rows_up)
+        nearby = pd.concat([df_down, df_up], axis=0, ignore_index=True)
+        self.nearby = nearby
 
 
     def _filter_features(self, before_feat: int = 100, after_feat: int = 200 ) -> None:

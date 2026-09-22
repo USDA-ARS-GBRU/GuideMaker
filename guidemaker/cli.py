@@ -13,7 +13,6 @@ import yaml
 import textwrap
 
 
-import pybedtools
 from Bio import SeqIO
 
 import guidemaker
@@ -156,7 +155,6 @@ def main(arglist: list = None):
                 tempdir = tempfile.mkdtemp()
         else:
             tempdir = tempfile.mkdtemp(prefix='guidemaker_', dir=args.tempdir)
-            pybedtools.helpers.set_tempdir(tempdir)
         logger.info("Temp directory is: %s" % (tempdir))
         if args.genbank:
             logger.info("Writing fasta file from genbank file(s)")
@@ -175,7 +173,7 @@ def main(arglist: list = None):
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
         logger.info("Number of guides removed after checking for restriction enzymes: %d",
                      (lengthoftl - len(tl.targets)))
-        logger.info("Identifing guides that are unique near the PAM site")
+        logger.info("Identifying guides that are unique near the PAM site")
         tl.find_unique_near_pam()
         logger.info("Number of guides with non unique seed sequence: %d",
                      (tl.targets.isseedduplicated.sum()))
@@ -185,7 +183,7 @@ def main(arglist: list = None):
         logger.info(
             "Identifying guides that have a hamming distance <= %s to all other potential guides", str(args.dist))
         tl.get_neighbors(num_threads=args.threads, configpath=args.config)
-        logger.info("Formatting data for BedTools")
+        logger.info("Formatting guide target data")
         tf_df = tl.export_bed()
         if args.raw_output_only:
             tf_df.to_csv(os.path.join(args.outdir, "rawguides.csv.gz"), index=False, header=["Chromosome", "Start", "Stop","gRNA", "Strand"])

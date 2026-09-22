@@ -11,6 +11,6 @@ dependencies:
   - numpy >=1.25.2,<2.0
 
   # Heavy C++ / Structural Packages (Safe via Conda/Mamba)
-  - pybedtools >=0.9.1
+  - pyranges >=0.0.130
   - biopython >=1.81
   - onnxruntime >=1.15.1
