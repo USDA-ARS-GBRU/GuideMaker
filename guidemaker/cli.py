@@ -173,7 +173,7 @@ def main(arglist: list = None):
         tl.check_restriction_enzymes(restriction_enzyme_list=args.restriction_enzyme_list)
         logger.info("Number of guides removed after checking for restriction enzymes: %d",
                      (lengthoftl - len(tl.targets)))
-        logger.info("Identifing guides that are unique near the PAM site")
+        logger.info("Identifying guides that are unique near the PAM site")
         tl.find_unique_near_pam()
         logger.info("Number of guides with non unique seed sequence: %d",
                      (tl.targets.isseedduplicated.sum()))
