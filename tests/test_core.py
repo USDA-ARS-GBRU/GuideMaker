@@ -218,7 +218,7 @@ def test_filter_features():
     anno._filter_features()
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
-    assert anno.pretty_df.shape == (869, 23)
+    assert anno.pretty_df.shape == (1311, 23)
 
 
 def test_filterlocus():
@@ -241,7 +241,7 @@ def test_filterlocus():
     anno._get_qualifiers(configpath=configpath)
     anno._format_guide_table(tl)
     filter_prettydf = anno._filterlocus(attribute='locus_tag', filter_by_locus=['CRP_001'])
-    assert filter_prettydf.shape == (4, 23)
+    assert filter_prettydf.shape == (8, 23)
 
 # Function : get_fastas
 @pytest.fixture(scope='session')

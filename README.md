@@ -64,8 +64,8 @@ guidemaker -h
 ### [Github](https://github.com/USDA-ARS-GBRU/GuideMaker)
 
 ```bash
-    # Create a conda environment and install and pybedtools
-   conda create -n gmenv pip python=3.12 pybedtools
+    # Create a conda environment and install dependencies
+   conda create -n gmenv pip python=3.12
     conda activate gmenv
 
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
@@ -78,7 +78,7 @@ guidemaker -h
 
 ### Dependencies
 
-*   ``pybedtools``
+*   ``pyranges``
 *   ``NMSLib``
 *   ``Biopython``
 *   ``Pandas``
