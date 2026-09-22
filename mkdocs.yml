@@ -1,0 +1,18 @@
+site_name: GuideMaker Documentation
+theme:
+  name: material
+
+plugins:
+  - search
+  - include-markdown:
+      opening_tag: "{%"
+      closing_tag: "%}"
+      comments: false # <--- This option permits grabbing files outside of the docs/ directory
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+
+nav:
+  - Home: index.md
+  - API Reference: api.md

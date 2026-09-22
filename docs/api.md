@@ -9,8 +9,9 @@ This page dynamically pulls docstrings from the GuideMaker source files.
 ::: guidemaker.doench_predict
 ::: guidemaker.doench_featurization
 ::: guidemaker.cfd_score_calculator
+::: guidemaker.definitions
 
-## Streamlit App and Data
+## Web Application
 
-::: guidemaker.data.app
-::: guidemaker.data.definitions
+::: guidemaker.app.main
+

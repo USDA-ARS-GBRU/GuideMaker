@@ -44,8 +44,6 @@ Guidemaker is available at the Github Container Registry (https://github.com/org
 # AVX Version
 docker pull ghcr.io/usda-ars-gbru/guidemaker-avx
 
-#Non-AVX version
-docker pull ghcr.io/usda-ars-gbru/guidemaker-noavx
 ```
 
 ### Bioconda
@@ -53,7 +51,7 @@ docker pull ghcr.io/usda-ars-gbru/guidemaker-noavx
 ```bash
 # Create a conda environment and install GuideMaker via Bioconda.
 
-mamba create --strict-channel-priority --override-channels --channel conda-forge --channel bioconda --channel defaults --name gmenv guidemaker
+conda create  --channel conda-forge --channel bioconda  --name gmenv guidemaker
 
 # Activate conda env
 mamba  activate gmenv
@@ -67,7 +65,7 @@ guidemaker -h
 
 ```bash
     # Create a conda environment and install and pybedtools
-    mamba create -n gmenv python=3.9 pybedtools=0.9.1
+   conda create -n gmenv pip python=3.12 pybedtools
     conda activate gmenv
 
     git clone https://github.com/USDA-ARS-GBRU/GuideMaker.git
@@ -258,7 +256,7 @@ Ravin Poudel, Lidimarie Trujillo Rodriguez, Christopher R Reisch, Adam R Rivers,
 
 ## API documentation
 
-API documentation for the module can be found [here](https://usda-ars-gbru.github.io/GuideMaker/docs/index.html)
+API documentation for the module can be found [here](https://usda-ars-gbru.github.io/GuideMaker/)
 
 ## License information
 

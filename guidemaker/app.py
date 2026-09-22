@@ -25,7 +25,11 @@ st.set_page_config(page_title=apptitle, page_icon=":eyeglasses:")
 st.sidebar.markdown("## Select Parameters to Design gRNAs")
 
 
-DATA_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+from pathlib import Path
+
+# Resolves directly to: guidemaker/data/
+DATA_DIR = Path(__file__).resolve().parent / "data"
+
 
 # @contextmanager
 # def genome_connect(db_bytes):
