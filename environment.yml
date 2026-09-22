@@ -1,0 +1,16 @@
+name: guidemakerenv
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  # Core Language Runtime
+  - python=3.10.14
+
+  # Critical Data Pinnings
+  - pandas >=2.1.1,<2.2
+  - numpy >=1.25.2,<2.0
+
+  # Heavy C++ / Structural Packages (Safe via Conda/Mamba)
+  - pybedtools >=0.9.1
+  - biopython >=1.81
+  - onnxruntime >=1.15.1

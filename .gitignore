@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *$py.class
+*.pyc
 
 # C extensions
 *.so
@@ -9,8 +10,10 @@ __pycache__/
 .Python
 env/
 build/
+/build
 develop-eggs/
 dist/
+/dist
 downloads/
 eggs/
 .eggs/
@@ -20,12 +23,11 @@ parts/
 sdist/
 var/
 *.egg-info/
+/predictPAM.egg-info
 .installed.cfg
 *.egg
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -40,7 +42,6 @@ htmlcov/
 .coverage.*
 .cache
 nosetests.xml
-
 *,cover
 .hypothesis/
 
@@ -48,72 +49,38 @@ nosetests.xml
 *.mo
 *.pot
 
-# Django stuff:
+# Logs and Configuration
 *.log
+.vscode/
 
 # Sphinx documentation
 docs/_build/
+docs/source/_static
+docs/source/_templates
 
 # PyBuilder
 target/
 
-# pyenv python configuration file
+# pyenv
 .python-version
 
-
-
-# Compiled python modules.
-*.pyc
-
-# Setuptools distribution folder.
-/dist/
-
-# Python egg metadata, regenerated from source files by setuptools.
-/*.egg-info
-
-docs/source/_static
-docs/source/_templates
-
-
+# System Files
 *.DS_Store
-testing.py
+
+# Data and Project Specific Files
 *.csv
-*.log
-/build
-/predictPAM.egg-info
-/dist
-test_ts.py
-testing.py
-*.log
-*.bat
 targets.csv
-GuideMaker_filter_feature_testing.xls
-*.pptx
-#Aspergillus_fumigatus.gbk
-#Aspergillus_fumigatus.fasta
-#Arabidopsis_thaliana.gbk
-#Arabidopsis_thaliana.fasta
 *.sam
 *.sketch
+*.bat
+*.pptx
+GuideMaker_filter_feature_testing.xls
 /bowtie
-.vscode/
+
+# Test scripts and local data data exclusions
+testing.py
+test_ts.py
 test/EcoliPrefilter.py
 test/test_data/Ecoli_prefilter_GM.csv
 test/test_data/Escherichia.coli_str_K-12_substr_MG1655.fasta
 test/test_data/Arabidopsis_thaliana.gbk
-test/EcoliPrefilter.py
-
-
-
-
-
-#
-**/
-*.DS_Store
-*/.DS_Store
-guidemaker/data/.DS_Store
-.DS_Store
-guidemaker/data/.DS_Store
-
-.DS_Store
- guidemaker/data/.DS_Store

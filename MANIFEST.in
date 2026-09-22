@@ -1,4 +1,4 @@
-include versioneer.py
+include environment.yml
 include guidemaker/_version.py
 include tests/test_data/*
 include LICENSE.txt
