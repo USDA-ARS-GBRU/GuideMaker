@@ -1,0 +1,21 @@
+[package]
+name = "guidemaker-scan"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "guidemaker_scan"
+path = "src/lib.rs"
+
+[[bin]]
+name = "guidemaker-scan"
+path = "src/main.rs"
+
+[dependencies]
+bio = "4.0"
+polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-u16"] }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"
