@@ -126,7 +126,6 @@ fn acceptance_test_5_boundary_conditions_and_ambiguous_skipping() {
 fn test_compressed_fasta_and_genbank_support() {
     let dir = tempdir().unwrap();
 
-    // 1. Test Gzip compressed FASTA (.fasta.gz)
     let gz_path = dir.path().join("test.fasta.gz");
     {
         let f = File::create(&gz_path).unwrap();
@@ -139,7 +138,6 @@ fn test_compressed_fasta_and_genbank_support() {
     assert_eq!(gz_records[0].id, "chr_gz");
     assert_eq!(gz_records[0].seq, b"ACGTACGTACGTACGTACGTCGG");
 
-    // 2. Test Zstd compressed GenBank (.gb.zst)
     let zst_path = dir.path().join("test.gb.zst");
     {
         let f = File::create(&zst_path).unwrap();
@@ -156,7 +154,6 @@ fn test_compressed_fasta_and_genbank_support() {
     assert_eq!(zst_records[0].id, "chr_zst");
     assert_eq!(zst_records[0].seq, b"ACGTACGTACGTACGTACGTCGG");
 
-    // 3. Test running CLI binary on compressed file
     let out_csv = dir.path().join("gz_out.csv");
     let bin = env!("CARGO_BIN_EXE_guidemaker-scan");
     let status = Command::new(bin)
@@ -173,4 +170,54 @@ fn test_compressed_fasta_and_genbank_support() {
 
     assert!(status.success());
     assert!(out_csv.exists());
+}
+
+#[test]
+fn test_features_csv_and_parquet_output() {
+    let dir = tempdir().unwrap();
+    let fasta_path = dir.path().join("input.fasta");
+    let gff_path = dir.path().join("input.gff3");
+    let feat_csv = dir.path().join("feat.csv");
+    let feat_parquet = dir.path().join("feat.parquet");
+
+    let mut f_fasta = File::create(&fasta_path).unwrap();
+    writeln!(f_fasta, ">chr1\nACGTACGTACGTACGTACGTCGG").unwrap();
+
+    let mut f_gff = File::create(&gff_path).unwrap();
+    writeln!(f_gff, "##gff-version 3").unwrap();
+    writeln!(f_gff, "chr1\tRefSeq\tgene\t1\t23\t.\t+\t.\tID=gene-b0001;locus_tag=b0001").unwrap();
+    writeln!(f_gff, "chr1\tRefSeq\tCDS\t5\t20\t.\t-\t.\tID=cds-b0001;locus_tag=b0001").unwrap();
+
+    let bin = env!("CARGO_BIN_EXE_guidemaker-scan");
+    let status = Command::new(bin)
+        .arg("--fasta")
+        .arg(&fasta_path)
+        .arg("--gff")
+        .arg(&gff_path)
+        .arg("--pam")
+        .arg("NGG")
+        .arg("--orientation")
+        .arg("3prime")
+        .arg("--threads")
+        .arg("2")
+        .arg("--out-features-csv")
+        .arg(&feat_csv)
+        .arg("--out-features-parquet")
+        .arg(&feat_parquet)
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+    assert!(feat_csv.exists());
+    assert!(feat_parquet.exists());
+
+    let parquet_df = ParquetReader::new(File::open(&feat_parquet).unwrap())
+        .finish()
+        .unwrap();
+
+    assert_eq!(parquet_df.height(), 2);
+    assert_eq!(
+        parquet_df.get_column_names(),
+        vec!["chrom", "feature_start", "feature_end", "strand", "feature_id", "feature_type"]
+    );
 }

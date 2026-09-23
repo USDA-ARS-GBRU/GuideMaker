@@ -13,6 +13,10 @@ pub struct Args {
     #[arg(long, alias = "seq-file", visible_alias = "seq_file")]
     pub fasta: PathBuf,
 
+    /// Optional path to GFF or GTF annotation file (plain, .gz, or .zst)
+    #[arg(long, alias = "gtf", visible_alias = "annotation")]
+    pub gff: Option<PathBuf>,
+
     /// PAM sequence (IUPAC ambiguous string, e.g. NGG)
     #[arg(long)]
     pub pam: String,
@@ -25,13 +29,25 @@ pub struct Args {
     #[arg(long, default_value_t = 20)]
     pub target_len: usize,
 
-    /// Optional CSV output path
+    /// Number of worker threads (default: all available CPUs)
+    #[arg(long)]
+    pub threads: Option<usize>,
+
+    /// Optional CSV output path for target hits
     #[arg(long)]
     pub out_csv: Option<PathBuf>,
 
-    /// Optional Parquet output path
+    /// Optional Parquet output path for target hits
     #[arg(long)]
     pub out_parquet: Option<PathBuf>,
+
+    /// Optional CSV output path for genomic features
+    #[arg(long)]
+    pub out_features_csv: Option<PathBuf>,
+
+    /// Optional Parquet output path for genomic features
+    #[arg(long)]
+    pub out_features_parquet: Option<PathBuf>,
 }
 
 fn get_resource_usage() -> (f64, f64) {
@@ -59,6 +75,15 @@ fn main() -> Result<()> {
     let start_wall = Instant::now();
 
     let args = Args::parse();
+
+    if let Some(num_threads) = args.threads {
+        if num_threads > 0 {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build_global()
+                .ok();
+        }
+    }
 
     if !(1..=26).contains(&args.target_len) {
         return Err(anyhow!(
@@ -103,7 +128,7 @@ fn main() -> Result<()> {
 
     let mut df = build_dataframe(&all_hits, &chrom_names)?;
 
-    println!("Total rows: {}", df.height());
+    println!("Total target rows: {}", df.height());
     println!("{}", df.head(Some(5)));
 
     if let Some(csv_path) = &args.out_csv {
@@ -112,6 +137,27 @@ fn main() -> Result<()> {
 
     if let Some(parquet_path) = &args.out_parquet {
         write_parquet(&mut df, parquet_path)?;
+    }
+
+    // Process Genomic Features if requested or available
+    let feature_records = if let Some(gff_path) = &args.gff {
+        read_feature_records(gff_path)?
+    } else {
+        // Try reading features directly from the sequence file (e.g. GenBank)
+        read_feature_records(&args.fasta).unwrap_or_default()
+    };
+
+    if !feature_records.is_empty() {
+        let mut feat_df = build_features_dataframe(&feature_records)?;
+        println!("Total feature rows: {}", feat_df.height());
+        println!("{}", feat_df.head(Some(5)));
+
+        if let Some(feat_csv) = &args.out_features_csv {
+            write_csv(&mut feat_df, feat_csv)?;
+        }
+        if let Some(feat_parquet) = &args.out_features_parquet {
+            write_parquet(&mut feat_df, feat_parquet)?;
+        }
     }
 
     let wall_sec = start_wall.elapsed().as_secs_f64();
