@@ -221,3 +221,77 @@ fn test_features_csv_and_parquet_output() {
         vec!["chrom", "feature_start", "feature_end", "strand", "feature_id", "feature_type"]
     );
 }
+
+#[test]
+fn test_step2_cli_execution() {
+    let dir = tempdir().unwrap();
+    let guides_path = dir.path().join("guides.parquet");
+    let features_path = dir.path().join("features.parquet");
+    let out_step2 = dir.path().join("filtered.parquet");
+
+    // Build guides
+    let hits = vec![
+        TargetHit {
+            candidate: true,
+            seq: encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap(),
+            chrom_idx: 0,
+            start: 9000,
+            stop: 9020,
+            strand: true,
+        },
+        TargetHit {
+            candidate: true,
+            seq: encode_2bit_u64(b"TGCATGCATGCATGCATGCA").unwrap(),
+            chrom_idx: 0,
+            start: 9100,
+            stop: 9120,
+            strand: true,
+        },
+    ];
+    let chrom_names = vec!["chr1".to_string()];
+    let mut guides_df = build_dataframe(&hits, &chrom_names).unwrap();
+    write_parquet(&mut guides_df, &guides_path).unwrap();
+
+    // Build features
+    let features = vec![FeatureRecord {
+        chrom: "chr1".to_string(),
+        feature_start: 10000,
+        feature_end: 15000,
+        strand: true,
+        feature_id: "gene1".to_string(),
+        feature_type: "gene".to_string(),
+    }];
+    let mut features_df = build_features_dataframe(&features).unwrap();
+    write_parquet(&mut features_df, &features_path).unwrap();
+
+    // Execute guidemaker-step2 binary
+    let bin = env!("CARGO_BIN_EXE_guidemaker-step2");
+    let status = Command::new(bin)
+        .arg("--guides")
+        .arg(&guides_path)
+        .arg("--features")
+        .arg(&features_path)
+        .arg("--before")
+        .arg("2000")
+        .arg("--into")
+        .arg("500")
+        .arg("--lsr-len")
+        .arg("8")
+        .arg("--out")
+        .arg(&out_step2)
+        .arg("--fast-filter-first")
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+    assert!(out_step2.exists());
+
+    let filtered_df = ParquetReader::new(File::open(&out_step2).unwrap())
+        .finish()
+        .unwrap();
+
+    assert_eq!(filtered_df.height(), 2);
+    let cand_ca = filtered_df.column("candidate").unwrap().bool().unwrap();
+    assert_eq!(cand_ca.get(0), Some(true)); // Pass
+    assert_eq!(cand_ca.get(1), Some(true)); // Pass
+}

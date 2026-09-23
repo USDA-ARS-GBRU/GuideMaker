@@ -11,9 +11,13 @@ path = "src/lib.rs"
 name = "guidemaker-scan"
 path = "src/main.rs"
 
+[[bin]]
+name = "guidemaker-step2"
+path = "src/bin/step2.rs"
+
 [dependencies]
 bio = "4.0"
-polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-categorical"] }
+polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-categorical", "lazy"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 libc = "0.2"
