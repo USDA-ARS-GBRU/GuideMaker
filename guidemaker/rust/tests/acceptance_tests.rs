@@ -19,7 +19,6 @@ fn acceptance_test_1_iupac_and_orientation() {
     assert_eq!(fwd_hits[0].start, 0);
     assert_eq!(fwd_hits[0].stop, 20);
     assert_eq!(fwd_hits[0].strand, true);
-    assert_eq!(fwd_hits[0].orientation, false);
 
     let df = build_dataframe(&fwd_hits, &chrom_names).unwrap();
     assert_eq!(df.height(), 1);
@@ -40,7 +39,6 @@ fn acceptance_test_2_reverse_mapping_correctness() {
     assert_eq!(rev_hits[0].start, 3);
     assert_eq!(rev_hits[0].stop, 23);
     assert_eq!(rev_hits[0].strand, false);
-    assert_eq!(rev_hits[0].orientation, false);
 
     assert!(rev_hits[0].start < rev_hits[0].stop);
     assert!(rev_hits[0].stop <= fwd_seq.len() as u32);
@@ -95,8 +93,7 @@ fn acceptance_test_4_csv_parquet_parity_and_cli() {
     schema.insert_at_index(2, "chrom".into(), DataType::Categorical(None, Default::default())).unwrap();
     schema.insert_at_index(3, "start".into(), DataType::UInt32).unwrap();
     schema.insert_at_index(4, "stop".into(), DataType::UInt32).unwrap();
-    schema.insert_at_index(5, "orientation".into(), DataType::Boolean).unwrap();
-    schema.insert_at_index(6, "strand".into(), DataType::Boolean).unwrap();
+    schema.insert_at_index(5, "strand".into(), DataType::Boolean).unwrap();
 
     let csv_df = CsvReadOptions::default()
         .with_schema(Some(Arc::new(schema)))

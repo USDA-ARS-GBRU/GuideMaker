@@ -11,7 +11,6 @@ pub struct TargetHit {
     pub chrom_idx: u32,
     pub start: u32,
     pub stop: u32,
-    pub orientation: bool,
     pub strand: bool,
 }
 
@@ -123,7 +122,6 @@ pub fn search_5prime_forward(
                         chrom_idx,
                         start,
                         stop,
-                        orientation: true,
                         strand: true,
                     });
                 }
@@ -163,7 +161,6 @@ pub fn search_5prime_reverse(
                         chrom_idx,
                         start: start_fwd as u32,
                         stop: stop_fwd as u32,
-                        orientation: true,
                         strand: false,
                     });
                 }
@@ -203,7 +200,6 @@ pub fn search_3prime_forward(
                         chrom_idx,
                         start,
                         stop,
-                        orientation: false,
                         strand: true,
                     });
                 }
@@ -244,7 +240,6 @@ pub fn search_3prime_reverse(
                         chrom_idx,
                         start: start_fwd as u32,
                         stop: stop_fwd as u32,
-                        orientation: false,
                         strand: false,
                     });
                 }
@@ -261,7 +256,6 @@ pub fn build_dataframe(hits: &[TargetHit], chrom_names: &[String]) -> Result<Dat
     let mut chrom_vec = Vec::with_capacity(hits.len());
     let mut start_vec = Vec::with_capacity(hits.len());
     let mut stop_vec = Vec::with_capacity(hits.len());
-    let mut orientation_vec = Vec::with_capacity(hits.len());
     let mut strand_vec = Vec::with_capacity(hits.len());
 
     for hit in hits {
@@ -271,7 +265,6 @@ pub fn build_dataframe(hits: &[TargetHit], chrom_names: &[String]) -> Result<Dat
         chrom_vec.push(name);
         start_vec.push(hit.start);
         stop_vec.push(hit.stop);
-        orientation_vec.push(hit.orientation);
         strand_vec.push(hit.strand);
     }
 
@@ -284,7 +277,6 @@ pub fn build_dataframe(hits: &[TargetHit], chrom_names: &[String]) -> Result<Dat
         chrom_series.into(),
         Series::new("start".into(), start_vec).into(),
         Series::new("stop".into(), stop_vec).into(),
-        Series::new("orientation".into(), orientation_vec).into(),
         Series::new("strand".into(), strand_vec).into(),
     ])?;
 
@@ -345,7 +337,6 @@ mod tests {
         assert_eq!(fwd_hits[0].start, 3);
         assert_eq!(fwd_hits[0].stop, 23);
         assert_eq!(fwd_hits[0].strand, true);
-        assert_eq!(fwd_hits[0].orientation, true);
 
         let rev_seq = b"ACGTACGTACGTACGTACGTCCT";
         let rev_hits = search_5prime_reverse(0, rev_seq, &pam_masks, 20);
@@ -355,6 +346,5 @@ mod tests {
         assert_eq!(rev_hits[0].start, 0);
         assert_eq!(rev_hits[0].stop, 20);
         assert_eq!(rev_hits[0].strand, false);
-        assert_eq!(rev_hits[0].orientation, true);
     }
 }
