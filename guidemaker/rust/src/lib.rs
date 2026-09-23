@@ -8,7 +8,7 @@ use std::path::Path;
 pub struct TargetHit {
     pub candidate: bool,
     pub seq: u64,
-    pub chrom: u16,
+    pub chrom_idx: u32,
     pub start: u32,
     pub stop: u32,
     pub orientation: bool,
@@ -96,7 +96,7 @@ pub fn revcomp(seq: &[u8]) -> Vec<u8> {
 
 /// Search 5prime orientation on forward strand: 5'-[PAM][TARGET]-3'
 pub fn search_5prime_forward(
-    chrom_idx: u16,
+    chrom_idx: u32,
     seq: &[u8],
     pam_masks: &[u8],
     target_len: usize,
@@ -118,9 +118,9 @@ pub fn search_5prime_forward(
                 let stop = target_end as u32;
                 if start < stop && (stop as usize) <= seq_len {
                     hits.push(TargetHit {
-                        candidate: false,
+                        candidate: true,
                         seq: encoded_seq,
-                        chrom: chrom_idx,
+                        chrom_idx,
                         start,
                         stop,
                         orientation: true,
@@ -135,7 +135,7 @@ pub fn search_5prime_forward(
 
 /// Search 5prime orientation on reverse strand
 pub fn search_5prime_reverse(
-    chrom_idx: u16,
+    chrom_idx: u32,
     seq: &[u8],
     pam_masks: &[u8],
     target_len: usize,
@@ -158,9 +158,9 @@ pub fn search_5prime_reverse(
                 let stop_fwd = seq_len - (rc_pos + pam_len);
                 if start_fwd < stop_fwd && stop_fwd <= seq_len {
                     hits.push(TargetHit {
-                        candidate: false,
+                        candidate: true,
                         seq: encoded_seq,
-                        chrom: chrom_idx,
+                        chrom_idx,
                         start: start_fwd as u32,
                         stop: stop_fwd as u32,
                         orientation: true,
@@ -175,7 +175,7 @@ pub fn search_5prime_reverse(
 
 /// Search 3prime orientation on forward strand: 5'-[TARGET][PAM]-3'
 pub fn search_3prime_forward(
-    chrom_idx: u16,
+    chrom_idx: u32,
     seq: &[u8],
     pam_masks: &[u8],
     target_len: usize,
@@ -198,9 +198,9 @@ pub fn search_3prime_forward(
                 let stop = target_end as u32;
                 if start < stop && (stop as usize) <= seq_len {
                     hits.push(TargetHit {
-                        candidate: false,
+                        candidate: true,
                         seq: encoded_seq,
-                        chrom: chrom_idx,
+                        chrom_idx,
                         start,
                         stop,
                         orientation: false,
@@ -215,7 +215,7 @@ pub fn search_3prime_forward(
 
 /// Search 3prime orientation on reverse strand
 pub fn search_3prime_reverse(
-    chrom_idx: u16,
+    chrom_idx: u32,
     seq: &[u8],
     pam_masks: &[u8],
     target_len: usize,
@@ -239,9 +239,9 @@ pub fn search_3prime_reverse(
                 let stop_fwd = seq_len - (rc_pos - target_len);
                 if start_fwd < stop_fwd && stop_fwd <= seq_len {
                     hits.push(TargetHit {
-                        candidate: false,
+                        candidate: true,
                         seq: encoded_seq,
-                        chrom: chrom_idx,
+                        chrom_idx,
                         start: start_fwd as u32,
                         stop: stop_fwd as u32,
                         orientation: false,
@@ -255,7 +255,7 @@ pub fn search_3prime_reverse(
 }
 
 /// Build Polars DataFrame from hits
-pub fn build_dataframe(hits: &[TargetHit]) -> Result<DataFrame> {
+pub fn build_dataframe(hits: &[TargetHit], chrom_names: &[String]) -> Result<DataFrame> {
     let mut candidate_vec = Vec::with_capacity(hits.len());
     let mut seq_vec = Vec::with_capacity(hits.len());
     let mut chrom_vec = Vec::with_capacity(hits.len());
@@ -267,18 +267,16 @@ pub fn build_dataframe(hits: &[TargetHit]) -> Result<DataFrame> {
     for hit in hits {
         candidate_vec.push(hit.candidate);
         seq_vec.push(hit.seq);
-        chrom_vec.push(hit.chrom);
+        let name = chrom_names.get(hit.chrom_idx as usize).map(|s| s.as_str()).unwrap_or("unknown");
+        chrom_vec.push(name);
         start_vec.push(hit.start);
         stop_vec.push(hit.stop);
         orientation_vec.push(hit.orientation);
         strand_vec.push(hit.strand);
     }
 
-    let chrom_series = Series::new(
-        "chrom".into(),
-        chrom_vec.iter().map(|&c| c as u32).collect::<Vec<_>>(),
-    )
-    .cast(&DataType::UInt16)?;
+    let chrom_series = Series::new("chrom".into(), chrom_vec)
+        .cast(&DataType::Categorical(None, CategoricalOrdering::Physical))?;
 
     let df = DataFrame::new(vec![
         Series::new("candidate".into(), candidate_vec).into(),
@@ -328,35 +326,32 @@ mod tests {
     fn test_encode_2bit_u64() {
         let seq = b"ACGT";
         let encoded = encode_2bit_u64(seq).unwrap();
-        // A=00, C=01, G=10, T=11 => bits 63..56 = 00 01 10 11 = 0x1B
         assert_eq!(encoded, 0x1B00_0000_0000_0000);
 
-        // Ambiguous base should fail
         assert!(encode_2bit_u64(b"ACGTN").is_err());
-        // Length 27 should fail
         let long_seq = vec![b'A'; 27];
         assert!(encode_2bit_u64(&long_seq).is_err());
     }
 
     #[test]
     fn test_5prime_orientation_search() {
-        // 5prime orientation: 5'-[PAM][TARGET]-3'
-        // PAM = "AGG", target = "ACGTACGTACGTACGTACGT" (20 nt)
-        // Forward seq = "AGGACGTACGTACGTACGTACGT" (23 nt)
         let fwd_seq = b"AGGACGTACGTACGTACGTACGT";
         let pam_masks = parse_pam_masks("NGG").unwrap();
 
         let fwd_hits = search_5prime_forward(0, fwd_seq, &pam_masks, 20);
         assert_eq!(fwd_hits.len(), 1);
+        assert_eq!(fwd_hits[0].candidate, true);
+        assert_eq!(fwd_hits[0].chrom_idx, 0);
         assert_eq!(fwd_hits[0].start, 3);
         assert_eq!(fwd_hits[0].stop, 23);
         assert_eq!(fwd_hits[0].strand, true);
         assert_eq!(fwd_hits[0].orientation, true);
 
-        // Reverse seq = revcomp("AGGACGTACGTACGTACGTACGT") = "ACGTACGTACGTACGTACGTCCT"
         let rev_seq = b"ACGTACGTACGTACGTACGTCCT";
         let rev_hits = search_5prime_reverse(0, rev_seq, &pam_masks, 20);
         assert_eq!(rev_hits.len(), 1);
+        assert_eq!(rev_hits[0].candidate, true);
+        assert_eq!(rev_hits[0].chrom_idx, 0);
         assert_eq!(rev_hits[0].start, 0);
         assert_eq!(rev_hits[0].stop, 20);
         assert_eq!(rev_hits[0].strand, false);

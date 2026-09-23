@@ -3,6 +3,7 @@ use bio::io::fasta;
 use clap::Parser;
 use guidemaker_scan::*;
 use std::path::PathBuf;
+use std::time::Instant;
 
 /// CLI arguments for guidemaker-scan
 #[derive(Parser, Debug)]
@@ -33,7 +34,30 @@ pub struct Args {
     pub out_parquet: Option<PathBuf>,
 }
 
+fn get_resource_usage() -> (f64, f64) {
+    unsafe {
+        let mut usage = std::mem::zeroed();
+        if libc::getrusage(libc::RUSAGE_SELF, &mut usage) == 0 {
+            let user_sec = usage.ru_utime.tv_sec as f64 + (usage.ru_utime.tv_usec as f64 / 1_000_000.0);
+            let sys_sec = usage.ru_stime.tv_sec as f64 + (usage.ru_stime.tv_usec as f64 / 1_000_000.0);
+            let cpu_sec = user_sec + sys_sec;
+
+            #[cfg(target_os = "macos")]
+            let rss_mb = (usage.ru_maxrss as f64) / (1024.0 * 1024.0);
+
+            #[cfg(not(target_os = "macos"))]
+            let rss_mb = (usage.ru_maxrss as f64) / 1024.0;
+
+            (cpu_sec, rss_mb)
+        } else {
+            (0.0, 0.0)
+        }
+    }
+}
+
 fn main() -> Result<()> {
+    let start_wall = Instant::now();
+
     let args = Args::parse();
 
     if !(1..=26).contains(&args.target_len) {
@@ -55,15 +79,13 @@ fn main() -> Result<()> {
         .with_context(|| format!("Failed to open FASTA file at {:?}", args.fasta))?;
 
     let mut all_hits = Vec::new();
-    let mut chrom_count: u64 = 0;
+    let mut chrom_names = Vec::new();
 
     for record_res in reader.records() {
         let record = record_res.with_context(|| "Failed to read FASTA record")?;
-        if chrom_count > u16::MAX as u64 {
-            return Err(anyhow!("FASTA record count exceeds u16::MAX (65535)"));
-        }
-        let chrom_idx = chrom_count as u16;
-        chrom_count += 1;
+        let chrom_id = record.id().to_string();
+        let chrom_idx = chrom_names.len() as u32;
+        chrom_names.push(chrom_id);
 
         let seq_uppercase = record.seq().to_ascii_uppercase();
 
@@ -76,7 +98,7 @@ fn main() -> Result<()> {
         }
     }
 
-    let mut df = build_dataframe(&all_hits)?;
+    let mut df = build_dataframe(&all_hits, &chrom_names)?;
 
     println!("Total rows: {}", df.height());
     println!("{}", df.head(Some(5)));
@@ -87,6 +109,26 @@ fn main() -> Result<()> {
 
     if let Some(parquet_path) = &args.out_parquet {
         write_parquet(&mut df, parquet_path)?;
+    }
+
+    let wall_sec = start_wall.elapsed().as_secs_f64();
+    let (cpu_sec, peak_rss_mb) = get_resource_usage();
+
+    if peak_rss_mb >= 1024.0 {
+        println!(
+            "Resource Usage: Wall time: {:.2}s | CPU time: {:.2}s | Peak RSS: {:.2} GB ({:.1} MB)",
+            wall_sec,
+            cpu_sec,
+            peak_rss_mb / 1024.0,
+            peak_rss_mb
+        );
+    } else {
+        println!(
+            "Resource Usage: Wall time: {:.2}s | CPU time: {:.2}s | Peak RSS: {:.2} MB",
+            wall_sec,
+            cpu_sec,
+            peak_rss_mb
+        );
     }
 
     Ok(())

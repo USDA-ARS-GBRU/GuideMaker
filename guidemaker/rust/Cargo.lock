@@ -911,6 +911,8 @@ dependencies = [
  "anyhow",
  "bio",
  "clap",
+ "hashbrown 0.14.5",
+ "libc",
  "polars",
  "tempfile",
 ]

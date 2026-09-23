@@ -13,9 +13,11 @@ path = "src/main.rs"
 
 [dependencies]
 bio = "4.0"
-polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-u16"] }
+polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-categorical"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+libc = "0.2"
+hashbrown = { version = "0.14.5", features = ["raw"] }
 
 [dev-dependencies]
 tempfile = "3"
