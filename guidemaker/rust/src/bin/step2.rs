@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use guidemaker_scan::*;
 use polars::prelude::*;
@@ -15,6 +15,14 @@ pub struct Step2Args {
     /// Path to Step-1 features Parquet file
     #[arg(long)]
     pub features: PathBuf,
+
+    /// Orientation: 5prime or 3prime
+    #[arg(long, default_value = "3prime")]
+    pub orientation: String,
+
+    /// Target length in nt (1..=26, default 20)
+    #[arg(long, default_value_t = 20)]
+    pub target_len: usize,
 
     /// Upstream window in bp relative to feature TSS
     #[arg(long, default_value_t = 2000)]
@@ -44,6 +52,12 @@ pub struct Step2Args {
 fn main() -> Result<()> {
     let args = Step2Args::parse();
 
+    let is_5prime = match args.orientation.to_lowercase().as_str() {
+        "5prime" => true,
+        "3prime" => false,
+        other => return Err(anyhow!("Invalid orientation: '{}'. Must be '5prime' or '3prime'", other)),
+    };
+
     let guides_file = File::open(&args.guides)
         .with_context(|| format!("Failed to open guides Parquet file at {:?}", args.guides))?;
     let guides_df = ParquetReader::new(guides_file).finish()?;
@@ -59,20 +73,23 @@ fn main() -> Result<()> {
         &features_df,
         args.before,
         args.into,
+        args.target_len,
         args.lsr_len,
+        is_5prime,
         ftypes_ref,
         args.fast_filter_first,
     )?;
 
     println!("=== Step-2 Filtering & Benchmark Summary ===");
     println!("Strategy: {}", if args.fast_filter_first { "Spatial First -> LSR" } else { "LSR First -> Spatial" });
+    println!("Orientation: {} | Target Len: {} nt | LSR Len: {} nt", if is_5prime { "5prime (Left LSR)" } else { "3prime (Right LSR)" }, args.target_len, args.lsr_len);
     println!("Total Input Rows: {}", stats.total_input_rows);
-    println!("Rows Passing Spatial Filter: {}", stats.rows_passing_spatial);
     println!("Rows Passing LSR Uniqueness: {}", stats.rows_passing_lsr);
+    println!("Rows Passing Spatial Filter: {}", stats.rows_passing_spatial);
     println!("Final Candidate Rows (Passing Both): {}", stats.final_candidate_rows);
     println!(
-        "Timings: Spatial Filter: {:.4}s | LSR Uniqueness: {:.4}s | Total Execution: {:.4}s",
-        stats.spatial_time_sec, stats.lsr_time_sec, stats.total_time_sec
+        "Timings: LSR Uniqueness: {:.4}s | Spatial Filter: {:.4}s | Total Execution: {:.4}s",
+        stats.lsr_time_sec, stats.spatial_time_sec, stats.total_time_sec
     );
 
     write_parquet(&mut filtered_df, &args.out)?;

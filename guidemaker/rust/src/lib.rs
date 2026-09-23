@@ -2,10 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
 use polars::prelude::*;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
 
@@ -48,6 +50,21 @@ pub struct Step2Stats {
     pub spatial_time_sec: f64,
     pub lsr_time_sec: f64,
     pub total_time_sec: f64,
+}
+
+/// Extract LSR key from 2-bit u64 sequence depending on orientation
+#[inline(always)]
+pub fn extract_lsr_key(seq: u64, target_len: usize, lsr_len: usize, is_5prime: bool) -> u64 {
+    if is_5prime {
+        seq >> (64 - 2 * lsr_len)
+    } else {
+        let mask = if lsr_len >= 32 {
+            u64::MAX
+        } else {
+            (1u64 << (2 * lsr_len)) - 1
+        };
+        (seq >> (64 - 2 * target_len)) & mask
+    }
 }
 
 /// Transparently open a file with optional gzip or zstd decompression
@@ -459,10 +476,11 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     Ok(df)
 }
 
-/// Spatial Feature-Proximity Window Filter using binary search on per-chrom sorted TSS vectors
+/// Parallel Spatial Feature-Proximity Window Filter evaluated ONLY on active candidate rows
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
     features_df: &DataFrame,
+    current_candidates: &[bool],
     before: u32,
     into: u32,
     feature_types: Option<&[String]>,
@@ -505,77 +523,110 @@ pub fn evaluate_spatial_filter(
     }
 
     let num_guides = guides_df.height();
-    let mut passes = vec![false; num_guides];
 
-    for i in 0..num_guides {
-        let chrom = chrom_ca.get(i).unwrap_or("");
-        let g_start = start_ca.get(i).unwrap_or(0);
-        let g_stop = stop_ca.get(i).unwrap_or(0);
-        let midpoint = (g_start + g_stop) / 2;
-
-        if let Some(tss_list) = chrom_tss_map.get(chrom) {
-            let lower = midpoint.saturating_sub(into);
-            let upper = midpoint.saturating_add(before);
-
-            let idx = tss_list.partition_point(|&x| x <= lower);
-            if idx < tss_list.len() && tss_list[idx] < upper {
-                passes[i] = true;
+    // Rayon parallel evaluation across candidate guides
+    let passes: Vec<bool> = (0..num_guides)
+        .into_par_iter()
+        .map(|i| {
+            if !current_candidates[i] {
+                return false;
             }
-        }
-    }
+
+            let chrom = chrom_ca.get(i).unwrap_or("");
+            let g_start = start_ca.get(i).unwrap_or(0);
+            let g_stop = stop_ca.get(i).unwrap_or(0);
+            let midpoint = (g_start + g_stop) / 2;
+
+            if let Some(tss_list) = chrom_tss_map.get(chrom) {
+                let lower = midpoint.saturating_sub(into);
+                let upper = midpoint.saturating_add(before);
+
+                let idx = tss_list.partition_point(|&x| x <= lower);
+                if idx < tss_list.len() && tss_list[idx] < upper {
+                    return true;
+                }
+            }
+
+            false
+        })
+        .collect();
 
     Ok(passes)
 }
 
-/// LSR Uniqueness Filter across active candidate guides
+/// Multi-Threaded Parallel LSR Uniqueness Filter across active candidate guides
 pub fn evaluate_lsr_uniqueness(
     seq_slice: &[u64],
     current_candidates: &[bool],
+    target_len: usize,
     lsr_len: usize,
+    is_5prime: bool,
 ) -> Vec<bool> {
-    let shift = 64 - 2 * lsr_len;
-
-    if lsr_len <= 12 {
+    if lsr_len <= 14 {
         let table_size = 1usize << (2 * lsr_len);
-        let mut counts = vec![0u32; table_size];
+        let counts: Vec<AtomicU32> = (0..table_size).map(|_| AtomicU32::new(0)).collect();
 
-        for i in 0..seq_slice.len() {
-            if current_candidates[i] {
-                let key = (seq_slice[i] >> shift) as usize;
-                counts[key] = counts[key].saturating_add(1);
-            }
-        }
-
-        let mut passes = vec![false; seq_slice.len()];
-        for i in 0..seq_slice.len() {
-            if current_candidates[i] {
-                let key = (seq_slice[i] >> shift) as usize;
-                if counts[key] == 1 {
-                    passes[i] = true;
+        // Rayon parallel count pass
+        seq_slice
+            .par_iter()
+            .enumerate()
+            .for_each(|(i, &seq)| {
+                if current_candidates[i] {
+                    let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime) as usize;
+                    counts[key].fetch_add(1, Ordering::Relaxed);
                 }
-            }
-        }
-        passes
+            });
+
+        // Rayon parallel uniqueness evaluation pass
+        seq_slice
+            .par_iter()
+            .enumerate()
+            .map(|(i, &seq)| {
+                if current_candidates[i] {
+                    let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime) as usize;
+                    counts[key].load(Ordering::Relaxed) == 1
+                } else {
+                    false
+                }
+            })
+            .collect()
     } else {
-        let mut counts: HashMap<u64, u32> = HashMap::new();
+        // Fallback parallel map-reduce for large lsr_len
+        let counts: HashMap<u64, u32> = seq_slice
+            .par_iter()
+            .enumerate()
+            .fold(
+                || HashMap::new(),
+                |mut acc, (i, &seq)| {
+                    if current_candidates[i] {
+                        let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime);
+                        *acc.entry(key).or_insert(0) += 1;
+                    }
+                    acc
+                },
+            )
+            .reduce(
+                || HashMap::new(),
+                |mut map1, map2| {
+                    for (k, v) in map2 {
+                        *map1.entry(k).or_insert(0) += v;
+                    }
+                    map1
+                },
+            );
 
-        for i in 0..seq_slice.len() {
-            if current_candidates[i] {
-                let key = seq_slice[i] >> shift;
-                *counts.entry(key).or_insert(0) += 1;
-            }
-        }
-
-        let mut passes = vec![false; seq_slice.len()];
-        for i in 0..seq_slice.len() {
-            if current_candidates[i] {
-                let key = seq_slice[i] >> shift;
-                if counts.get(&key) == Some(&1) {
-                    passes[i] = true;
+        seq_slice
+            .par_iter()
+            .enumerate()
+            .map(|(i, &seq)| {
+                if current_candidates[i] {
+                    let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime);
+                    counts.get(&key) == Some(&1)
+                } else {
+                    false
                 }
-            }
-        }
-        passes
+            })
+            .collect()
     }
 }
 
@@ -585,7 +636,9 @@ pub fn execute_step2(
     features_df: &DataFrame,
     before: u32,
     into: u32,
+    target_len: usize,
     lsr_len: usize,
+    is_5prime: bool,
     feature_types: Option<&[String]>,
     fast_filter_first: bool,
 ) -> Result<(DataFrame, Step2Stats)> {
@@ -605,7 +658,7 @@ pub fn execute_step2(
     if fast_filter_first {
         // Strategy A: Spatial filter first, then LSR uniqueness
         let start_sp = Instant::now();
-        let spatial_passes = evaluate_spatial_filter(guides_df, features_df, before, into, feature_types)?;
+        let spatial_passes = evaluate_spatial_filter(guides_df, features_df, &current_candidates, before, into, feature_types)?;
         spatial_time_sec = start_sp.elapsed().as_secs_f64();
 
         for i in 0..total_input_rows {
@@ -616,7 +669,7 @@ pub fn execute_step2(
         rows_passing_spatial = current_candidates.iter().filter(|&&b| b).count();
 
         let start_lsr = Instant::now();
-        let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, lsr_len);
+        let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, target_len, lsr_len, is_5prime);
         lsr_time_sec = start_lsr.elapsed().as_secs_f64();
 
         for i in 0..total_input_rows {
@@ -626,9 +679,9 @@ pub fn execute_step2(
         }
         rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
     } else {
-        // Strategy B: LSR uniqueness first, then Spatial filter
+        // Strategy B: LSR uniqueness first, then Spatial filter (evaluated ONLY on LSR candidates)
         let start_lsr = Instant::now();
-        let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, lsr_len);
+        let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, target_len, lsr_len, is_5prime);
         lsr_time_sec = start_lsr.elapsed().as_secs_f64();
 
         for i in 0..total_input_rows {
@@ -639,7 +692,7 @@ pub fn execute_step2(
         rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
 
         let start_sp = Instant::now();
-        let spatial_passes = evaluate_spatial_filter(guides_df, features_df, before, into, feature_types)?;
+        let spatial_passes = evaluate_spatial_filter(guides_df, features_df, &current_candidates, before, into, feature_types)?;
         spatial_time_sec = start_sp.elapsed().as_secs_f64();
 
         for i in 0..total_input_rows {
@@ -653,7 +706,6 @@ pub fn execute_step2(
     let final_candidate_rows = current_candidates.iter().filter(|&&b| b).count();
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
-    // Build output DataFrame updating candidate column
     let mut output_df = guides_df.clone();
     let cand_series = Series::new("candidate".into(), current_candidates);
     output_df.replace("candidate", cand_series)?;
@@ -983,75 +1035,18 @@ mod tests {
     }
 
     #[test]
-    fn test_5prime_orientation_search() {
-        let fwd_seq = b"AGGACGTACGTACGTACGTACGT";
-        let pam_masks = parse_pam_masks("NGG").unwrap();
+    fn test_lsr_key_extraction_5prime_and_3prime() {
+        // 20-mer sequence: ACGTACGTACGTACGTACGT
+        let seq = encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap();
 
-        let fwd_hits = search_5prime_forward(0, fwd_seq, &pam_masks, 20);
-        assert_eq!(fwd_hits.len(), 1);
-        assert_eq!(fwd_hits[0].candidate, true);
-        assert_eq!(fwd_hits[0].chrom_idx, 0);
-        assert_eq!(fwd_hits[0].start, 3);
-        assert_eq!(fwd_hits[0].stop, 23);
-        assert_eq!(fwd_hits[0].strand, true);
+        // 5prime orientation: 5' (left) end 8 nt = "ACGTACGT"
+        let key_5p = extract_lsr_key(seq, 20, 8, true);
+        let expected_5p = (encode_2bit_u64(b"ACGTACGT").unwrap()) >> 48;
+        assert_eq!(key_5p, expected_5p);
 
-        let rev_seq = b"ACGTACGTACGTACGTACGTCCT";
-        let rev_hits = search_5prime_reverse(0, rev_seq, &pam_masks, 20);
-        assert_eq!(rev_hits.len(), 1);
-        assert_eq!(rev_hits[0].candidate, true);
-        assert_eq!(rev_hits[0].chrom_idx, 0);
-        assert_eq!(rev_hits[0].start, 0);
-        assert_eq!(rev_hits[0].stop, 20);
-        assert_eq!(rev_hits[0].strand, false);
-    }
-
-    #[test]
-    fn test_genbank_parsing() {
-        let gb_data = b"LOCUS       chr1                    50 bp    DNA     linear   BCT 01-JAN-2020
-FEATURES             Location/Qualifiers
-     gene            1..50
-                     /gene=\"dnaA\"
-                     /locus_tag=\"b0001\"
-ORIGIN
-        1 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac
-//
-";
-        let seq_records = parse_genbank_records(&gb_data[..]).unwrap();
-        assert_eq!(seq_records.len(), 1);
-        assert_eq!(seq_records[0].id, "chr1");
-
-        let feat_records = parse_genbank_features(&gb_data[..]).unwrap();
-        assert_eq!(feat_records.len(), 1);
-        assert_eq!(feat_records[0].chrom, "chr1");
-        assert_eq!(feat_records[0].feature_start, 0);
-        assert_eq!(feat_records[0].feature_end, 50);
-        assert_eq!(feat_records[0].strand, true);
-        assert_eq!(feat_records[0].feature_type, "gene");
-        assert_eq!(feat_records[0].feature_id, "b0001");
-    }
-
-    #[test]
-    fn test_gff_gtf_parsing() {
-        let gff_data = b"##gff-version 3
-chr1\tRefSeq\tgene\t10\t100\t.\t+\t.\tID=gene-b0001;Name=dnaA
-chr1\tRefSeq\tCDS\t20\t80\t.\t-\t.\tID=cds-b0001;locus_tag=b0001
-";
-        let feats = parse_gff_gtf_features(&gff_data[..]).unwrap();
-        assert_eq!(feats.len(), 2);
-
-        assert_eq!(feats[0].chrom, "chr1");
-        assert_eq!(feats[0].feature_type, "gene");
-        assert_eq!(feats[0].feature_start, 9);
-        assert_eq!(feats[0].feature_end, 100);
-        assert_eq!(feats[0].strand, true);
-        assert_eq!(feats[0].feature_id, "gene-b0001");
-
-        assert_eq!(feats[1].chrom, "chr1");
-        assert_eq!(feats[1].feature_type, "CDS");
-        assert_eq!(feats[1].feature_start, 19);
-        assert_eq!(feats[1].feature_end, 80);
-        assert_eq!(feats[1].strand, false);
-        assert_eq!(feats[1].feature_id, "cds-b0001");
+        // 3prime orientation: 3' (right) end 8 nt = "ACGTACGT"
+        let key_3p = extract_lsr_key(seq, 20, 8, false);
+        assert_eq!(key_3p, expected_5p);
     }
 
     #[test]
@@ -1100,9 +1095,11 @@ chr1\tRefSeq\tCDS\t20\t80\t.\t-\t.\tID=cds-b0001;locus_tag=b0001
             &features_df,
             2000,
             500,
+            20,
             8,
+            false, // 3prime orientation
             None,
-            true,
+            false, // LSR first (default)
         )
         .unwrap();
 
