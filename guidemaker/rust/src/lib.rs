@@ -1,7 +1,18 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
+use flate2::read::GzDecoder;
 use polars::prelude::*;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
+use zstd::stream::Decoder as ZstdDecoder;
+
+/// Representation of a single parsed sequence record
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SeqRecord {
+    pub id: String,
+    pub seq: Vec<u8>,
+}
 
 /// Representation of a single candidate hit
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -12,6 +23,127 @@ pub struct TargetHit {
     pub start: u32,
     pub stop: u32,
     pub strand: bool,
+}
+
+/// Transparently open a file with optional gzip or zstd decompression
+pub fn open_compressed_reader(path: &Path) -> Result<Box<dyn Read + Send>> {
+    let file = File::open(path)
+        .with_context(|| format!("Failed to open sequence file at {:?}", path))?;
+    let mut buf_reader = BufReader::new(file);
+
+    let mut magic = [0u8; 4];
+    let n = buf_reader.read(&mut magic)?;
+
+    let combined_reader = std::io::Cursor::new(magic[..n].to_vec()).chain(buf_reader);
+
+    if n >= 2 && magic[0] == 0x1f && magic[1] == 0x8b {
+        let gz_decoder = GzDecoder::new(combined_reader);
+        Ok(Box::new(gz_decoder))
+    } else if n >= 4 && magic[0] == 0x28 && magic[1] == 0xb5 && magic[2] == 0x2f && magic[3] == 0xfd {
+        let zstd_decoder = ZstdDecoder::new(combined_reader)
+            .context("Failed to initialize Zstd decoder")?;
+        Ok(Box::new(zstd_decoder))
+    } else {
+        Ok(Box::new(combined_reader))
+    }
+}
+
+/// Parse FASTA records from reader
+pub fn parse_fasta_records<R: Read>(reader: R) -> Result<Vec<SeqRecord>> {
+    let fasta_reader = bio::io::fasta::Reader::new(reader);
+    let mut records = Vec::new();
+    for rec_res in fasta_reader.records() {
+        let rec = rec_res.context("Failed to parse FASTA record")?;
+        records.push(SeqRecord {
+            id: rec.id().to_string(),
+            seq: rec.seq().to_ascii_uppercase(),
+        });
+    }
+    Ok(records)
+}
+
+/// Parse GenBank records from reader
+pub fn parse_genbank_records<R: Read>(reader: R) -> Result<Vec<SeqRecord>> {
+    let buf_reader = BufReader::new(reader);
+    let mut records = Vec::new();
+
+    let mut current_id = String::new();
+    let mut current_seq = Vec::new();
+    let mut in_origin = false;
+
+    for line_res in buf_reader.lines() {
+        let line = line_res?;
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("LOCUS") {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            if parts.len() > 1 {
+                current_id = parts[1].to_string();
+            } else {
+                current_id = "unknown_contig".to_string();
+            }
+            current_seq.clear();
+            in_origin = false;
+        } else if trimmed.starts_with("ACCESSION") && current_id.is_empty() {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            if parts.len() > 1 {
+                current_id = parts[1].to_string();
+            }
+        } else if trimmed.starts_with("VERSION") && current_id.is_empty() {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            if parts.len() > 1 {
+                current_id = parts[1].to_string();
+            }
+        } else if trimmed.starts_with("ORIGIN") {
+            in_origin = true;
+        } else if trimmed == "//" {
+            if !current_id.is_empty() && !current_seq.is_empty() {
+                records.push(SeqRecord {
+                    id: std::mem::take(&mut current_id),
+                    seq: std::mem::take(&mut current_seq),
+                });
+            } else {
+                current_id.clear();
+                current_seq.clear();
+            }
+            in_origin = false;
+        } else if in_origin {
+            for b in line.bytes() {
+                if b.is_ascii_alphabetic() {
+                    current_seq.push(b.to_ascii_uppercase());
+                }
+            }
+        }
+    }
+
+    if !current_id.is_empty() && !current_seq.is_empty() {
+        records.push(SeqRecord {
+            id: current_id,
+            seq: current_seq,
+        });
+    }
+
+    Ok(records)
+}
+
+/// Read FASTA or GenBank records transparently from plain, gzip, or zstd file
+pub fn read_sequence_records(path: &Path) -> Result<Vec<SeqRecord>> {
+    let mut reader = open_compressed_reader(path)?;
+
+    let mut header_buf = [0u8; 1024];
+    let n = reader.read(&mut header_buf)?;
+
+    let peek_str = String::from_utf8_lossy(&header_buf[..n]);
+
+    let combined_reader = std::io::Cursor::new(header_buf[..n].to_vec()).chain(reader);
+
+    if peek_str.trim_start().starts_with('>') {
+        parse_fasta_records(combined_reader)
+    } else if peek_str.contains("LOCUS") || peek_str.contains("ORIGIN") || peek_str.contains("FEATURES") {
+        parse_genbank_records(combined_reader)
+    } else {
+        parse_fasta_records(combined_reader)
+    }
 }
 
 /// Convert an IUPAC character to its bitmask.
@@ -346,5 +478,18 @@ mod tests {
         assert_eq!(rev_hits[0].start, 0);
         assert_eq!(rev_hits[0].stop, 20);
         assert_eq!(rev_hits[0].strand, false);
+    }
+
+    #[test]
+    fn test_genbank_parsing() {
+        let gb_data = b"LOCUS       chr1                    50 bp    DNA     linear   BCT 01-JAN-2020
+ORIGIN
+        1 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac
+//
+";
+        let records = parse_genbank_records(&gb_data[..]).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, "chr1");
+        assert_eq!(records[0].seq, b"ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTAC");
     }
 }

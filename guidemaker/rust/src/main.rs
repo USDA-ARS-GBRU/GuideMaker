@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Context, Result};
-use bio::io::fasta;
+use anyhow::{anyhow, Result};
 use clap::Parser;
 use guidemaker_scan::*;
+use rayon::prelude::*;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -9,8 +9,8 @@ use std::time::Instant;
 #[derive(Parser, Debug)]
 #[command(author, version, about = "CRISPR PAM & Target Scanner in Rust")]
 pub struct Args {
-    /// Path to FASTA file
-    #[arg(long)]
+    /// Path to FASTA or GenBank sequence file (plain, .gz, or .zst)
+    #[arg(long, alias = "seq-file", visible_alias = "seq_file")]
     pub fasta: PathBuf,
 
     /// PAM sequence (IUPAC ambiguous string, e.g. NGG)
@@ -75,28 +75,31 @@ fn main() -> Result<()> {
 
     let pam_masks = parse_pam_masks(&args.pam)?;
 
-    let reader = fasta::Reader::from_file(&args.fasta)
-        .with_context(|| format!("Failed to open FASTA file at {:?}", args.fasta))?;
-
-    let mut all_hits = Vec::new();
-    let mut chrom_names = Vec::new();
-
-    for record_res in reader.records() {
-        let record = record_res.with_context(|| "Failed to read FASTA record")?;
-        let chrom_id = record.id().to_string();
-        let chrom_idx = chrom_names.len() as u32;
-        chrom_names.push(chrom_id);
-
-        let seq_uppercase = record.seq().to_ascii_uppercase();
-
-        if orientation_is_5prime {
-            all_hits.extend(search_5prime_forward(chrom_idx, &seq_uppercase, &pam_masks, args.target_len));
-            all_hits.extend(search_5prime_reverse(chrom_idx, &seq_uppercase, &pam_masks, args.target_len));
-        } else {
-            all_hits.extend(search_3prime_forward(chrom_idx, &seq_uppercase, &pam_masks, args.target_len));
-            all_hits.extend(search_3prime_reverse(chrom_idx, &seq_uppercase, &pam_masks, args.target_len));
-        }
+    let records = read_sequence_records(&args.fasta)?;
+    if records.len() > u16::MAX as usize {
+        return Err(anyhow!("Sequence record count exceeds u16::MAX (65535)"));
     }
+
+    let chrom_names: Vec<String> = records.iter().map(|r| r.id.clone()).collect();
+
+    let all_hits: Vec<TargetHit> = records
+        .par_iter()
+        .enumerate()
+        .flat_map(|(idx, record)| {
+            let chrom_idx = idx as u32;
+            let mut hits = Vec::new();
+
+            if orientation_is_5prime {
+                hits.extend(search_5prime_forward(chrom_idx, &record.seq, &pam_masks, args.target_len));
+                hits.extend(search_5prime_reverse(chrom_idx, &record.seq, &pam_masks, args.target_len));
+            } else {
+                hits.extend(search_3prime_forward(chrom_idx, &record.seq, &pam_masks, args.target_len));
+                hits.extend(search_3prime_reverse(chrom_idx, &record.seq, &pam_masks, args.target_len));
+            }
+
+            hits
+        })
+        .collect();
 
     let mut df = build_dataframe(&all_hits, &chrom_names)?;
 

@@ -18,6 +18,9 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 libc = "0.2"
 hashbrown = { version = "0.14.5", features = ["raw"] }
+flate2 = "1.0"
+zstd = "0.13"
+rayon = "1.10"
 
 [dev-dependencies]
 tempfile = "3"

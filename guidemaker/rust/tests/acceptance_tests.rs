@@ -1,3 +1,5 @@
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use guidemaker_scan::*;
 use polars::prelude::*;
 use std::fs::File;
@@ -118,4 +120,57 @@ fn acceptance_test_5_boundary_conditions_and_ambiguous_skipping() {
     let seq_with_n = b"ACGTACGTACGTACGTACNTCGG";
     let hits_n = search_3prime_forward(0, seq_with_n, &pam_masks, 20);
     assert!(hits_n.is_empty(), "Target containing 'N' should be skipped");
+}
+
+#[test]
+fn test_compressed_fasta_and_genbank_support() {
+    let dir = tempdir().unwrap();
+
+    // 1. Test Gzip compressed FASTA (.fasta.gz)
+    let gz_path = dir.path().join("test.fasta.gz");
+    {
+        let f = File::create(&gz_path).unwrap();
+        let mut gz = GzEncoder::new(f, Compression::default());
+        writeln!(gz, ">chr_gz\nACGTACGTACGTACGTACGTCGG").unwrap();
+        gz.finish().unwrap();
+    }
+    let gz_records = read_sequence_records(&gz_path).unwrap();
+    assert_eq!(gz_records.len(), 1);
+    assert_eq!(gz_records[0].id, "chr_gz");
+    assert_eq!(gz_records[0].seq, b"ACGTACGTACGTACGTACGTCGG");
+
+    // 2. Test Zstd compressed GenBank (.gb.zst)
+    let zst_path = dir.path().join("test.gb.zst");
+    {
+        let f = File::create(&zst_path).unwrap();
+        let mut zst = zstd::stream::Encoder::new(f, 0).unwrap();
+        writeln!(
+            zst,
+            "LOCUS       chr_zst                 23 bp    DNA     linear   BCT 01-JAN-2020\nORIGIN\n        1 acgtacgtac gtacgtacgt cgg\n//"
+        )
+        .unwrap();
+        zst.finish().unwrap();
+    }
+    let zst_records = read_sequence_records(&zst_path).unwrap();
+    assert_eq!(zst_records.len(), 1);
+    assert_eq!(zst_records[0].id, "chr_zst");
+    assert_eq!(zst_records[0].seq, b"ACGTACGTACGTACGTACGTCGG");
+
+    // 3. Test running CLI binary on compressed file
+    let out_csv = dir.path().join("gz_out.csv");
+    let bin = env!("CARGO_BIN_EXE_guidemaker-scan");
+    let status = Command::new(bin)
+        .arg("--fasta")
+        .arg(&gz_path)
+        .arg("--pam")
+        .arg("NGG")
+        .arg("--orientation")
+        .arg("3prime")
+        .arg("--out-csv")
+        .arg(&out_csv)
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+    assert!(out_csv.exists());
 }
