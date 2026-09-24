@@ -266,7 +266,6 @@ fn test_step2_cli_execution_with_feature_types() {
 
     let bin = env!("CARGO_BIN_EXE_guidemaker-step2");
 
-    // 1. Test --feature-types all on Parquet files
     let status_all = Command::new(bin)
         .arg("--guides")
         .arg(&guides_path)
@@ -295,7 +294,6 @@ fn test_step2_cli_execution_with_feature_types() {
     assert_eq!(cand_all.get(0), Some(true));
     assert_eq!(cand_all.get(1), Some(true));
 
-    // 2. Test --feature-types disable on Parquet files
     let status_dis = Command::new(bin)
         .arg("--guides")
         .arg(&guides_path)
@@ -323,4 +321,72 @@ fn test_step2_cli_execution_with_feature_types() {
     let cand_dis = df_dis.column("candidate").unwrap().bool().unwrap();
     assert_eq!(cand_dis.get(0), Some(true));
     assert_eq!(cand_dis.get(1), Some(true));
+}
+
+#[test]
+fn test_step3_cli_execution() {
+    polars::enable_string_cache();
+    let dir = tempdir().unwrap();
+    let guides_path = dir.path().join("guides_step2.parquet");
+    let out_step3 = dir.path().join("out_step3.parquet");
+
+    let hits = vec![
+        TargetHit {
+            candidate: true,
+            seq: encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap(), // seq0
+            chrom_idx: 0,
+            start: 1000,
+            stop: 1020,
+            strand: true,
+        },
+        TargetHit {
+            candidate: true,
+            seq: encode_2bit_u64(b"ACGTACGTACGTACGTACGA").unwrap(), // seq1 (1 base diff to seq0)
+            chrom_idx: 0,
+            start: 2000,
+            stop: 2020,
+            strand: true,
+        },
+        TargetHit {
+            candidate: true,
+            seq: encode_2bit_u64(b"TGCATGCATGCATGCATGCA").unwrap(), // seq2 (10 bases diff to seq0 and seq1)
+            chrom_idx: 0,
+            start: 3000,
+            stop: 3020,
+            strand: true,
+        },
+    ];
+    let chrom_names = vec!["chr1".to_string()];
+    let mut guides_df = build_dataframe(&hits, &chrom_names).unwrap();
+    write_parquet(&mut guides_df, &guides_path).unwrap();
+
+    let bin = env!("CARGO_BIN_EXE_guidemaker-step3");
+    let status = Command::new(bin)
+        .arg("--guides")
+        .arg(&guides_path)
+        .arg("-d")
+        .arg("2")
+        .arg("--target-len")
+        .arg("20")
+        .arg("--out")
+        .arg(&out_step3)
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+    assert!(out_step3.exists());
+
+    let df_step3 = ParquetReader::new(File::open(&out_step3).unwrap())
+        .finish()
+        .unwrap();
+
+    assert_eq!(df_step3.height(), 3);
+    let distpass_ca = df_step3.column("distpass").unwrap().bool().unwrap();
+
+    // seq0 has neighbor seq1 with distance 1 (< d=2) -> distpass = false
+    assert_eq!(distpass_ca.get(0), Some(false));
+    // seq1 has neighbor seq0 with distance 1 (< d=2) -> distpass = false
+    assert_eq!(distpass_ca.get(1), Some(false));
+    // seq2 has no neighbors with distance < 2 -> distpass = true
+    assert_eq!(distpass_ca.get(2), Some(true));
 }

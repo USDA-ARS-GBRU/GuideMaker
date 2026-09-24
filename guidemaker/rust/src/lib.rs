@@ -52,6 +52,234 @@ pub struct Step2Stats {
     pub total_time_sec: f64,
 }
 
+/// Step 3 Benchmark & Filtering statistics
+#[derive(Debug, Clone)]
+pub struct Step3Stats {
+    pub total_candidates: usize,
+    pub passed_candidates: usize,
+    pub failed_candidates: usize,
+    pub pass_rate: f64,
+    pub index_build_time_sec: f64,
+    pub search_time_sec: f64,
+    pub total_time_sec: f64,
+}
+
+/// Calculate exact base Hamming distance between two 2-bit left-aligned u64 sequences
+#[inline(always)]
+pub fn base_hamming_distance(a: u64, b: u64, target_len: usize) -> u32 {
+    let diff = a ^ b;
+    let odd = (diff >> 1) & 0x5555_5555_5555_5555;
+    let even = diff & 0x5555_5555_5555_5555;
+    let base_diff_mask = odd | even;
+
+    let shift = 64 - 2 * target_len;
+    let target_mask = if shift >= 64 {
+        0
+    } else {
+        (u64::MAX >> shift) << shift
+    };
+
+    (base_diff_mask & target_mask).count_ones()
+}
+
+/// Get segment base count and base offset for segment s out of m segments for target_len bases
+#[inline(always)]
+pub fn get_segment_bounds(s: usize, m: usize, target_len: usize) -> (usize, usize) {
+    let base_len = target_len / m;
+    let rem = target_len % m;
+
+    let mut start_base = 0;
+    for i in 0..s {
+        start_base += base_len + if i < rem { 1 } else { 0 };
+    }
+    let seg_bases = base_len + if s < rem { 1 } else { 0 };
+    (start_base, seg_bases)
+}
+
+/// Extract segment bit key for segment s
+#[inline(always)]
+pub fn extract_segment_key(seq: u64, target_len: usize, s: usize, m: usize) -> usize {
+    let (start_base, seg_bases) = get_segment_bounds(s, m, target_len);
+    let shift = 64 - 2 * (start_base + seg_bases);
+    let mask = (1u64 << (2 * seg_bases)) - 1;
+    ((seq >> shift) & mask) as usize
+}
+
+/// Multi-Index Hashing (MIH) CSR Table for a single segment
+#[derive(Debug)]
+pub struct MihSegmentTable {
+    pub offsets: Vec<u32>,
+    pub target_ids: Vec<u32>,
+}
+
+impl MihSegmentTable {
+    pub fn build(seq_vec: &[u64], target_len: usize, s: usize, m: usize) -> Self {
+        let (_, seg_bases) = get_segment_bounds(s, m, target_len);
+        let num_buckets = 1usize << (2 * seg_bases);
+
+        let mut bucket_counts = vec![0u32; num_buckets];
+        for &seq in seq_vec {
+            let key = extract_segment_key(seq, target_len, s, m);
+            bucket_counts[key] += 1;
+        }
+
+        let mut offsets = vec![0u32; num_buckets + 1];
+        for i in 0..num_buckets {
+            offsets[i + 1] = offsets[i] + bucket_counts[i];
+        }
+
+        let mut cursor = offsets.clone();
+        let mut target_ids = vec![0u32; seq_vec.len()];
+
+        for (i, &seq) in seq_vec.iter().enumerate() {
+            let key = extract_segment_key(seq, target_len, s, m);
+            let pos = cursor[key] as usize;
+            target_ids[pos] = i as u32;
+            cursor[key] += 1;
+        }
+
+        MihSegmentTable { offsets, target_ids }
+    }
+
+    #[inline(always)]
+    pub fn get_bucket_targets(&self, key: usize) -> &[u32] {
+        if key + 1 < self.offsets.len() {
+            let start = self.offsets[key] as usize;
+            let end = self.offsets[key + 1] as usize;
+            &self.target_ids[start..end]
+        } else {
+            &[]
+        }
+    }
+}
+
+/// Full Multi-Index Hash Index
+#[derive(Debug)]
+pub struct MihIndex {
+    pub m: usize,
+    pub target_len: usize,
+    pub tables: Vec<MihSegmentTable>,
+    pub exact_counts: HashMap<u64, u32>,
+}
+
+impl MihIndex {
+    pub fn build(seq_vec: &[u64], target_len: usize, d: usize) -> Self {
+        let m = (d + 1).max(2); // Choose m = d + 1 (d=1 -> m=2, d=2 -> m=3, d=3 -> m=4)
+        let mut tables = Vec::with_capacity(m);
+
+        for s in 0..m {
+            tables.push(MihSegmentTable::build(seq_vec, target_len, s, m));
+        }
+
+        let mut exact_counts: HashMap<u64, u32> = HashMap::new();
+        for &seq in seq_vec {
+            *exact_counts.entry(seq).or_insert(0) += 1;
+        }
+
+        MihIndex {
+            m,
+            target_len,
+            tables,
+            exact_counts,
+        }
+    }
+
+    pub fn evaluate_candidate(
+        &self,
+        candidate_idx: usize,
+        candidate_seq: u64,
+        seq_vec: &[u64],
+        d: u32,
+    ) -> bool {
+        // If there are multiple exact matches of this sequence in the genome, off-target distance 0 < d exists
+        if let Some(&cnt) = self.exact_counts.get(&candidate_seq) {
+            if cnt > 1 {
+                return false;
+            }
+        }
+
+        for s in 0..self.m {
+            let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+            let target_ids = self.tables[s].get_bucket_targets(key);
+
+            for &tid in target_ids {
+                let target_idx = tid as usize;
+                if target_idx == candidate_idx {
+                    continue; // Skip self match
+                }
+
+                let target_seq = seq_vec[target_idx];
+                let dist = base_hamming_distance(candidate_seq, target_seq, self.target_len);
+                if dist < d {
+                    return false; // Found off-target near match
+                }
+            }
+        }
+
+        true
+    }
+}
+
+/// Execute Step 3 filtering pipeline
+pub fn execute_step3(
+    guides_df: &DataFrame,
+    d: u32,
+    target_len: usize,
+) -> Result<(DataFrame, Step3Stats)> {
+    let start_total = Instant::now();
+
+    let cand_ca = guides_df.column("candidate")?.bool()?;
+    let cand_vec: Vec<bool> = cand_ca.into_no_null_iter().collect();
+
+    let seq_ca = guides_df.column("seq")?.u64()?;
+    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
+
+    let total_candidates = cand_vec.iter().filter(|&&c| c).count();
+
+    let start_idx = Instant::now();
+    let mih_index = MihIndex::build(&seq_vec, target_len, d as usize);
+    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+
+    let start_search = Instant::now();
+    let distpass_vec: Vec<bool> = (0..guides_df.height())
+        .into_par_iter()
+        .map(|i| {
+            if cand_vec[i] {
+                mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d)
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    let search_time_sec = start_search.elapsed().as_secs_f64();
+    let total_time_sec = start_total.elapsed().as_secs_f64();
+
+    let passed_candidates = distpass_vec.iter().filter(|&&dp| dp).count();
+    let failed_candidates = total_candidates.saturating_sub(passed_candidates);
+    let pass_rate = if total_candidates > 0 {
+        (passed_candidates as f64 / total_candidates as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let mut output_df = guides_df.clone();
+    let distpass_series = Series::new("distpass".into(), distpass_vec);
+    output_df.with_column(distpass_series)?;
+
+    let stats = Step3Stats {
+        total_candidates,
+        passed_candidates,
+        failed_candidates,
+        pass_rate,
+        index_build_time_sec,
+        search_time_sec,
+        total_time_sec,
+    };
+
+    Ok((output_df, stats))
+}
+
 /// Extract LSR key from 2-bit u64 sequence depending on orientation
 #[inline(always)]
 pub fn extract_lsr_key(seq: u64, target_len: usize, lsr_len: usize, is_5prime: bool) -> u64 {
@@ -504,8 +732,7 @@ pub fn evaluate_spatial_filter(
             let lower = t.trim().to_lowercase();
             lower == "disable" || lower == "none" || lower == "off"
         }) {
-            // Spatial filtering disabled: all candidate rows pass
-            return Ok(vec![true; num_guides]);
+            return Ok(current_candidates.to_vec());
         }
     }
 

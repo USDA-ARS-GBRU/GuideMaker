@@ -15,6 +15,10 @@ path = "src/main.rs"
 name = "guidemaker-step2"
 path = "src/bin/step2.rs"
 
+[[bin]]
+name = "guidemaker-step3"
+path = "src/bin/step3.rs"
+
 [dependencies]
 bio = "4.0"
 polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-categorical", "lazy"] }
