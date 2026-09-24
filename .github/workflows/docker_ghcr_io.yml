@@ -24,7 +24,7 @@ jobs:
 
       # Required to emulate the ARM64 environment during cross-compilation
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       # Sets up the Buildx builder instance capable of handling multi-arch builds
       - name: Set up Docker Buildx
