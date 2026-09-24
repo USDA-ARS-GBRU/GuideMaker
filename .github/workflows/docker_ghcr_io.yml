@@ -20,7 +20,7 @@ jobs:
     steps:
       # We must check out the code so the metadata engine can read your Git reference states
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Required to emulate the ARM64 environment during cross-compilation
       - name: Set up QEMU
