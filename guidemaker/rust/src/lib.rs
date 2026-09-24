@@ -4,7 +4,6 @@ use flate2::read::GzDecoder;
 use hashbrown::HashSet;
 use polars::prelude::*;
 use rayon::prelude::*;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -12,10 +11,6 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
-
-thread_local! {
-    static CHECKED_SET: RefCell<HashSet<u32>> = RefCell::new(HashSet::with_capacity(128));
-}
 
 /// Representation of a single parsed sequence record
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -203,45 +198,73 @@ impl MihIndex {
         d: u32,
         target_mask: u64,
     ) -> bool {
-        // Collect segment indices sorted by ascending bucket size (smallest bucket probed first)
-        let mut seg_order: Vec<(usize, usize)> = (0..self.m)
-            .map(|s| {
-                let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
-                let size = self.tables[s].get_bucket_size(key);
-                (size, s)
-            })
-            .collect();
-        seg_order.sort_unstable_by_key(|&(size, _)| size);
-
         let cand_u32 = candidate_idx as u32;
 
-        CHECKED_SET.with(|set_cell| {
-            let mut checked = set_cell.borrow_mut();
-            checked.clear();
+        // 1. Stack-allocated segment order buffer (supports up to m=8 segments)
+        let mut seg_order = [(0usize, 0usize); 8];
+        let m = self.m.min(8);
 
-            for &(_, s) in &seg_order {
-                let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
-                let target_ids = self.tables[s].get_bucket_targets(key);
+        for s in 0..m {
+            let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+            let size = self.tables[s].get_bucket_size(key);
+            seg_order[s] = (size, s);
+        }
+        seg_order[0..m].sort_unstable_by_key(|&(size, _)| size);
 
-                for &tid in target_ids {
-                    if tid == cand_u32 {
-                        continue; // Skip self match at same index
-                    }
+        // 2. Stack-allocated dedup array for SIMD-friendly linear scan
+        let mut checked_ids = [0u32; 128];
+        let mut checked_count = 0;
+        let mut fallback_set: Option<HashSet<u32>> = None;
 
-                    if !checked.insert(tid) {
-                        continue; // Already verified this target ID
-                    }
+        for i in 0..m {
+            let s = seg_order[i].1;
+            let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+            let target_ids = self.tables[s].get_bucket_targets(key);
 
-                    let target_seq = seq_vec[tid as usize];
-                    let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
-                    if dist < d {
-                        return false; // Off-target near or exact match found
+            for &tid in target_ids {
+                if tid == cand_u32 {
+                    continue; // Skip self match
+                }
+
+                // Inline linear deduplication scan over stack array
+                let mut already_checked = false;
+                if checked_count <= 128 {
+                    for j in 0..checked_count {
+                        if checked_ids[j] == tid {
+                            already_checked = true;
+                            break;
+                        }
                     }
                 }
-            }
 
-            true
-        })
+                if already_checked {
+                    continue;
+                }
+
+                if let Some(set) = &fallback_set {
+                    if set.contains(&tid) {
+                        continue;
+                    }
+                }
+
+                // Record target ID
+                if checked_count < 128 {
+                    checked_ids[checked_count] = tid;
+                    checked_count += 1;
+                } else {
+                    let set = fallback_set.get_or_insert_with(HashSet::new);
+                    set.insert(tid);
+                }
+
+                let target_seq = seq_vec[tid as usize];
+                let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
+                if dist < d {
+                    return false; // Off-target near or exact match found
+                }
+            }
+        }
+
+        true
     }
 }
 
@@ -753,7 +776,6 @@ pub fn evaluate_spatial_filter(
 ) -> Result<Vec<bool>> {
     let num_guides = guides_df.height();
 
-    // Check if spatial filtering is disabled
     if let Some(ftypes) = feature_types {
         if ftypes.iter().any(|t| {
             let lower = t.trim().to_lowercase();
