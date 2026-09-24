@@ -12,9 +12,65 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
 
+/// High-performance thread-local bitset with zero allocation churn and O(1) word reset tracking
+#[derive(Debug)]
+pub struct ThreadLocalBitSet {
+    bits: Vec<u64>,
+    reset_list: Vec<u32>,
+}
+
+impl ThreadLocalBitSet {
+    pub fn new() -> Self {
+        ThreadLocalBitSet {
+            bits: Vec::new(),
+            reset_list: Vec::new(),
+        }
+    }
+
+    pub fn ensure_capacity(&mut self, num_bits: usize) {
+        let num_words = (num_bits + 63) / 64;
+        if self.bits.len() < num_words {
+            self.bits.resize(num_words, 0);
+        }
+    }
+
+    #[inline(always)]
+    pub fn clear(&mut self) {
+        for &word_idx in &self.reset_list {
+            let idx = word_idx as usize;
+            if idx < self.bits.len() {
+                self.bits[idx] = 0;
+            }
+        }
+        self.reset_list.clear();
+    }
+
+    #[inline(always)]
+    pub fn test_and_set(&mut self, bit_idx: u32) -> bool {
+        let idx = bit_idx as usize;
+        let word_idx = idx / 64;
+        let bit_offset = idx % 64;
+        let mask = 1u64 << bit_offset;
+
+        if word_idx >= self.bits.len() {
+            self.ensure_capacity(idx + 1);
+        }
+
+        let word = unsafe { self.bits.get_unchecked_mut(word_idx) };
+        if (*word & mask) != 0 {
+            true // Already set
+        } else {
+            if *word == 0 {
+                self.reset_list.push(word_idx as u32);
+            }
+            *word |= mask;
+            false // Was not previously set
+        }
+    }
+}
+
 thread_local! {
-    // Allocates capacity once per thread to completely eliminate allocation overhead during search
-    pub static CHECKED_VEC: RefCell<Vec<u32>> = RefCell::new(Vec::with_capacity(100_000));
+    pub static DEDUP_BITSET: RefCell<ThreadLocalBitSet> = RefCell::new(ThreadLocalBitSet::new());
 }
 
 /// Representation of a single parsed sequence record
@@ -253,7 +309,7 @@ impl MihIndex {
     ) -> bool {
         let cand_u32 = candidate_idx as u32;
 
-        // Stack-allocated allocation for sorting segment bucket priority
+        // Stack-allocated buffer for sorting segment bucket priority
         let mut seg_order = [(0usize, 0usize); 8];
         let m = self.m.min(8);
 
@@ -264,35 +320,46 @@ impl MihIndex {
         }
         seg_order[0..m].sort_unstable_by_key(|&(size, _)| size);
 
-        // Fetch the thread-local pre-allocated tracking buffer
-        CHECKED_VEC.with(|vec_cell| {
-            let mut checked_ids = vec_cell.borrow_mut();
-            checked_ids.clear(); // Free capacity remains intact; execution cost is near zero
+        DEDUP_BITSET.with(|bitset_cell| {
+            let mut bitset = bitset_cell.borrow_mut();
+            bitset.clear();
 
             for i in 0..m {
                 let s = seg_order[i].1;
                 let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
                 let target_ids = self.tables[s].get_bucket_targets(key);
 
-                for &tid in target_ids {
-                    if tid == cand_u32 {
-                        continue;
-                    }
+                if i == 0 {
+                    // Segment 0 (smallest bucket): No duplicates possible across segments yet!
+                    for &tid in target_ids {
+                        if tid == cand_u32 {
+                            continue;
+                        }
+                        bitset.test_and_set(tid);
 
-                    // High-performance binary search for huge dense buckets (O(log N))
-                    if let Err(insert_pos) = checked_ids.binary_search(&tid) {
-                        checked_ids.insert(insert_pos, tid);
-
-                        // Execute optimized bitwise Hamming evaluation
                         let target_seq = seq_vec[tid as usize];
                         let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
                         if dist < d {
-                            return false; // Found near-match, reject candidate immediately
+                            return false; // Near match found
+                        }
+                    }
+                } else {
+                    // Segments 1..m-1: Perform O(1) bitset duplicate check
+                    for &tid in target_ids {
+                        if tid == cand_u32 {
+                            continue;
+                        }
+                        if !bitset.test_and_set(tid) {
+                            let target_seq = seq_vec[tid as usize];
+                            let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
+                            if dist < d {
+                                return false; // Near match found
+                            }
                         }
                     }
                 }
             }
-            true // Candidate has safely cleared all distance metrics
+            true
         })
     }
 }
@@ -319,11 +386,13 @@ pub fn execute_step3(
     let mih_index = MihIndex::build(&seq_vec, target_len, d as usize);
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
+    let num_targets = seq_vec.len();
     let start_search = Instant::now();
     let distpass_vec: Vec<bool> = (0..guides_df.height())
         .into_par_iter()
         .map(|i| {
             if cand_vec[i] {
+                DEDUP_BITSET.with(|b| b.borrow_mut().ensure_capacity(num_targets));
                 mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d, target_mask)
             } else {
                 false
