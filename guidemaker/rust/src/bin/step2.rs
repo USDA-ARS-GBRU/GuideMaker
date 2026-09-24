@@ -46,6 +46,7 @@ pub struct Step2Args {
 }
 
 fn main() -> Result<()> {
+    polars::enable_string_cache();
     let args = Step2Args::parse();
 
     let is_5prime = match args.orientation.to_lowercase().as_str() {

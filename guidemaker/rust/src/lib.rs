@@ -67,6 +67,17 @@ pub fn extract_lsr_key(seq: u64, target_len: usize, lsr_len: usize, is_5prime: b
     }
 }
 
+/// Safely extract column values as a vector of String across Categorical, String, or Enum types
+pub fn column_to_string_vec(df: &DataFrame, name: &str) -> Result<Vec<String>> {
+    let col = df.column(name)?;
+    let casted = col.cast(&DataType::String)?;
+    let str_ca = casted.str()?;
+    Ok(str_ca
+        .into_iter()
+        .map(|opt| opt.unwrap_or("").to_string())
+        .collect())
+}
+
 /// Transparently open a file with optional gzip or zstd decompression
 pub fn open_compressed_reader(path: &Path) -> Result<Box<dyn Read + Send>> {
     let file = File::open(path)
@@ -487,11 +498,13 @@ pub fn evaluate_spatial_filter(
 ) -> Result<Vec<bool>> {
     let num_guides = guides_df.height();
 
+    // Check if spatial filtering is disabled
     if let Some(ftypes) = feature_types {
         if ftypes.iter().any(|t| {
             let lower = t.trim().to_lowercase();
             lower == "disable" || lower == "none" || lower == "off"
         }) {
+            // Spatial filtering disabled: all candidate rows pass spatial filter
             return Ok(current_candidates.to_vec());
         }
     }
@@ -501,39 +514,35 @@ pub fn evaluate_spatial_filter(
         Some(ftypes) => ftypes.iter().any(|t| t.trim().eq_ignore_ascii_case("all")),
     };
 
-    let chrom_str_col = guides_df.column("chrom")?.cast(&DataType::String)?;
-    let chrom_ca = chrom_str_col.str()?;
+    let chrom_vec = column_to_string_vec(guides_df, "chrom")?;
     let start_ca = guides_df.column("start")?.u32()?;
     let stop_ca = guides_df.column("stop")?.u32()?;
 
-    let feat_chrom_str_col = features_df.column("chrom")?.cast(&DataType::String)?;
-    let feat_chrom_ca = feat_chrom_str_col.str()?;
+    let feat_chrom_vec = column_to_string_vec(features_df, "chrom")?;
     let feat_start_ca = features_df.column("feature_start")?.u32()?;
     let feat_end_ca = features_df.column("feature_end")?.u32()?;
     let feat_strand_ca = features_df.column("strand")?.bool()?;
-
-    let feat_type_str_col = features_df.column("feature_type")?.cast(&DataType::String)?;
-    let feat_type_ca = feat_type_str_col.str()?;
+    let feat_type_vec = column_to_string_vec(features_df, "feature_type")?;
 
     let mut chrom_tss_map: HashMap<String, Vec<u32>> = HashMap::new();
 
     for i in 0..features_df.height() {
         if !is_all_types {
             if let Some(ftypes) = feature_types {
-                let ftype_str = feat_type_ca.get(i).unwrap_or("");
+                let ftype_str = &feat_type_vec[i];
                 if !ftypes.iter().any(|t| t.trim().eq_ignore_ascii_case(ftype_str)) {
                     continue;
                 }
             }
         }
 
-        let chrom = feat_chrom_ca.get(i).unwrap_or("");
+        let chrom = &feat_chrom_vec[i];
         let f_start = feat_start_ca.get(i).unwrap_or(0);
         let f_end = feat_end_ca.get(i).unwrap_or(0);
         let f_strand = feat_strand_ca.get(i).unwrap_or(true);
 
         let tss = if f_strand { f_start } else { f_end };
-        chrom_tss_map.entry(chrom.to_string()).or_default().push(tss);
+        chrom_tss_map.entry(chrom.clone()).or_default().push(tss);
     }
 
     for tss_vec in chrom_tss_map.values_mut() {
@@ -547,7 +556,7 @@ pub fn evaluate_spatial_filter(
                 return false;
             }
 
-            let chrom = chrom_ca.get(i).unwrap_or("");
+            let chrom = &chrom_vec[i];
             let g_start = start_ca.get(i).unwrap_or(0);
             let g_stop = stop_ca.get(i).unwrap_or(0);
             let midpoint = (g_start + g_stop) / 2;

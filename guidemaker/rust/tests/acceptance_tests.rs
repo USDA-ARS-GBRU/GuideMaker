@@ -223,11 +223,13 @@ fn test_features_csv_and_parquet_output() {
 }
 
 #[test]
-fn test_step2_cli_execution() {
+fn test_step2_cli_execution_with_feature_types() {
+    polars::enable_string_cache();
     let dir = tempdir().unwrap();
     let guides_path = dir.path().join("guides.parquet");
     let features_path = dir.path().join("features.parquet");
-    let out_step2 = dir.path().join("filtered.parquet");
+    let out_all = dir.path().join("filtered_all.parquet");
+    let out_disable = dir.path().join("filtered_disable.parquet");
 
     let hits = vec![
         TargetHit {
@@ -256,14 +258,16 @@ fn test_step2_cli_execution() {
         feature_start: 10000,
         feature_end: 15000,
         strand: true,
-        feature_id: "gene1".to_string(),
-        feature_type: "CDS".to_string(),
+        feature_id: "exon1".to_string(),
+        feature_type: "exon".to_string(),
     }];
     let mut features_df = build_features_dataframe(&features).unwrap();
     write_parquet(&mut features_df, &features_path).unwrap();
 
     let bin = env!("CARGO_BIN_EXE_guidemaker-step2");
-    let status = Command::new(bin)
+
+    // 1. Test --feature-types all on Parquet files
+    let status_all = Command::new(bin)
         .arg("--guides")
         .arg(&guides_path)
         .arg("--features")
@@ -275,21 +279,48 @@ fn test_step2_cli_execution() {
         .arg("--lsr-len")
         .arg("8")
         .arg("--out")
-        .arg(&out_step2)
+        .arg(&out_all)
         .arg("--feature-types")
-        .arg("CDS")
+        .arg("all")
         .status()
         .unwrap();
 
-    assert!(status.success());
-    assert!(out_step2.exists());
+    assert!(status_all.success());
+    assert!(out_all.exists());
 
-    let filtered_df = ParquetReader::new(File::open(&out_step2).unwrap())
+    let df_all = ParquetReader::new(File::open(&out_all).unwrap())
         .finish()
         .unwrap();
+    let cand_all = df_all.column("candidate").unwrap().bool().unwrap();
+    assert_eq!(cand_all.get(0), Some(true));
+    assert_eq!(cand_all.get(1), Some(true));
 
-    assert_eq!(filtered_df.height(), 2);
-    let cand_ca = filtered_df.column("candidate").unwrap().bool().unwrap();
-    assert_eq!(cand_ca.get(0), Some(true));
-    assert_eq!(cand_ca.get(1), Some(true));
+    // 2. Test --feature-types disable on Parquet files
+    let status_dis = Command::new(bin)
+        .arg("--guides")
+        .arg(&guides_path)
+        .arg("--features")
+        .arg(&features_path)
+        .arg("--before")
+        .arg("2000")
+        .arg("--into")
+        .arg("500")
+        .arg("--lsr-len")
+        .arg("8")
+        .arg("--out")
+        .arg(&out_disable)
+        .arg("--feature-types")
+        .arg("disable")
+        .status()
+        .unwrap();
+
+    assert!(status_dis.success());
+    assert!(out_disable.exists());
+
+    let df_dis = ParquetReader::new(File::open(&out_disable).unwrap())
+        .finish()
+        .unwrap();
+    let cand_dis = df_dis.column("candidate").unwrap().bool().unwrap();
+    assert_eq!(cand_dis.get(0), Some(true));
+    assert_eq!(cand_dis.get(1), Some(true));
 }

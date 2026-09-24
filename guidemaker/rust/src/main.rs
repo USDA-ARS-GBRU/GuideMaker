@@ -72,6 +72,7 @@ fn get_resource_usage() -> (f64, f64) {
 }
 
 fn main() -> Result<()> {
+    polars::enable_string_cache();
     let start_wall = Instant::now();
 
     let args = Args::parse();
@@ -143,7 +144,6 @@ fn main() -> Result<()> {
     let feature_records = if let Some(gff_path) = &args.gff {
         read_feature_records(gff_path)?
     } else {
-        // Try reading features directly from the sequence file (e.g. GenBank)
         read_feature_records(&args.fasta).unwrap_or_default()
     };
 
