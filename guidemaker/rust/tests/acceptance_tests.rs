@@ -229,7 +229,6 @@ fn test_step2_cli_execution() {
     let features_path = dir.path().join("features.parquet");
     let out_step2 = dir.path().join("filtered.parquet");
 
-    // Build guides
     let hits = vec![
         TargetHit {
             candidate: true,
@@ -252,19 +251,17 @@ fn test_step2_cli_execution() {
     let mut guides_df = build_dataframe(&hits, &chrom_names).unwrap();
     write_parquet(&mut guides_df, &guides_path).unwrap();
 
-    // Build features
     let features = vec![FeatureRecord {
         chrom: "chr1".to_string(),
         feature_start: 10000,
         feature_end: 15000,
         strand: true,
         feature_id: "gene1".to_string(),
-        feature_type: "gene".to_string(),
+        feature_type: "CDS".to_string(),
     }];
     let mut features_df = build_features_dataframe(&features).unwrap();
     write_parquet(&mut features_df, &features_path).unwrap();
 
-    // Execute guidemaker-step2 binary
     let bin = env!("CARGO_BIN_EXE_guidemaker-step2");
     let status = Command::new(bin)
         .arg("--guides")
@@ -279,7 +276,8 @@ fn test_step2_cli_execution() {
         .arg("8")
         .arg("--out")
         .arg(&out_step2)
-        .arg("--fast-filter-first")
+        .arg("--feature-types")
+        .arg("CDS")
         .status()
         .unwrap();
 
@@ -292,6 +290,6 @@ fn test_step2_cli_execution() {
 
     assert_eq!(filtered_df.height(), 2);
     let cand_ca = filtered_df.column("candidate").unwrap().bool().unwrap();
-    assert_eq!(cand_ca.get(0), Some(true)); // Pass
-    assert_eq!(cand_ca.get(1), Some(true)); // Pass
+    assert_eq!(cand_ca.get(0), Some(true));
+    assert_eq!(cand_ca.get(1), Some(true));
 }

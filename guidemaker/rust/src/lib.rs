@@ -485,6 +485,22 @@ pub fn evaluate_spatial_filter(
     into: u32,
     feature_types: Option<&[String]>,
 ) -> Result<Vec<bool>> {
+    let num_guides = guides_df.height();
+
+    if let Some(ftypes) = feature_types {
+        if ftypes.iter().any(|t| {
+            let lower = t.trim().to_lowercase();
+            lower == "disable" || lower == "none" || lower == "off"
+        }) {
+            return Ok(current_candidates.to_vec());
+        }
+    }
+
+    let is_all_types = match feature_types {
+        None => false,
+        Some(ftypes) => ftypes.iter().any(|t| t.trim().eq_ignore_ascii_case("all")),
+    };
+
     let chrom_str_col = guides_df.column("chrom")?.cast(&DataType::String)?;
     let chrom_ca = chrom_str_col.str()?;
     let start_ca = guides_df.column("start")?.u32()?;
@@ -502,10 +518,12 @@ pub fn evaluate_spatial_filter(
     let mut chrom_tss_map: HashMap<String, Vec<u32>> = HashMap::new();
 
     for i in 0..features_df.height() {
-        if let Some(ftypes) = feature_types {
-            let ftype_str = feat_type_ca.get(i).unwrap_or("");
-            if !ftypes.iter().any(|t| t.eq_ignore_ascii_case(ftype_str)) {
-                continue;
+        if !is_all_types {
+            if let Some(ftypes) = feature_types {
+                let ftype_str = feat_type_ca.get(i).unwrap_or("");
+                if !ftypes.iter().any(|t| t.trim().eq_ignore_ascii_case(ftype_str)) {
+                    continue;
+                }
             }
         }
 
@@ -522,9 +540,6 @@ pub fn evaluate_spatial_filter(
         tss_vec.sort_unstable();
     }
 
-    let num_guides = guides_df.height();
-
-    // Rayon parallel evaluation across candidate guides
     let passes: Vec<bool> = (0..num_guides)
         .into_par_iter()
         .map(|i| {
@@ -538,10 +553,15 @@ pub fn evaluate_spatial_filter(
             let midpoint = (g_start + g_stop) / 2;
 
             if let Some(tss_list) = chrom_tss_map.get(chrom) {
-                let lower = midpoint.saturating_sub(into);
                 let upper = midpoint.saturating_add(before);
 
-                let idx = tss_list.partition_point(|&x| x <= lower);
+                let idx = if midpoint < into {
+                    0
+                } else {
+                    let lower = midpoint - into;
+                    tss_list.partition_point(|&x| x <= lower)
+                };
+
                 if idx < tss_list.len() && tss_list[idx] < upper {
                     return true;
                 }
@@ -566,7 +586,6 @@ pub fn evaluate_lsr_uniqueness(
         let table_size = 1usize << (2 * lsr_len);
         let counts: Vec<AtomicU32> = (0..table_size).map(|_| AtomicU32::new(0)).collect();
 
-        // Rayon parallel count pass
         seq_slice
             .par_iter()
             .enumerate()
@@ -577,7 +596,6 @@ pub fn evaluate_lsr_uniqueness(
                 }
             });
 
-        // Rayon parallel uniqueness evaluation pass
         seq_slice
             .par_iter()
             .enumerate()
@@ -591,7 +609,6 @@ pub fn evaluate_lsr_uniqueness(
             })
             .collect()
     } else {
-        // Fallback parallel map-reduce for large lsr_len
         let counts: HashMap<u64, u32> = seq_slice
             .par_iter()
             .enumerate()
@@ -640,7 +657,6 @@ pub fn execute_step2(
     lsr_len: usize,
     is_5prime: bool,
     feature_types: Option<&[String]>,
-    fast_filter_first: bool,
 ) -> Result<(DataFrame, Step2Stats)> {
     let start_total = Instant::now();
     let total_input_rows = guides_df.height();
@@ -650,58 +666,29 @@ pub fn execute_step2(
 
     let mut current_candidates = vec![true; total_input_rows];
 
-    let rows_passing_spatial;
-    let rows_passing_lsr;
-    let spatial_time_sec;
-    let lsr_time_sec;
+    // Evaluate LSR uniqueness first
+    let start_lsr = Instant::now();
+    let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, target_len, lsr_len, is_5prime);
+    let lsr_time_sec = start_lsr.elapsed().as_secs_f64();
 
-    if fast_filter_first {
-        // Strategy A: Spatial filter first, then LSR uniqueness
-        let start_sp = Instant::now();
-        let spatial_passes = evaluate_spatial_filter(guides_df, features_df, &current_candidates, before, into, feature_types)?;
-        spatial_time_sec = start_sp.elapsed().as_secs_f64();
-
-        for i in 0..total_input_rows {
-            if !spatial_passes[i] {
-                current_candidates[i] = false;
-            }
+    for i in 0..total_input_rows {
+        if !lsr_passes[i] {
+            current_candidates[i] = false;
         }
-        rows_passing_spatial = current_candidates.iter().filter(|&&b| b).count();
-
-        let start_lsr = Instant::now();
-        let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, target_len, lsr_len, is_5prime);
-        lsr_time_sec = start_lsr.elapsed().as_secs_f64();
-
-        for i in 0..total_input_rows {
-            if !lsr_passes[i] {
-                current_candidates[i] = false;
-            }
-        }
-        rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
-    } else {
-        // Strategy B: LSR uniqueness first, then Spatial filter (evaluated ONLY on LSR candidates)
-        let start_lsr = Instant::now();
-        let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, target_len, lsr_len, is_5prime);
-        lsr_time_sec = start_lsr.elapsed().as_secs_f64();
-
-        for i in 0..total_input_rows {
-            if !lsr_passes[i] {
-                current_candidates[i] = false;
-            }
-        }
-        rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
-
-        let start_sp = Instant::now();
-        let spatial_passes = evaluate_spatial_filter(guides_df, features_df, &current_candidates, before, into, feature_types)?;
-        spatial_time_sec = start_sp.elapsed().as_secs_f64();
-
-        for i in 0..total_input_rows {
-            if !spatial_passes[i] {
-                current_candidates[i] = false;
-            }
-        }
-        rows_passing_spatial = current_candidates.iter().filter(|&&b| b).count();
     }
+    let rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
+
+    // Evaluate Spatial filter strictly on LSR candidate rows
+    let start_sp = Instant::now();
+    let spatial_passes = evaluate_spatial_filter(guides_df, features_df, &current_candidates, before, into, feature_types)?;
+    let spatial_time_sec = start_sp.elapsed().as_secs_f64();
+
+    for i in 0..total_input_rows {
+        if !spatial_passes[i] {
+            current_candidates[i] = false;
+        }
+    }
+    let rows_passing_spatial = current_candidates.iter().filter(|&&b| b).count();
 
     let final_candidate_rows = current_candidates.iter().filter(|&&b| b).count();
     let total_time_sec = start_total.elapsed().as_secs_f64();
@@ -1036,15 +1023,12 @@ mod tests {
 
     #[test]
     fn test_lsr_key_extraction_5prime_and_3prime() {
-        // 20-mer sequence: ACGTACGTACGTACGTACGT
         let seq = encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap();
 
-        // 5prime orientation: 5' (left) end 8 nt = "ACGTACGT"
         let key_5p = extract_lsr_key(seq, 20, 8, true);
         let expected_5p = (encode_2bit_u64(b"ACGTACGT").unwrap()) >> 48;
         assert_eq!(key_5p, expected_5p);
 
-        // 3prime orientation: 3' (right) end 8 nt = "ACGTACGT"
         let key_3p = extract_lsr_key(seq, 20, 8, false);
         assert_eq!(key_3p, expected_5p);
     }
@@ -1097,9 +1081,8 @@ mod tests {
             500,
             20,
             8,
-            false, // 3prime orientation
-            None,
-            false, // LSR first (default)
+            false,
+            Some(&["gene".to_string()]),
         )
         .unwrap();
 
@@ -1108,5 +1091,61 @@ mod tests {
         assert_eq!(cand_ca.get(1), Some(false));
         assert_eq!(cand_ca.get(2), Some(false));
         assert_eq!(stats.final_candidate_rows, 0);
+    }
+
+    #[test]
+    fn test_step2_feature_types_all_and_disable() {
+        let hits = vec![
+            TargetHit {
+                candidate: true,
+                seq: encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap(),
+                chrom_idx: 0,
+                start: 9000,
+                stop: 9020,
+                strand: true,
+            },
+        ];
+        let chrom_names = vec!["chr1".to_string()];
+        let guides_df = build_dataframe(&hits, &chrom_names).unwrap();
+
+        let features = vec![FeatureRecord {
+            chrom: "chr1".to_string(),
+            feature_start: 10000,
+            feature_end: 15000,
+            strand: true,
+            feature_id: "exon1".to_string(),
+            feature_type: "exon".to_string(),
+        }];
+        let features_df = build_features_dataframe(&features).unwrap();
+
+        // 1. With "all" feature types -> passes exon feature
+        let (df_all, stats_all) = execute_step2(
+            &guides_df,
+            &features_df,
+            2000,
+            500,
+            20,
+            8,
+            false,
+            Some(&["all".to_string()]),
+        )
+        .unwrap();
+        assert_eq!(stats_all.final_candidate_rows, 1);
+        assert_eq!(df_all.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+
+        // 2. With "disable" feature types -> spatial filter disabled, passes based on LSR alone
+        let (df_dis, stats_dis) = execute_step2(
+            &guides_df,
+            &features_df,
+            2000,
+            500,
+            20,
+            8,
+            false,
+            Some(&["disable".to_string()]),
+        )
+        .unwrap();
+        assert_eq!(stats_dis.final_candidate_rows, 1);
+        assert_eq!(df_dis.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
     }
 }

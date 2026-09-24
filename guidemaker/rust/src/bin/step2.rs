@@ -40,13 +40,9 @@ pub struct Step2Args {
     #[arg(long)]
     pub out: PathBuf,
 
-    /// Optional comma-separated list of feature types to restrict spatial filtering (e.g. gene,transcript,exon)
-    #[arg(long, value_delimiter = ',')]
-    pub feature_types: Option<Vec<String>>,
-
-    /// Try spatial proximity filter first (then LSR)
-    #[arg(long, default_value_t = false)]
-    pub fast_filter_first: bool,
+    /// Comma-separated feature types (e.g. CDS, gene, mRNA), 'all' for all features, or 'disable' to turn off spatial filter
+    #[arg(long, value_delimiter = ',', default_value = "CDS")]
+    pub feature_types: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -66,7 +62,7 @@ fn main() -> Result<()> {
         .with_context(|| format!("Failed to open features Parquet file at {:?}", args.features))?;
     let features_df = ParquetReader::new(features_file).finish()?;
 
-    let ftypes_ref = args.feature_types.as_deref();
+    let ftypes_ref = Some(args.feature_types.as_slice());
 
     let (mut filtered_df, stats) = execute_step2(
         &guides_df,
@@ -77,12 +73,16 @@ fn main() -> Result<()> {
         args.lsr_len,
         is_5prime,
         ftypes_ref,
-        args.fast_filter_first,
     )?;
 
     println!("=== Step-2 Filtering & Benchmark Summary ===");
-    println!("Strategy: {}", if args.fast_filter_first { "Spatial First -> LSR" } else { "LSR First -> Spatial" });
-    println!("Orientation: {} | Target Len: {} nt | LSR Len: {} nt", if is_5prime { "5prime (Left LSR)" } else { "3prime (Right LSR)" }, args.target_len, args.lsr_len);
+    println!(
+        "Orientation: {} | Target Len: {} nt | LSR Len: {} nt | Feature Types: {}",
+        if is_5prime { "5prime (Left LSR)" } else { "3prime (Right LSR)" },
+        args.target_len,
+        args.lsr_len,
+        args.feature_types.join(",")
+    );
     println!("Total Input Rows: {}", stats.total_input_rows);
     println!("Rows Passing LSR Uniqueness: {}", stats.rows_passing_lsr);
     println!("Rows Passing Spatial Filter: {}", stats.rows_passing_spatial);
