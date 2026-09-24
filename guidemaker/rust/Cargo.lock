@@ -913,6 +913,7 @@ dependencies = [
  "bio",
  "clap",
  "flate2",
+ "fxhash",
  "hashbrown 0.14.5",
  "libc",
  "polars",

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
+use fxhash::FxHashSet;
 use polars::prelude::*;
 use rayon::prelude::*;
 use std::cell::RefCell;
@@ -12,65 +13,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
 
-/// High-performance thread-local bitset with zero allocation churn and O(1) word reset tracking
-#[derive(Debug)]
-pub struct ThreadLocalBitSet {
-    bits: Vec<u64>,
-    reset_list: Vec<u32>,
-}
-
-impl ThreadLocalBitSet {
-    pub fn new() -> Self {
-        ThreadLocalBitSet {
-            bits: Vec::new(),
-            reset_list: Vec::new(),
-        }
-    }
-
-    pub fn ensure_capacity(&mut self, num_bits: usize) {
-        let num_words = (num_bits + 63) / 64;
-        if self.bits.len() < num_words {
-            self.bits.resize(num_words, 0);
-        }
-    }
-
-    #[inline(always)]
-    pub fn clear(&mut self) {
-        for &word_idx in &self.reset_list {
-            let idx = word_idx as usize;
-            if idx < self.bits.len() {
-                self.bits[idx] = 0;
-            }
-        }
-        self.reset_list.clear();
-    }
-
-    #[inline(always)]
-    pub fn test_and_set(&mut self, bit_idx: u32) -> bool {
-        let idx = bit_idx as usize;
-        let word_idx = idx / 64;
-        let bit_offset = idx % 64;
-        let mask = 1u64 << bit_offset;
-
-        if word_idx >= self.bits.len() {
-            self.ensure_capacity(idx + 1);
-        }
-
-        let word = unsafe { self.bits.get_unchecked_mut(word_idx) };
-        if (*word & mask) != 0 {
-            true // Already set
-        } else {
-            if *word == 0 {
-                self.reset_list.push(word_idx as u32);
-            }
-            *word |= mask;
-            false // Was not previously set
-        }
-    }
-}
-
 thread_local! {
-    pub static DEDUP_BITSET: RefCell<ThreadLocalBitSet> = RefCell::new(ThreadLocalBitSet::new());
+    // Highly compact, L1-cached FxHashSet per thread.
+    // Retains internal buffer capacity across candidate evaluations with zero re-allocation.
+    pub static DEDUP_SET: RefCell<FxHashSet<u32>> = RefCell::new(FxHashSet::with_capacity_and_hasher(1024, Default::default()));
 }
 
 /// Representation of a single parsed sequence record
@@ -320,9 +266,9 @@ impl MihIndex {
         }
         seg_order[0..m].sort_unstable_by_key(|&(size, _)| size);
 
-        DEDUP_BITSET.with(|bitset_cell| {
-            let mut bitset = bitset_cell.borrow_mut();
-            bitset.clear();
+        DEDUP_SET.with(|set_cell| {
+            let mut seen = set_cell.borrow_mut();
+            seen.clear(); // O(1) clear that maintains allocated bucket memory in L1 cache
 
             for i in 0..m {
                 let s = seg_order[i].1;
@@ -330,12 +276,12 @@ impl MihIndex {
                 let target_ids = self.tables[s].get_bucket_targets(key);
 
                 if i == 0 {
-                    // Segment 0 (smallest bucket): No duplicates possible across segments yet!
+                    // Segment 0 (smallest bucket): Guaranteed no duplicates yet!
                     for &tid in target_ids {
                         if tid == cand_u32 {
                             continue;
                         }
-                        bitset.test_and_set(tid);
+                        seen.insert(tid);
 
                         let target_seq = seq_vec[tid as usize];
                         let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
@@ -344,12 +290,12 @@ impl MihIndex {
                         }
                     }
                 } else {
-                    // Segments 1..m-1: Perform O(1) bitset duplicate check
+                    // Segments 1..m-1: Check if already evaluated in previous segments
                     for &tid in target_ids {
                         if tid == cand_u32 {
                             continue;
                         }
-                        if !bitset.test_and_set(tid) {
+                        if seen.insert(tid) {
                             let target_seq = seq_vec[tid as usize];
                             let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
                             if dist < d {
@@ -386,13 +332,12 @@ pub fn execute_step3(
     let mih_index = MihIndex::build(&seq_vec, target_len, d as usize);
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
-    let num_targets = seq_vec.len();
     let start_search = Instant::now();
     let distpass_vec: Vec<bool> = (0..guides_df.height())
         .into_par_iter()
+        .with_min_len(1024) // Coarse-grained task chunking for optimal Rayon CPU thread scheduling
         .map(|i| {
             if cand_vec[i] {
-                DEDUP_BITSET.with(|b| b.borrow_mut().ensure_capacity(num_targets));
                 mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d, target_mask)
             } else {
                 false

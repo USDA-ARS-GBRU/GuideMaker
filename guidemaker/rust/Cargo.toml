@@ -19,6 +19,10 @@ path = "src/bin/step2.rs"
 name = "guidemaker-step3"
 path = "src/bin/step3.rs"
 
+[[bin]]
+name = "benchmark-human-scale"
+path = "src/bin/benchmark_human_scale.rs"
+
 [dependencies]
 bio = "4.0"
 polars = { version = "0.43.0", features = ["csv", "parquet", "dtype-categorical", "lazy"] }
@@ -26,6 +30,7 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 libc = "0.2"
 hashbrown = { version = "0.14.5", features = ["raw"] }
+fxhash = "0.2"
 flate2 = "1.0"
 zstd = "0.13"
 rayon = "1.10"
