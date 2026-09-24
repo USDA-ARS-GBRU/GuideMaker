@@ -1,10 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
-use fxhash::FxHashSet;
 use polars::prelude::*;
 use rayon::prelude::*;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -12,12 +10,6 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
-
-thread_local! {
-    // Highly compact, L1-cached FxHashSet per thread.
-    // Retains internal buffer capacity across candidate evaluations with zero re-allocation.
-    pub static DEDUP_SET: RefCell<FxHashSet<u32>> = RefCell::new(FxHashSet::with_capacity_and_hasher(1024, Default::default()));
-}
 
 /// Representation of a single parsed sequence record
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -103,55 +95,33 @@ pub fn get_segment_bounds(s: usize, m: usize, target_len: usize) -> (usize, usiz
     (start_base, seg_bases)
 }
 
-/// Extract segment bit key for segment s with shift overflow guard
-#[inline(always)]
-pub fn extract_segment_key(seq: u64, target_len: usize, s: usize, m: usize) -> usize {
-    let (start_base, seg_bases) = get_segment_bounds(s, m, target_len);
-    let shift = 64 - 2 * (start_base + seg_bases);
-    let mask = if 2 * seg_bases >= 64 {
-        u64::MAX
-    } else {
-        (1u64 << (2 * seg_bases)) - 1
-    };
-    ((seq >> shift) & mask) as usize
-}
-
 /// Multi-Index Hashing (MIH) CSR Table for a single segment
 #[derive(Debug)]
 pub struct MihSegmentTable {
+    pub shift: u32,
+    pub mask: u64,
     pub offsets: Vec<u32>,
     pub target_ids: Vec<u32>,
 }
 
 impl MihSegmentTable {
     pub fn build(seq_vec: &[u64], target_len: usize, s: usize, m: usize) -> Self {
-        let (_, seg_bases) = get_segment_bounds(s, m, target_len);
-        let num_buckets = 1usize << (2 * seg_bases);
+        let (start_base, seg_bases) = get_segment_bounds(s, m, target_len);
+        let shift = (64 - 2 * (start_base + seg_bases)) as u32;
+        let mask = if 2 * seg_bases >= 64 {
+            u64::MAX
+        } else {
+            (1u64 << (2 * seg_bases)) - 1
+        };
 
+        let num_buckets = 1usize << (2 * seg_bases);
         let mut bucket_counts = vec![0u32; num_buckets];
 
-        // Pass 1: Chunked processing to leverage CPU execution pipelines
-        let chunks = seq_vec.chunks_exact(4);
-        let remainder = chunks.remainder();
-
-        for chunk in chunks {
-            let k0 = extract_segment_key(chunk[0], target_len, s, m);
-            let k1 = extract_segment_key(chunk[1], target_len, s, m);
-            let k2 = extract_segment_key(chunk[2], target_len, s, m);
-            let k3 = extract_segment_key(chunk[3], target_len, s, m);
-
-            bucket_counts[k0] += 1;
-            bucket_counts[k1] += 1;
-            bucket_counts[k2] += 1;
-            bucket_counts[k3] += 1;
-        }
-
-        for &seq in remainder {
-            let key = extract_segment_key(seq, target_len, s, m);
+        for &seq in seq_vec {
+            let key = ((seq >> shift) & mask) as usize;
             bucket_counts[key] += 1;
         }
 
-        // Build Prefix Offset Sums
         let mut offsets = vec![0u32; num_buckets + 1];
         for i in 0..num_buckets {
             offsets[i + 1] = offsets[i] + bucket_counts[i];
@@ -160,43 +130,24 @@ impl MihSegmentTable {
         let mut cursor = offsets.clone();
         let mut target_ids = vec![0u32; seq_vec.len()];
 
-        // Pass 2: Populating tables using spatially pre-fetched writes
-        let seq_chunks = seq_vec.chunks_exact(4);
-        let seq_remainder = seq_chunks.remainder();
-        let mut base_idx = 0;
-
-        for chunk in seq_chunks {
-            let k0 = extract_segment_key(chunk[0], target_len, s, m);
-            let p0 = cursor[k0] as usize;
-            target_ids[p0] = base_idx as u32;
-            cursor[k0] += 1;
-
-            let k1 = extract_segment_key(chunk[1], target_len, s, m);
-            let p1 = cursor[k1] as usize;
-            target_ids[p1] = (base_idx + 1) as u32;
-            cursor[k1] += 1;
-
-            let k2 = extract_segment_key(chunk[2], target_len, s, m);
-            let p2 = cursor[k2] as usize;
-            target_ids[p2] = (base_idx + 2) as u32;
-            cursor[k2] += 1;
-
-            let k3 = extract_segment_key(chunk[3], target_len, s, m);
-            let p3 = cursor[k3] as usize;
-            target_ids[p3] = (base_idx + 3) as u32;
-            cursor[k3] += 1;
-
-            base_idx += 4;
-        }
-
-        for (i, &seq) in seq_remainder.iter().enumerate() {
-            let key = extract_segment_key(seq, target_len, s, m);
+        for (i, &seq) in seq_vec.iter().enumerate() {
+            let key = ((seq >> shift) & mask) as usize;
             let pos = cursor[key] as usize;
-            target_ids[pos] = (base_idx + i) as u32;
+            target_ids[pos] = i as u32;
             cursor[key] += 1;
         }
 
-        MihSegmentTable { offsets, target_ids }
+        MihSegmentTable {
+            shift,
+            mask,
+            offsets,
+            target_ids,
+        }
+    }
+
+    #[inline(always)]
+    pub fn extract_key(&self, seq: u64) -> usize {
+        ((seq >> self.shift) & self.mask) as usize
     }
 
     #[inline(always)]
@@ -232,7 +183,6 @@ impl MihIndex {
     pub fn build(seq_vec: &[u64], target_len: usize, d: usize) -> Self {
         let m = (d + 1).max(2);
 
-        // Parallelize construction over all available physical cores
         let tables: Vec<MihSegmentTable> = (0..m)
             .into_par_iter()
             .map(|s| MihSegmentTable::build(seq_vec, target_len, s, m))
@@ -254,59 +204,67 @@ impl MihIndex {
         target_mask: u64,
     ) -> bool {
         let cand_u32 = candidate_idx as u32;
-
-        // Stack-allocated buffer for sorting segment bucket priority
-        let mut seg_order = [(0usize, 0usize); 8];
         let m = self.m.min(8);
 
+        // Precompute candidate keys and bucket sizes for all segments on stack
+        let mut cand_keys = [0usize; 8];
+        let mut seg_order = [(0usize, 0usize); 8];
+
         for s in 0..m {
-            let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+            let key = self.tables[s].extract_key(candidate_seq);
+            cand_keys[s] = key;
             let size = self.tables[s].get_bucket_size(key);
             seg_order[s] = (size, s);
         }
+
+        // Priority probe order: smallest bucket first
         seg_order[0..m].sort_unstable_by_key(|&(size, _)| size);
 
-        DEDUP_SET.with(|set_cell| {
-            let mut seen = set_cell.borrow_mut();
-            seen.clear(); // O(1) clear that maintains allocated bucket memory in L1 cache
+        for i in 0..m {
+            let s = seg_order[i].1;
+            let key = cand_keys[s];
+            let target_ids = self.tables[s].get_bucket_targets(key);
 
-            for i in 0..m {
-                let s = seg_order[i].1;
-                let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
-                let target_ids = self.tables[s].get_bucket_targets(key);
+            if i == 0 {
+                // Segment 0 (smallest bucket): Guaranteed zero duplicate targets
+                for &tid in target_ids {
+                    if tid == cand_u32 {
+                        continue;
+                    }
+                    let target_seq = seq_vec[tid as usize];
+                    let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
+                    if dist < d {
+                        return false;
+                    }
+                }
+            } else {
+                // Segments 1..m-1: Pure algebraic duplicate check (0 memory access / allocation)
+                for &tid in target_ids {
+                    if tid == cand_u32 {
+                        continue;
+                    }
+                    let target_seq = seq_vec[tid as usize];
 
-                if i == 0 {
-                    // Segment 0 (smallest bucket): Guaranteed no duplicates yet!
-                    for &tid in target_ids {
-                        if tid == cand_u32 {
-                            continue;
-                        }
-                        seen.insert(tid);
-
-                        let target_seq = seq_vec[tid as usize];
-                        let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
-                        if dist < d {
-                            return false; // Near match found
+                    let mut duplicate = false;
+                    for j in 0..i {
+                        let prev_s = seg_order[j].1;
+                        if self.tables[prev_s].extract_key(target_seq) == cand_keys[prev_s] {
+                            duplicate = true;
+                            break;
                         }
                     }
-                } else {
-                    // Segments 1..m-1: Check if already evaluated in previous segments
-                    for &tid in target_ids {
-                        if tid == cand_u32 {
-                            continue;
-                        }
-                        if seen.insert(tid) {
-                            let target_seq = seq_vec[tid as usize];
-                            let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
-                            if dist < d {
-                                return false; // Near match found
-                            }
+
+                    if !duplicate {
+                        let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
+                        if dist < d {
+                            return false;
                         }
                     }
                 }
             }
-            true
-        })
+        }
+
+        true
     }
 }
 
@@ -335,7 +293,7 @@ pub fn execute_step3(
     let start_search = Instant::now();
     let distpass_vec: Vec<bool> = (0..guides_df.height())
         .into_par_iter()
-        .with_min_len(1024) // Coarse-grained task chunking for optimal Rayon CPU thread scheduling
+        .with_min_len(1024)
         .map(|i| {
             if cand_vec[i] {
                 mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d, target_mask)
