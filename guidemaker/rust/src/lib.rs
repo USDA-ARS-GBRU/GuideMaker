@@ -1,8 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
+use hashbrown::HashSet;
 use polars::prelude::*;
 use rayon::prelude::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -10,6 +12,10 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
+
+thread_local! {
+    static CHECKED_SET: RefCell<HashSet<u32>> = RefCell::new(HashSet::with_capacity(128));
+}
 
 /// Representation of a single parsed sequence record
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,22 +70,21 @@ pub struct Step3Stats {
     pub total_time_sec: f64,
 }
 
-/// Calculate exact base Hamming distance between two 2-bit left-aligned u64 sequences
-#[inline(always)]
-pub fn base_hamming_distance(a: u64, b: u64, target_len: usize) -> u32 {
-    let diff = a ^ b;
-    let odd = (diff >> 1) & 0x5555_5555_5555_5555;
-    let even = diff & 0x5555_5555_5555_5555;
-    let base_diff_mask = odd | even;
-
+/// Calculate precomputed left-aligned target mask
+pub fn compute_target_mask(target_len: usize) -> u64 {
     let shift = 64 - 2 * target_len;
-    let target_mask = if shift >= 64 {
+    if shift >= 64 {
         0
     } else {
         (u64::MAX >> shift) << shift
-    };
+    }
+}
 
-    (base_diff_mask & target_mask).count_ones()
+/// Calculate exact base Hamming distance between two 2-bit left-aligned u64 sequences using masked lane-collapse
+#[inline(always)]
+pub fn base_hamming_distance_masked(a: u64, b: u64, mask: u64) -> u32 {
+    let x = a ^ b;
+    (((x | (x >> 1)) & 0x5555_5555_5555_5555) & mask).count_ones()
 }
 
 /// Get segment base count and base offset for segment s out of m segments for target_len bases
@@ -96,12 +101,16 @@ pub fn get_segment_bounds(s: usize, m: usize, target_len: usize) -> (usize, usiz
     (start_base, seg_bases)
 }
 
-/// Extract segment bit key for segment s
+/// Extract segment bit key for segment s with shift overflow guard
 #[inline(always)]
 pub fn extract_segment_key(seq: u64, target_len: usize, s: usize, m: usize) -> usize {
     let (start_base, seg_bases) = get_segment_bounds(s, m, target_len);
     let shift = 64 - 2 * (start_base + seg_bases);
-    let mask = (1u64 << (2 * seg_bases)) - 1;
+    let mask = if 2 * seg_bases >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << (2 * seg_bases)) - 1
+    };
     ((seq >> shift) & mask) as usize
 }
 
@@ -151,6 +160,15 @@ impl MihSegmentTable {
             &[]
         }
     }
+
+    #[inline(always)]
+    pub fn get_bucket_size(&self, key: usize) -> usize {
+        if key + 1 < self.offsets.len() {
+            (self.offsets[key + 1] - self.offsets[key]) as usize
+        } else {
+            0
+        }
+    }
 }
 
 /// Full Multi-Index Hash Index
@@ -159,7 +177,6 @@ pub struct MihIndex {
     pub m: usize,
     pub target_len: usize,
     pub tables: Vec<MihSegmentTable>,
-    pub exact_counts: HashMap<u64, u32>,
 }
 
 impl MihIndex {
@@ -171,16 +188,10 @@ impl MihIndex {
             tables.push(MihSegmentTable::build(seq_vec, target_len, s, m));
         }
 
-        let mut exact_counts: HashMap<u64, u32> = HashMap::new();
-        for &seq in seq_vec {
-            *exact_counts.entry(seq).or_insert(0) += 1;
-        }
-
         MihIndex {
             m,
             target_len,
             tables,
-            exact_counts,
         }
     }
 
@@ -190,33 +201,47 @@ impl MihIndex {
         candidate_seq: u64,
         seq_vec: &[u64],
         d: u32,
+        target_mask: u64,
     ) -> bool {
-        // If there are multiple exact matches of this sequence in the genome, off-target distance 0 < d exists
-        if let Some(&cnt) = self.exact_counts.get(&candidate_seq) {
-            if cnt > 1 {
-                return false;
-            }
-        }
+        // Collect segment indices sorted by ascending bucket size (smallest bucket probed first)
+        let mut seg_order: Vec<(usize, usize)> = (0..self.m)
+            .map(|s| {
+                let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+                let size = self.tables[s].get_bucket_size(key);
+                (size, s)
+            })
+            .collect();
+        seg_order.sort_unstable_by_key(|&(size, _)| size);
 
-        for s in 0..self.m {
-            let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
-            let target_ids = self.tables[s].get_bucket_targets(key);
+        let cand_u32 = candidate_idx as u32;
 
-            for &tid in target_ids {
-                let target_idx = tid as usize;
-                if target_idx == candidate_idx {
-                    continue; // Skip self match
+        CHECKED_SET.with(|set_cell| {
+            let mut checked = set_cell.borrow_mut();
+            checked.clear();
+
+            for &(_, s) in &seg_order {
+                let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+                let target_ids = self.tables[s].get_bucket_targets(key);
+
+                for &tid in target_ids {
+                    if tid == cand_u32 {
+                        continue; // Skip self match at same index
+                    }
+
+                    if !checked.insert(tid) {
+                        continue; // Already verified this target ID
+                    }
+
+                    let target_seq = seq_vec[tid as usize];
+                    let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
+                    if dist < d {
+                        return false; // Off-target near or exact match found
+                    }
                 }
-
-                let target_seq = seq_vec[target_idx];
-                let dist = base_hamming_distance(candidate_seq, target_seq, self.target_len);
-                if dist < d {
-                    return false; // Found off-target near match
-                }
             }
-        }
 
-        true
+            true
+        })
     }
 }
 
@@ -236,6 +261,8 @@ pub fn execute_step3(
 
     let total_candidates = cand_vec.iter().filter(|&&c| c).count();
 
+    let target_mask = compute_target_mask(target_len);
+
     let start_idx = Instant::now();
     let mih_index = MihIndex::build(&seq_vec, target_len, d as usize);
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
@@ -245,7 +272,7 @@ pub fn execute_step3(
         .into_par_iter()
         .map(|i| {
             if cand_vec[i] {
-                mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d)
+                mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d, target_mask)
             } else {
                 false
             }
