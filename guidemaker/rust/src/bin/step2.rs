@@ -76,14 +76,25 @@ fn main() -> Result<()> {
         ftypes_ref,
     )?;
 
+    let spatial_mode = if args.feature_types.iter().any(|t| {
+        let l = t.trim().to_lowercase();
+        l == "disable" || l == "none" || l == "off"
+    }) {
+        "DISABLED".to_string()
+    } else if args.feature_types.iter().any(|t| t.trim().eq_ignore_ascii_case("all")) {
+        "ALL feature types".to_string()
+    } else {
+        format!("Filtered by [{}]", args.feature_types.join(", "))
+    };
+
     println!("=== Step-2 Filtering & Benchmark Summary ===");
     println!(
-        "Orientation: {} | Target Len: {} nt | LSR Len: {} nt | Feature Types: {}",
+        "Orientation: {} | Target Len: {} nt | LSR Len: {} nt",
         if is_5prime { "5prime (Left LSR)" } else { "3prime (Right LSR)" },
         args.target_len,
-        args.lsr_len,
-        args.feature_types.join(",")
+        args.lsr_len
     );
+    println!("Spatial Filter Mode: {}", spatial_mode);
     println!("Total Input Rows: {}", stats.total_input_rows);
     println!("Rows Passing LSR Uniqueness: {}", stats.rows_passing_lsr);
     println!("Rows Passing Spatial Filter: {}", stats.rows_passing_spatial);

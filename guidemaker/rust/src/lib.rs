@@ -504,8 +504,8 @@ pub fn evaluate_spatial_filter(
             let lower = t.trim().to_lowercase();
             lower == "disable" || lower == "none" || lower == "off"
         }) {
-            // Spatial filtering disabled: all candidate rows pass spatial filter
-            return Ok(current_candidates.to_vec());
+            // Spatial filtering disabled: all candidate rows pass
+            return Ok(vec![true; num_guides]);
         }
     }
 
