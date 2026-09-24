@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
-use hashbrown::HashSet;
 use polars::prelude::*;
 use rayon::prelude::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -11,6 +11,11 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
+
+thread_local! {
+    // Allocates capacity once per thread to completely eliminate allocation overhead during search
+    pub static CHECKED_VEC: RefCell<Vec<u32>> = RefCell::new(Vec::with_capacity(100_000));
+}
 
 /// Representation of a single parsed sequence record
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,11 +127,29 @@ impl MihSegmentTable {
         let num_buckets = 1usize << (2 * seg_bases);
 
         let mut bucket_counts = vec![0u32; num_buckets];
-        for &seq in seq_vec {
+
+        // Pass 1: Chunked processing to leverage CPU execution pipelines
+        let chunks = seq_vec.chunks_exact(4);
+        let remainder = chunks.remainder();
+
+        for chunk in chunks {
+            let k0 = extract_segment_key(chunk[0], target_len, s, m);
+            let k1 = extract_segment_key(chunk[1], target_len, s, m);
+            let k2 = extract_segment_key(chunk[2], target_len, s, m);
+            let k3 = extract_segment_key(chunk[3], target_len, s, m);
+
+            bucket_counts[k0] += 1;
+            bucket_counts[k1] += 1;
+            bucket_counts[k2] += 1;
+            bucket_counts[k3] += 1;
+        }
+
+        for &seq in remainder {
             let key = extract_segment_key(seq, target_len, s, m);
             bucket_counts[key] += 1;
         }
 
+        // Build Prefix Offset Sums
         let mut offsets = vec![0u32; num_buckets + 1];
         for i in 0..num_buckets {
             offsets[i + 1] = offsets[i] + bucket_counts[i];
@@ -135,10 +158,39 @@ impl MihSegmentTable {
         let mut cursor = offsets.clone();
         let mut target_ids = vec![0u32; seq_vec.len()];
 
-        for (i, &seq) in seq_vec.iter().enumerate() {
+        // Pass 2: Populating tables using spatially pre-fetched writes
+        let seq_chunks = seq_vec.chunks_exact(4);
+        let seq_remainder = seq_chunks.remainder();
+        let mut base_idx = 0;
+
+        for chunk in seq_chunks {
+            let k0 = extract_segment_key(chunk[0], target_len, s, m);
+            let p0 = cursor[k0] as usize;
+            target_ids[p0] = base_idx as u32;
+            cursor[k0] += 1;
+
+            let k1 = extract_segment_key(chunk[1], target_len, s, m);
+            let p1 = cursor[k1] as usize;
+            target_ids[p1] = (base_idx + 1) as u32;
+            cursor[k1] += 1;
+
+            let k2 = extract_segment_key(chunk[2], target_len, s, m);
+            let p2 = cursor[k2] as usize;
+            target_ids[p2] = (base_idx + 2) as u32;
+            cursor[k2] += 1;
+
+            let k3 = extract_segment_key(chunk[3], target_len, s, m);
+            let p3 = cursor[k3] as usize;
+            target_ids[p3] = (base_idx + 3) as u32;
+            cursor[k3] += 1;
+
+            base_idx += 4;
+        }
+
+        for (i, &seq) in seq_remainder.iter().enumerate() {
             let key = extract_segment_key(seq, target_len, s, m);
             let pos = cursor[key] as usize;
-            target_ids[pos] = i as u32;
+            target_ids[pos] = (base_idx + i) as u32;
             cursor[key] += 1;
         }
 
@@ -176,12 +228,13 @@ pub struct MihIndex {
 
 impl MihIndex {
     pub fn build(seq_vec: &[u64], target_len: usize, d: usize) -> Self {
-        let m = (d + 1).max(2); // Choose m = d + 1 (d=1 -> m=2, d=2 -> m=3, d=3 -> m=4)
-        let mut tables = Vec::with_capacity(m);
+        let m = (d + 1).max(2);
 
-        for s in 0..m {
-            tables.push(MihSegmentTable::build(seq_vec, target_len, s, m));
-        }
+        // Parallelize construction over all available physical cores
+        let tables: Vec<MihSegmentTable> = (0..m)
+            .into_par_iter()
+            .map(|s| MihSegmentTable::build(seq_vec, target_len, s, m))
+            .collect();
 
         MihIndex {
             m,
@@ -200,7 +253,7 @@ impl MihIndex {
     ) -> bool {
         let cand_u32 = candidate_idx as u32;
 
-        // 1. Stack-allocated segment order buffer (supports up to m=8 segments)
+        // Stack-allocated allocation for sorting segment bucket priority
         let mut seg_order = [(0usize, 0usize); 8];
         let m = self.m.min(8);
 
@@ -211,60 +264,36 @@ impl MihIndex {
         }
         seg_order[0..m].sort_unstable_by_key(|&(size, _)| size);
 
-        // 2. Stack-allocated dedup array for SIMD-friendly linear scan
-        let mut checked_ids = [0u32; 128];
-        let mut checked_count = 0;
-        let mut fallback_set: Option<HashSet<u32>> = None;
+        // Fetch the thread-local pre-allocated tracking buffer
+        CHECKED_VEC.with(|vec_cell| {
+            let mut checked_ids = vec_cell.borrow_mut();
+            checked_ids.clear(); // Free capacity remains intact; execution cost is near zero
 
-        for i in 0..m {
-            let s = seg_order[i].1;
-            let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
-            let target_ids = self.tables[s].get_bucket_targets(key);
+            for i in 0..m {
+                let s = seg_order[i].1;
+                let key = extract_segment_key(candidate_seq, self.target_len, s, self.m);
+                let target_ids = self.tables[s].get_bucket_targets(key);
 
-            for &tid in target_ids {
-                if tid == cand_u32 {
-                    continue; // Skip self match
-                }
+                for &tid in target_ids {
+                    if tid == cand_u32 {
+                        continue;
+                    }
 
-                // Inline linear deduplication scan over stack array
-                let mut already_checked = false;
-                if checked_count <= 128 {
-                    for j in 0..checked_count {
-                        if checked_ids[j] == tid {
-                            already_checked = true;
-                            break;
+                    // High-performance binary search for huge dense buckets (O(log N))
+                    if let Err(insert_pos) = checked_ids.binary_search(&tid) {
+                        checked_ids.insert(insert_pos, tid);
+
+                        // Execute optimized bitwise Hamming evaluation
+                        let target_seq = seq_vec[tid as usize];
+                        let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
+                        if dist < d {
+                            return false; // Found near-match, reject candidate immediately
                         }
                     }
                 }
-
-                if already_checked {
-                    continue;
-                }
-
-                if let Some(set) = &fallback_set {
-                    if set.contains(&tid) {
-                        continue;
-                    }
-                }
-
-                // Record target ID
-                if checked_count < 128 {
-                    checked_ids[checked_count] = tid;
-                    checked_count += 1;
-                } else {
-                    let set = fallback_set.get_or_insert_with(HashSet::new);
-                    set.insert(tid);
-                }
-
-                let target_seq = seq_vec[tid as usize];
-                let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
-                if dist < d {
-                    return false; // Off-target near or exact match found
-                }
             }
-        }
-
-        true
+            true // Candidate has safely cleared all distance metrics
+        })
     }
 }
 
