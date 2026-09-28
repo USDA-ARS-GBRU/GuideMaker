@@ -224,12 +224,23 @@ impl TopNMatches {
 }
 
 /// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
+// Helper to extract 4 independent 12-bit blocks (6 bases each) from the MSB of the u64 sequence
+#[inline(always)]
+fn extract_pigeonhole_blocks(seq: u64) -> [usize; 4] {
+    let block0 = ((seq >> 52) & 0x0FFF) as usize;
+    let block1 = ((seq >> 40) & 0x0FFF) as usize;
+    let block2 = ((seq >> 28) & 0x0FFF) as usize;
+    let block3 = ((seq >> 16) & 0x0FFF) as usize;
+    [block0, block1, block2, block3]
+}
+
+// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
 // Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
 pub fn execute_step3(
     guides_df: &DataFrame,
     d: u32,
     top_n: usize,
-    method: &str,
+    _method: &str,
     target_len: usize,
 ) -> Result<(DataFrame, Step3Stats)> {
     let start_total = Instant::now();
@@ -243,135 +254,82 @@ pub fn execute_step3(
     let total_candidates = cand_vec.iter().filter(|&&c| c).count();
     let target_mask = compute_target_mask(target_len);
 
-    let method_lower = method.to_lowercase();
+    // --- STEP 1: BUILD PIGEONHOLE INDEX (1.3M Reference Guides) ---
+    let start_idx = Instant::now();
+    
+    let mut table0 = vec![Vec::<usize>::new(); 4096];
+    let mut table1 = vec![Vec::<usize>::new(); 4096];
+    let mut table2 = vec![Vec::<usize>::new(); 4096];
+    let mut table3 = vec![Vec::<usize>::new(); 4096];
 
-    let (search_results, index_build_time_sec, search_time_sec) = if method_lower == "exact" || method_lower == "linear" {
-        let start_idx = Instant::now();
-        let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+    for (idx, &seq) in seq_vec.iter().enumerate() {
+        let blocks = extract_pigeonhole_blocks(seq);
+        table0[blocks[0]].push(idx);
+        table1[blocks[1]].push(idx);
+        table2[blocks[2]].push(idx);
+        table3[blocks[3]].push(idx);
+    }
+    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
-        let start_search = Instant::now();
-        let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
-            .into_par_iter()
-            .with_min_len(1024)
-            .map(|i| {
-                if !cand_vec[i] {
-                    return (false, Vec::new(), Vec::new());
-                }
+    // --- STEP 2: ZERO-ALLOCATION STREAM & SEARCH OVER 317M TARGETS ---
+    let start_search = Instant::now();
 
-                let query_seq = seq_vec[i];
-                let mut top_matches = TopNMatches::new(top_n);
-                let mut pass = true;
+    let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
+        .into_par_iter()
+        .with_min_len(1024)
+        .map(|i| {
+            if !cand_vec[i] {
+                return (false, Vec::new(), Vec::new());
+            }
 
-                for (j, &ref_seq) in seq_vec.iter().enumerate() {
-                    if i == j {
-                        continue; // Exclude self
+            let query_seq = seq_vec[i];
+            let q_blocks = extract_pigeonhole_blocks(query_seq);
+
+            let mut top_matches = TopNMatches::new(top_n);
+            let mut pass = true;
+
+            // Inline macro-like processing lambda to avoid duplicating array loop code 
+            // and eliminate all runtime allocations, sorting, and deduplications
+            let mut process_bucket = |candidates: &[usize]| -> bool {
+                for &ref_idx in candidates {
+                    if i == ref_idx {
+                        continue;
                     }
+                    let ref_seq = seq_vec[ref_idx];
                     let dist = base_hamming_distance_masked(query_seq, ref_seq, target_mask);
+                    
                     if dist < d {
-                        pass = false;
-                        break; // Early breaking!
+                        return false; // Fail fast immediately
                     }
                     top_matches.insert(dist, ref_seq);
                 }
+                true
+            };
 
-                if pass {
-                    let (dists, seqs) = top_matches.into_results();
-                    (true, dists, seqs)
-                } else {
-                    (false, Vec::new(), Vec::new())
-                }
-            })
-            .collect();
-        let search_time_sec = start_search.elapsed().as_secs_f64();
-        (results, index_build_time_sec, search_time_sec)
-        } else {
-        // Default to highly tuned HNSW search
-        let start_idx = Instant::now();
-        
-        // hnsw_rs requires elements wrapped explicitly inside Vec<T>
-        let index_data: Vec<Vec<u64>> = seq_vec.iter().map(|&x| vec![x]).collect();
+            // Sequentially stream buckets straight out of L3 cache
+            if pass { pass = process_bucket(&table0[q_blocks[0]]); }
+            if pass { pass = process_bucket(&table1[q_blocks[1]]); }
+            if pass { pass = process_bucket(&table2[q_blocks[2]]); }
+            if pass { pass = process_bucket(&table3[q_blocks[3]]); }
 
-        let max_nb_connection = 12;
-        let nb_elements = index_data.len();
-        let max_layer = 16;
-        let ef_construction = 32; 
-
-        let mut hnsw = Hnsw::new(
-            max_nb_connection,
-            nb_elements,
-            max_layer,
-            ef_construction,
-            DnaHammingDistance { mask: target_mask },
-        );
-
-        // FIX #1: Use the correct API name for disabling candidate extensions
-        hnsw.set_extend_candidates(false);
-
-        // FIX #2: Map to match the precise expected slice format `&Vec<T>`
-        let data_with_ids: Vec<(&Vec<u64>, usize)> = index_data.iter().zip(0..nb_elements).collect();
-        
-        if nb_elements < 1000 {
-            for &(data, id) in &data_with_ids {
-                hnsw.insert((data, id));
+            if pass {
+                let (dists, seqs) = top_matches.into_results();
+                (true, dists, seqs)
+            } else {
+                (false, Vec::new(), Vec::new())
             }
-        } else {
-            hnsw.parallel_insert(&data_with_ids);
-        }
-        let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+        })
+        .collect();
+    let search_time_sec = start_search.elapsed().as_secs_f64();
 
-        let start_search = Instant::now();
-        
-        // Keep search depth low for raw throughput
-        let ef_search = 12;
-        let search_k = (top_n + 16).max(32); 
-
-        let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
-            .into_par_iter()
-            .with_min_len(1024)
-            .map(|i| {
-                if !cand_vec[i] {
-                    return (false, Vec::new(), Vec::new());
-                }
-
-                // Reference our pre-allocated vector index position to avoid heap allocations during search
-                let query = &index_data[i];
-                let raw_neighbors = hnsw.search(query, search_k, ef_search);
-
-                // Collect results, safely pruning out identity self-hits
-                let mut neighbors: Vec<(u32, u64)> = raw_neighbors
-                    .into_iter()
-                    .filter(|n| n.d_id != i)
-                    .map(|n| (n.distance as u32, seq_vec[n.d_id]))
-                    .collect();
-
-                // Sort closest to furthest
-                neighbors.sort_unstable_by_key(|&(dist, _)| dist);
-
-                // Fused early break: check if any neighboring distance triggers off-target bounds
-                let fail = neighbors.iter().any(|&(dist, _)| dist < d);
-
-                if fail {
-                    (false, Vec::new(), Vec::new())
-                } else {
-                    neighbors.truncate(top_n);
-                    let dists: Vec<u32> = neighbors.iter().map(|&(dist, _)| dist).collect();
-                    let seqs: Vec<u64> = neighbors.iter().map(|&(_, seq)| seq).collect();
-                    (true, dists, seqs)
-                }
-            })
-            .collect();
-        let search_time_sec = start_search.elapsed().as_secs_f64();
-        (results, index_build_time_sec, search_time_sec)
-    };
-
-
+    // --- STEP 3: CONSTRUCT POLARS DATAFRAME OUTPUTS ---
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
     let mut passed_mask = Vec::with_capacity(guides_df.height());
     let mut passed_dists = Vec::new();
     let mut passed_seqs = Vec::new();
 
-    for (pass, dists, seqs) in search_results {
+    for (pass, dists, seqs) in results {
         passed_mask.push(pass);
         if pass {
             passed_dists.push(dists);
@@ -387,11 +345,9 @@ pub fn execute_step3(
         0.0
     };
 
-    // Filter guides_df to keep only rows where passed_mask is true
     let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &passed_mask);
     let filtered_df = guides_df.filter(&mask_ca)?;
 
-    // Build Polars List Series for nn_dist and nn_seq
     let dist_series_vec: Vec<Series> = passed_dists
         .into_iter()
         .map(|v| Series::new("".into(), v))
@@ -420,6 +376,8 @@ pub fn execute_step3(
 
     Ok((final_df, stats))
 }
+
+
 
 
 /// Extract LSR key from 2-bit u64 sequence depending on orientation
