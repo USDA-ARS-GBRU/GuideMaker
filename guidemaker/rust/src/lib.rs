@@ -224,6 +224,7 @@ impl TopNMatches {
 }
 
 /// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
+// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
 pub fn execute_step3(
     guides_df: &DataFrame,
     d: u32,
@@ -283,17 +284,19 @@ pub fn execute_step3(
             .collect();
         let search_time_sec = start_search.elapsed().as_secs_f64();
         (results, index_build_time_sec, search_time_sec)
-    } else {
-        // Default to HNSW search
+        } else {
+        // Default to highly tuned HNSW search
         let start_idx = Instant::now();
+        
+        // hnsw_rs requires elements wrapped explicitly inside Vec<T>
         let index_data: Vec<Vec<u64>> = seq_vec.iter().map(|&x| vec![x]).collect();
 
-        let max_nb_connection = 16;
+        let max_nb_connection = 12;
         let nb_elements = index_data.len();
         let max_layer = 16;
-        let ef_construction = 64;
+        let ef_construction = 32; 
 
-        let hnsw = Hnsw::new(
+        let mut hnsw = Hnsw::new(
             max_nb_connection,
             nb_elements,
             max_layer,
@@ -301,7 +304,12 @@ pub fn execute_step3(
             DnaHammingDistance { mask: target_mask },
         );
 
+        // FIX #1: Use the correct API name for disabling candidate extensions
+        hnsw.set_extend_candidates(false);
+
+        // FIX #2: Map to match the precise expected slice format `&Vec<T>`
         let data_with_ids: Vec<(&Vec<u64>, usize)> = index_data.iter().zip(0..nb_elements).collect();
+        
         if nb_elements < 1000 {
             for &(data, id) in &data_with_ids {
                 hnsw.insert((data, id));
@@ -312,8 +320,10 @@ pub fn execute_step3(
         let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
         let start_search = Instant::now();
-        let ef_search = 64;
-        let search_k = (top_n + 32).max(64);
+        
+        // Keep search depth low for raw throughput
+        let ef_search = 12;
+        let search_k = (top_n + 16).max(32); 
 
         let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
             .into_par_iter()
@@ -323,17 +333,21 @@ pub fn execute_step3(
                     return (false, Vec::new(), Vec::new());
                 }
 
+                // Reference our pre-allocated vector index position to avoid heap allocations during search
                 let query = &index_data[i];
                 let raw_neighbors = hnsw.search(query, search_k, ef_search);
 
+                // Collect results, safely pruning out identity self-hits
                 let mut neighbors: Vec<(u32, u64)> = raw_neighbors
                     .into_iter()
-                    .filter(|n| n.d_id != i) // Exclude self
+                    .filter(|n| n.d_id != i)
                     .map(|n| (n.distance as u32, seq_vec[n.d_id]))
                     .collect();
 
+                // Sort closest to furthest
                 neighbors.sort_unstable_by_key(|&(dist, _)| dist);
 
+                // Fused early break: check if any neighboring distance triggers off-target bounds
                 let fail = neighbors.iter().any(|&(dist, _)| dist < d);
 
                 if fail {
@@ -349,6 +363,7 @@ pub fn execute_step3(
         let search_time_sec = start_search.elapsed().as_secs_f64();
         (results, index_build_time_sec, search_time_sec)
     };
+
 
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
@@ -405,6 +420,7 @@ pub fn execute_step3(
 
     Ok((final_df, stats))
 }
+
 
 /// Extract LSR key from 2-bit u64 sequence depending on orientation
 #[inline(always)]
