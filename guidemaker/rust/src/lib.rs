@@ -302,7 +302,13 @@ pub fn execute_step3(
         );
 
         let data_with_ids: Vec<(&Vec<u64>, usize)> = index_data.iter().zip(0..nb_elements).collect();
-        hnsw.parallel_insert(&data_with_ids);
+        if nb_elements < 1000 {
+            for &(data, id) in &data_with_ids {
+                hnsw.insert((data, id));
+            }
+        } else {
+            hnsw.parallel_insert(&data_with_ids);
+        }
         let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
         let start_search = Instant::now();
