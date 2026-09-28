@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
+use hnsw_rs::prelude::*;
 use polars::prelude::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -171,107 +172,63 @@ impl MihSegmentTable {
     }
 }
 
-/// Full Multi-Index Hash Index
-#[derive(Debug)]
-pub struct MihIndex {
-    pub m: usize,
-    pub target_len: usize,
-    pub tables: Vec<MihSegmentTable>,
+/// DNA Hamming Distance metric for hnsw_rs
+#[derive(Clone, Copy)]
+pub struct DnaHammingDistance {
+    pub mask: u64,
 }
 
-impl MihIndex {
-    pub fn build(seq_vec: &[u64], target_len: usize, d: usize) -> Self {
-        let m = (d + 1).max(2);
-
-        let tables: Vec<MihSegmentTable> = (0..m)
-            .into_par_iter()
-            .map(|s| MihSegmentTable::build(seq_vec, target_len, s, m))
-            .collect();
-
-        MihIndex {
-            m,
-            target_len,
-            tables,
-        }
-    }
-
-    pub fn evaluate_candidate(
-        &self,
-        candidate_idx: usize,
-        candidate_seq: u64,
-        seq_vec: &[u64],
-        d: u32,
-        target_mask: u64,
-    ) -> bool {
-        let cand_u32 = candidate_idx as u32;
-        let m = self.m.min(8);
-
-        // Precompute candidate keys and bucket sizes for all segments on stack
-        let mut cand_keys = [0usize; 8];
-        let mut seg_order = [(0usize, 0usize); 8];
-
-        for s in 0..m {
-            let key = self.tables[s].extract_key(candidate_seq);
-            cand_keys[s] = key;
-            let size = self.tables[s].get_bucket_size(key);
-            seg_order[s] = (size, s);
-        }
-
-        // Priority probe order: smallest bucket first
-        seg_order[0..m].sort_unstable_by_key(|&(size, _)| size);
-
-        for i in 0..m {
-            let s = seg_order[i].1;
-            let key = cand_keys[s];
-            let target_ids = self.tables[s].get_bucket_targets(key);
-
-            if i == 0 {
-                // Segment 0 (smallest bucket): Guaranteed zero duplicate targets
-                for &tid in target_ids {
-                    if tid == cand_u32 {
-                        continue;
-                    }
-                    let target_seq = seq_vec[tid as usize];
-                    let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
-                    if dist < d {
-                        return false;
-                    }
-                }
-            } else {
-                // Segments 1..m-1: Pure algebraic duplicate check (0 memory access / allocation)
-                for &tid in target_ids {
-                    if tid == cand_u32 {
-                        continue;
-                    }
-                    let target_seq = seq_vec[tid as usize];
-
-                    let mut duplicate = false;
-                    for j in 0..i {
-                        let prev_s = seg_order[j].1;
-                        if self.tables[prev_s].extract_key(target_seq) == cand_keys[prev_s] {
-                            duplicate = true;
-                            break;
-                        }
-                    }
-
-                    if !duplicate {
-                        let dist = base_hamming_distance_masked(candidate_seq, target_seq, target_mask);
-                        if dist < d {
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-
-        true
+impl Distance<u64> for DnaHammingDistance {
+    #[inline(always)]
+    fn eval(&self, va: &[u64], vb: &[u64]) -> f32 {
+        base_hamming_distance_masked(va[0], vb[0], self.mask) as f32
     }
 }
 
-/// Execute Step 3 filtering pipeline
+/// Helper container for tracking top N nearest matches during exact search
+#[derive(Debug, Clone)]
+struct TopNMatches {
+    top_n: usize,
+    matches: Vec<(u32, u64)>,
+}
+
+impl TopNMatches {
+    fn new(top_n: usize) -> Self {
+        Self {
+            top_n,
+            matches: Vec::with_capacity(top_n + 1),
+        }
+    }
+
+    #[inline(always)]
+    fn insert(&mut self, dist: u32, seq: u64) {
+        if self.matches.len() < self.top_n {
+            self.matches.push((dist, seq));
+            self.matches.sort_unstable_by_key(|&(d, _)| d);
+        } else if dist < self.matches.last().unwrap().0 {
+            self.matches.pop();
+            self.matches.push((dist, seq));
+            self.matches.sort_unstable_by_key(|&(d, _)| d);
+        }
+    }
+
+    fn into_results(self) -> (Vec<u32>, Vec<u64>) {
+        let mut dists = Vec::with_capacity(self.matches.len());
+        let mut seqs = Vec::with_capacity(self.matches.len());
+        for (d, s) in self.matches {
+            dists.push(d);
+            seqs.push(s);
+        }
+        (dists, seqs)
+    }
+}
+
+/// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
 pub fn execute_step3(
     guides_df: &DataFrame,
     d: u32,
+    top_n: usize,
+    method: &str,
     target_len: usize,
 ) -> Result<(DataFrame, Step3Stats)> {
     let start_total = Instant::now();
@@ -283,30 +240,125 @@ pub fn execute_step3(
     let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
 
     let total_candidates = cand_vec.iter().filter(|&&c| c).count();
-
     let target_mask = compute_target_mask(target_len);
 
-    let start_idx = Instant::now();
-    let mih_index = MihIndex::build(&seq_vec, target_len, d as usize);
-    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+    let method_lower = method.to_lowercase();
 
-    let start_search = Instant::now();
-    let distpass_vec: Vec<bool> = (0..guides_df.height())
-        .into_par_iter()
-        .with_min_len(1024)
-        .map(|i| {
-            if cand_vec[i] {
-                mih_index.evaluate_candidate(i, seq_vec[i], &seq_vec, d, target_mask)
-            } else {
-                false
-            }
-        })
-        .collect();
+    let (search_results, index_build_time_sec, search_time_sec) = if method_lower == "exact" || method_lower == "linear" {
+        let start_idx = Instant::now();
+        let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
-    let search_time_sec = start_search.elapsed().as_secs_f64();
+        let start_search = Instant::now();
+        let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
+            .into_par_iter()
+            .with_min_len(1024)
+            .map(|i| {
+                if !cand_vec[i] {
+                    return (false, Vec::new(), Vec::new());
+                }
+
+                let query_seq = seq_vec[i];
+                let mut top_matches = TopNMatches::new(top_n);
+                let mut pass = true;
+
+                for (j, &ref_seq) in seq_vec.iter().enumerate() {
+                    if i == j {
+                        continue; // Exclude self
+                    }
+                    let dist = base_hamming_distance_masked(query_seq, ref_seq, target_mask);
+                    if dist < d {
+                        pass = false;
+                        break; // Early breaking!
+                    }
+                    top_matches.insert(dist, ref_seq);
+                }
+
+                if pass {
+                    let (dists, seqs) = top_matches.into_results();
+                    (true, dists, seqs)
+                } else {
+                    (false, Vec::new(), Vec::new())
+                }
+            })
+            .collect();
+        let search_time_sec = start_search.elapsed().as_secs_f64();
+        (results, index_build_time_sec, search_time_sec)
+    } else {
+        // Default to HNSW search
+        let start_idx = Instant::now();
+        let index_data: Vec<Vec<u64>> = seq_vec.iter().map(|&x| vec![x]).collect();
+
+        let max_nb_connection = 16;
+        let nb_elements = index_data.len();
+        let max_layer = 16;
+        let ef_construction = 64;
+
+        let hnsw = Hnsw::new(
+            max_nb_connection,
+            nb_elements,
+            max_layer,
+            ef_construction,
+            DnaHammingDistance { mask: target_mask },
+        );
+
+        let data_with_ids: Vec<(&Vec<u64>, usize)> = index_data.iter().zip(0..nb_elements).collect();
+        hnsw.parallel_insert(&data_with_ids);
+        let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+
+        let start_search = Instant::now();
+        let ef_search = 64;
+        let search_k = (top_n + 32).max(64);
+
+        let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
+            .into_par_iter()
+            .with_min_len(1024)
+            .map(|i| {
+                if !cand_vec[i] {
+                    return (false, Vec::new(), Vec::new());
+                }
+
+                let query = &index_data[i];
+                let raw_neighbors = hnsw.search(query, search_k, ef_search);
+
+                let mut neighbors: Vec<(u32, u64)> = raw_neighbors
+                    .into_iter()
+                    .filter(|n| n.d_id != i) // Exclude self
+                    .map(|n| (n.distance as u32, seq_vec[n.d_id]))
+                    .collect();
+
+                neighbors.sort_unstable_by_key(|&(dist, _)| dist);
+
+                let fail = neighbors.iter().any(|&(dist, _)| dist < d);
+
+                if fail {
+                    (false, Vec::new(), Vec::new())
+                } else {
+                    neighbors.truncate(top_n);
+                    let dists: Vec<u32> = neighbors.iter().map(|&(dist, _)| dist).collect();
+                    let seqs: Vec<u64> = neighbors.iter().map(|&(_, seq)| seq).collect();
+                    (true, dists, seqs)
+                }
+            })
+            .collect();
+        let search_time_sec = start_search.elapsed().as_secs_f64();
+        (results, index_build_time_sec, search_time_sec)
+    };
+
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
-    let passed_candidates = distpass_vec.iter().filter(|&&dp| dp).count();
+    let mut passed_mask = Vec::with_capacity(guides_df.height());
+    let mut passed_dists = Vec::new();
+    let mut passed_seqs = Vec::new();
+
+    for (pass, dists, seqs) in search_results {
+        passed_mask.push(pass);
+        if pass {
+            passed_dists.push(dists);
+            passed_seqs.push(seqs);
+        }
+    }
+
+    let passed_candidates = passed_dists.len();
     let failed_candidates = total_candidates.saturating_sub(passed_candidates);
     let pass_rate = if total_candidates > 0 {
         (passed_candidates as f64 / total_candidates as f64) * 100.0
@@ -314,9 +366,26 @@ pub fn execute_step3(
         0.0
     };
 
-    let mut output_df = guides_df.clone();
-    let distpass_series = Series::new("distpass".into(), distpass_vec);
-    output_df.with_column(distpass_series)?;
+    // Filter guides_df to keep only rows where passed_mask is true
+    let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &passed_mask);
+    let filtered_df = guides_df.filter(&mask_ca)?;
+
+    // Build Polars List Series for nn_dist and nn_seq
+    let dist_series_vec: Vec<Series> = passed_dists
+        .into_iter()
+        .map(|v| Series::new("".into(), v))
+        .collect();
+    let nn_dist_series = Series::new("nn_dist".into(), dist_series_vec);
+
+    let seq_series_vec: Vec<Series> = passed_seqs
+        .into_iter()
+        .map(|v| Series::new("".into(), v))
+        .collect();
+    let nn_seq_series = Series::new("nn_seq".into(), seq_series_vec);
+
+    let mut final_df = filtered_df;
+    final_df.with_column(nn_dist_series)?;
+    final_df.with_column(nn_seq_series)?;
 
     let stats = Step3Stats {
         total_candidates,
@@ -328,7 +397,7 @@ pub fn execute_step3(
         total_time_sec,
     };
 
-    Ok((output_df, stats))
+    Ok((final_df, stats))
 }
 
 /// Extract LSR key from 2-bit u64 sequence depending on orientation

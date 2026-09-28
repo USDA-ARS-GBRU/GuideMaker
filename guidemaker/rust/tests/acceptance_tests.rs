@@ -366,6 +366,10 @@ fn test_step3_cli_execution() {
         .arg(&guides_path)
         .arg("-d")
         .arg("2")
+        .arg("-n")
+        .arg("2")
+        .arg("--method")
+        .arg("hnsw")
         .arg("--target-len")
         .arg("20")
         .arg("--out")
@@ -380,13 +384,10 @@ fn test_step3_cli_execution() {
         .finish()
         .unwrap();
 
-    assert_eq!(df_step3.height(), 3);
-    let distpass_ca = df_step3.column("distpass").unwrap().bool().unwrap();
-
-    // seq0 has neighbor seq1 with distance 1 (< d=2) -> distpass = false
-    assert_eq!(distpass_ca.get(0), Some(false));
-    // seq1 has neighbor seq0 with distance 1 (< d=2) -> distpass = false
-    assert_eq!(distpass_ca.get(1), Some(false));
-    // seq2 has no neighbors with distance < 2 -> distpass = true
-    assert_eq!(distpass_ca.get(2), Some(true));
+    // seq0 and seq1 have distance 1 (< d=2) to each other -> filtered out
+    // seq2 passes -> output DataFrame height is 1
+    assert_eq!(df_step3.height(), 1);
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_dist"));
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_seq"));
+    assert_eq!(df_step3.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
 }

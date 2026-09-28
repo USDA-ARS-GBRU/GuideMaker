@@ -16,6 +16,14 @@ pub struct Step3Args {
     #[arg(long, short = 'd', default_value_t = 3)]
     pub d: u32,
 
+    /// Number of top nearest neighbors to compute for passing candidates
+    #[arg(long, short = 'n', default_value_t = 3)]
+    pub top_n: usize,
+
+    /// Neighbor search method ("hnsw" or "exact")
+    #[arg(long, default_value = "hnsw")]
+    pub method: String,
+
     /// Target length in nt (1..=26, default 20)
     #[arg(long, default_value_t = 20)]
     pub target_len: usize,
@@ -46,16 +54,25 @@ fn main() -> Result<()> {
         .with_context(|| format!("Failed to open guides Parquet file at {:?}", args.guides))?;
     let guides_df = ParquetReader::new(guides_file).finish()?;
 
-    let (mut output_df, stats) = execute_step3(&guides_df, args.d, args.target_len)?;
+    let (mut output_df, stats) = execute_step3(
+        &guides_df,
+        args.d,
+        args.top_n,
+        &args.method,
+        args.target_len,
+    )?;
 
     println!("=== Step-3 Hamming Distance Off-Target Summary ===");
-    println!("Threshold d: {} base mismatches | Target Len: {} nt", args.d, args.target_len);
+    println!(
+        "Threshold d: {} base mismatches | Top-N: {} | Method: {} | Target Len: {} nt",
+        args.d, args.top_n, args.method, args.target_len
+    );
     println!("Total Candidate Inputs: {}", stats.total_candidates);
-    println!("Passed Candidates (distpass=true): {}", stats.passed_candidates);
-    println!("Failed Candidates (distpass=false): {}", stats.failed_candidates);
+    println!("Passed Candidates: {}", stats.passed_candidates);
+    println!("Failed Candidates: {}", stats.failed_candidates);
     println!("Pass Rate: {:.2}%", stats.pass_rate);
     println!(
-        "Timings: Index Build: {:.4}s | MIH Distance Search: {:.4}s | Total Execution: {:.4}s",
+        "Timings: Index Build: {:.4}s | Neighbor Search: {:.4}s | Total Execution: {:.4}s",
         stats.index_build_time_sec, stats.search_time_sec, stats.total_time_sec
     );
 
