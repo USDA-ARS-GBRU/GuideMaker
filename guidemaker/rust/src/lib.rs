@@ -23,6 +23,9 @@ pub struct SeqRecord {
 pub mod controls;
 pub use controls::{generate_flexible_negative_controls, SeedOrientation};
 
+pub mod cfd;
+pub use cfd::calculate_cfd_2bit;
+
 
 /// Representation of a single candidate hit
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,12 +74,13 @@ pub struct Step3Stats {
 }
 
 /// Calculate precomputed left-aligned target mask
+#[inline(always)]
 pub fn compute_target_mask(target_len: usize) -> u64 {
-    let shift = 64 - 2 * target_len;
-    if shift >= 64 {
-        0
+    let active_bits = 2 * target_len;
+    if active_bits >= 64 {
+        u64::MAX
     } else {
-        (u64::MAX >> shift) << shift
+        !((1u64 << (64 - active_bits)) - 1)
     }
 }
 
@@ -283,11 +287,13 @@ pub fn execute_step3(
 
     let mut flat_dists = vec![0u32; num_rows * top_n];
     let mut flat_seqs = vec![0u64; num_rows * top_n];
+    let mut flat_cfds = vec![1.0f32; num_rows * top_n]; // Allocation-free CFD buffer tracker
     let mut passed_mask = vec![false; num_rows];
 
     // Thread-safe pointer tracking bridges
     let flat_dists_ptr = flat_dists.as_mut_ptr() as usize;
     let flat_seqs_ptr = flat_seqs.as_mut_ptr() as usize;
+    let flat_cfds_ptr = flat_cfds.as_mut_ptr() as usize;
     let passed_mask_ptr = passed_mask.as_mut_ptr() as usize;
 
     (0..num_rows)
@@ -316,7 +322,6 @@ pub fn execute_step3(
                 true
             };
 
-            // Fix indexing expressions explicitly via specific array components
             if pass { pass = process_bucket(&table0[q_blocks[0]]); }
             if pass { pass = process_bucket(&table1[q_blocks[1]]); }
             if pass { pass = process_bucket(&table2[q_blocks[2]]); }
@@ -329,12 +334,17 @@ pub fn execute_step3(
                 unsafe {
                     let out_dists = (flat_dists_ptr as *mut u32).add(offset);
                     let out_seqs = (flat_seqs_ptr as *mut u64).add(offset);
+                    let out_cfds = (flat_cfds_ptr as *mut f32).add(offset);
                     let out_mask = (passed_mask_ptr as *mut bool).add(i);
 
                     *out_mask = true;
                     for k in 0..dists.len() {
                         *out_dists.add(k) = dists[k];
                         *out_seqs.add(k) = seqs[k];
+
+                        // ON-THE-FLY REGISTERS CFD SCORE EXTRACTION
+                        let cfd_score = crate::cfd::calculate_cfd_2bit(query_seq, seqs[k], target_len);
+                        *out_cfds.add(k) = cfd_score;
                     }
                 }
             }
@@ -359,6 +369,7 @@ pub fn execute_step3(
     // Build the collection columns only for rows where passed_mask[i] is true
     let mut passed_dists_nested = Vec::with_capacity(passed_candidates);
     let mut passed_seqs_nested = Vec::with_capacity(passed_candidates);
+    let mut passed_cfds_nested = Vec::with_capacity(passed_candidates);
 
     for i in 0..num_rows {
         if passed_mask[i] {
@@ -367,9 +378,11 @@ pub fn execute_step3(
             // Extract the fixed-size top-N windows directly out of memory
             let row_dists = flat_dists[offset..(offset + top_n)].to_vec();
             let row_seqs = flat_seqs[offset..(offset + top_n)].to_vec();
+            let row_cfds = flat_cfds[offset..(offset + top_n)].to_vec();
             
             passed_dists_nested.push(row_dists);
             passed_seqs_nested.push(row_seqs);
+            passed_cfds_nested.push(row_cfds);
         }
     }
 
@@ -386,9 +399,16 @@ pub fn execute_step3(
         .collect();
     let nn_seq_series = Series::new("nn_seq".into(), seq_series_vec);
 
+    let cfd_series_vec: Vec<Series> = passed_cfds_nested
+        .into_iter()
+        .map(|v| Series::new("".into(), v))
+        .collect();
+    let nn_cfd_series = Series::new("nn_cfd".into(), cfd_series_vec);
+
     let mut final_df = filtered_df;
     final_df.with_column(nn_dist_series)?;
     final_df.with_column(nn_seq_series)?;
+    final_df.with_column(nn_cfd_series)?;
 
     let stats = Step3Stats {
         total_candidates,
@@ -1160,17 +1180,22 @@ pub fn search_5prime_forward(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
+    let flank_len = 2;
     let seq_len = seq.len();
-    if seq_len < pam_len + target_len {
+    let total_window = target_len + pam_len + flank_len;
+    if seq_len < total_window {
         return hits;
     }
+    let min_pos = flank_len;
     let max_pos = seq_len - pam_len - target_len;
-    for pos in 0..=max_pos {
+    for pos in min_pos..=max_pos {
         if pam_matches_forward(pam_masks, seq, pos) {
-            let target_start = pos + pam_len;
-            let target_end = target_start + target_len;
-            let target_bytes = &seq[target_start..target_end];
-            if let Ok(encoded_seq) = encode_2bit_u64(target_bytes) {
+            let window_start = pos - flank_len;
+            let window_end = pos + pam_len + target_len;
+            let window_bytes = &seq[window_start..window_end];
+            if let Ok(encoded_seq) = encode_2bit_u64(window_bytes) {
+                let target_start = pos + pam_len;
+                let target_end = target_start + target_len;
                 let start = target_start as u32;
                 let stop = target_end as u32;
                 if start < stop && (stop as usize) <= seq_len {
@@ -1198,18 +1223,21 @@ pub fn search_5prime_reverse(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
+    let flank_len = 2;
     let seq_len = seq.len();
-    if seq_len < pam_len + target_len {
+    let total_window = target_len + pam_len + flank_len;
+    if seq_len < total_window {
         return hits;
     }
     let rc_seq = dna::revcomp(seq);
+    let min_rc_pos = flank_len;
     let max_rc_pos = seq_len - pam_len - target_len;
-    for rc_pos in 0..=max_rc_pos {
+    for rc_pos in min_rc_pos..=max_rc_pos {
         if pam_matches_forward(pam_masks, &rc_seq, rc_pos) {
-            let rc_target_start = rc_pos + pam_len;
-            let rc_target_end = rc_target_start + target_len;
-            let target_bytes = &rc_seq[rc_target_start..rc_target_end];
-            if let Ok(encoded_seq) = encode_2bit_u64(target_bytes) {
+            let rc_window_start = rc_pos - flank_len;
+            let rc_window_end = rc_pos + pam_len + target_len;
+            let window_bytes = &rc_seq[rc_window_start..rc_window_end];
+            if let Ok(encoded_seq) = encode_2bit_u64(window_bytes) {
                 let start_fwd = seq_len - (rc_pos + pam_len + target_len);
                 let stop_fwd = seq_len - (rc_pos + pam_len);
                 if start_fwd < stop_fwd && stop_fwd <= seq_len {
@@ -1237,20 +1265,22 @@ pub fn search_3prime_forward(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
+    let flank_len = 2;
     let seq_len = seq.len();
-    if seq_len < pam_len + target_len {
+    let total_window = target_len + pam_len + flank_len;
+    if seq_len < total_window {
         return hits;
     }
     let min_pos = target_len;
-    let max_pos = seq_len - pam_len;
+    let max_pos = seq_len - pam_len - flank_len;
     for pos in min_pos..=max_pos {
         if pam_matches_forward(pam_masks, seq, pos) {
             let target_start = pos - target_len;
-            let target_end = pos;
-            let target_bytes = &seq[target_start..target_end];
-            if let Ok(encoded_seq) = encode_2bit_u64(target_bytes) {
+            let window_end = target_start + total_window;
+            let window_bytes = &seq[target_start..window_end];
+            if let Ok(encoded_seq) = encode_2bit_u64(window_bytes) {
                 let start = target_start as u32;
-                let stop = target_end as u32;
+                let stop = pos as u32;
                 if start < stop && (stop as usize) <= seq_len {
                     hits.push(TargetHit {
                         candidate: true,
@@ -1276,19 +1306,21 @@ pub fn search_3prime_reverse(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
+    let flank_len = 2;
     let seq_len = seq.len();
-    if seq_len < pam_len + target_len {
+    let total_window = target_len + pam_len + flank_len;
+    if seq_len < total_window {
         return hits;
     }
     let rc_seq = dna::revcomp(seq);
     let min_rc_pos = target_len;
-    let max_rc_pos = seq_len - pam_len;
+    let max_rc_pos = seq_len - pam_len - flank_len;
     for rc_pos in min_rc_pos..=max_rc_pos {
         if pam_matches_forward(pam_masks, &rc_seq, rc_pos) {
             let rc_target_start = rc_pos - target_len;
-            let rc_target_end = rc_pos;
-            let target_bytes = &rc_seq[rc_target_start..rc_target_end];
-            if let Ok(encoded_seq) = encode_2bit_u64(target_bytes) {
+            let rc_window_end = rc_target_start + total_window;
+            let window_bytes = &rc_seq[rc_target_start..rc_window_end];
+            if let Ok(encoded_seq) = encode_2bit_u64(window_bytes) {
                 let start_fwd = seq_len - rc_pos;
                 let stop_fwd = seq_len - (rc_pos - target_len);
                 if start_fwd < stop_fwd && stop_fwd <= seq_len {

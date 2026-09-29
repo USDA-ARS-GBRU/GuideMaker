@@ -52,6 +52,14 @@ fn test_8_3_step3_hnsw_and_exact_methods() {
     assert_eq!(df_exact.column("seq").unwrap().u64().unwrap().get(0), Some(seq_far));
     assert!(df_exact.get_column_names().iter().any(|&n| n == "nn_dist"));
     assert!(df_exact.get_column_names().iter().any(|&n| n == "nn_seq"));
+    assert!(df_exact.get_column_names().iter().any(|&n| n == "nn_cfd"));
+
+    let cfd_col_exact = df_exact.column("nn_cfd").unwrap().list().unwrap();
+    let cfd_series_exact = cfd_col_exact.get_as_series(0).unwrap();
+    assert_eq!(cfd_series_exact.len(), 2);
+    for val in cfd_series_exact.f32().unwrap().into_iter().flatten() {
+        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
+    }
 
     // Test HNSW method
     let (df_hnsw, stats_hnsw) = execute_step3(&df, 2, 2, "hnsw", 20).unwrap();
@@ -60,6 +68,14 @@ fn test_8_3_step3_hnsw_and_exact_methods() {
     assert_eq!(df_hnsw.column("seq").unwrap().u64().unwrap().get(0), Some(seq_far));
     assert!(df_hnsw.get_column_names().iter().any(|&n| n == "nn_dist"));
     assert!(df_hnsw.get_column_names().iter().any(|&n| n == "nn_seq"));
+    assert!(df_hnsw.get_column_names().iter().any(|&n| n == "nn_cfd"));
+
+    let cfd_col_hnsw = df_hnsw.column("nn_cfd").unwrap().list().unwrap();
+    let cfd_series_hnsw = cfd_col_hnsw.get_as_series(0).unwrap();
+    assert_eq!(cfd_series_hnsw.len(), 2);
+    for val in cfd_series_hnsw.f32().unwrap().into_iter().flatten() {
+        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
+    }
 }
 
 #[test]
@@ -126,5 +142,13 @@ fn test_8_4_step3_integration_cli() {
     assert_eq!(df_out.height(), 1);
     assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "nn_dist"));
     assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "nn_seq"));
+    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "nn_cfd"));
     assert_eq!(df_out.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+
+    let cfd_col_out = df_out.column("nn_cfd").unwrap().list().unwrap();
+    let cfd_series_out = cfd_col_out.get_as_series(0).unwrap();
+    assert_eq!(cfd_series_out.len(), 2);
+    for val in cfd_series_out.f32().unwrap().into_iter().flatten() {
+        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
+    }
 }

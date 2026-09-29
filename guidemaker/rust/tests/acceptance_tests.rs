@@ -10,7 +10,7 @@ use tempfile::tempdir;
 
 #[test]
 fn acceptance_test_1_iupac_and_orientation() {
-    let seq = b"ACGTACGTACGTACGTACGTCGG";
+    let seq = b"ACGTACGTACGTACGTACGTCGGAA";
     let pam_masks = parse_pam_masks("NGG").unwrap();
     let chrom_names = vec!["chr1".to_string()];
 
@@ -25,21 +25,21 @@ fn acceptance_test_1_iupac_and_orientation() {
     let df = build_dataframe(&fwd_hits, &chrom_names).unwrap();
     assert_eq!(df.height(), 1);
 
-    let expected_code = encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap();
+    let expected_code = encode_2bit_u64(b"ACGTACGTACGTACGTACGTCGGAA").unwrap();
     assert_eq!(fwd_hits[0].seq, expected_code);
 }
 
 #[test]
 fn acceptance_test_2_reverse_mapping_correctness() {
-    let fwd_seq = b"CCTACGTACGTACGTACGTACGT";
+    let fwd_seq = b"AACCTACGTACGTACGTACGTACGT";
     let pam_masks = parse_pam_masks("NGG").unwrap();
 
     let rev_hits = search_3prime_reverse(0, fwd_seq, &pam_masks, 20);
     assert_eq!(rev_hits.len(), 1);
     assert_eq!(rev_hits[0].candidate, true);
     assert_eq!(rev_hits[0].chrom_idx, 0);
-    assert_eq!(rev_hits[0].start, 3);
-    assert_eq!(rev_hits[0].stop, 23);
+    assert_eq!(rev_hits[0].start, 5);
+    assert_eq!(rev_hits[0].stop, 25);
     assert_eq!(rev_hits[0].strand, false);
 
     assert!(rev_hits[0].start < rev_hits[0].stop);
@@ -130,13 +130,13 @@ fn test_compressed_fasta_and_genbank_support() {
     {
         let f = File::create(&gz_path).unwrap();
         let mut gz = GzEncoder::new(f, Compression::default());
-        writeln!(gz, ">chr_gz\nACGTACGTACGTACGTACGTCGG").unwrap();
+        writeln!(gz, ">chr_gz\nACGTACGTACGTACGTACGTCGGAA").unwrap();
         gz.finish().unwrap();
     }
     let gz_records = read_sequence_records(&gz_path).unwrap();
     assert_eq!(gz_records.len(), 1);
     assert_eq!(gz_records[0].id, "chr_gz");
-    assert_eq!(gz_records[0].seq, b"ACGTACGTACGTACGTACGTCGG");
+    assert_eq!(gz_records[0].seq, b"ACGTACGTACGTACGTACGTCGGAA");
 
     let zst_path = dir.path().join("test.gb.zst");
     {
@@ -144,7 +144,7 @@ fn test_compressed_fasta_and_genbank_support() {
         let mut zst = zstd::stream::Encoder::new(f, 0).unwrap();
         writeln!(
             zst,
-            "LOCUS       chr_zst                 23 bp    DNA     linear   BCT 01-JAN-2020\nORIGIN\n        1 acgtacgtac gtacgtacgt cgg\n//"
+            "LOCUS       chr_zst                 25 bp    DNA     linear   BCT 01-JAN-2020\nORIGIN\n        1 acgtacgtac gtacgtacgt cggaa\n//"
         )
         .unwrap();
         zst.finish().unwrap();
@@ -152,7 +152,7 @@ fn test_compressed_fasta_and_genbank_support() {
     let zst_records = read_sequence_records(&zst_path).unwrap();
     assert_eq!(zst_records.len(), 1);
     assert_eq!(zst_records[0].id, "chr_zst");
-    assert_eq!(zst_records[0].seq, b"ACGTACGTACGTACGTACGTCGG");
+    assert_eq!(zst_records[0].seq, b"ACGTACGTACGTACGTACGTCGGAA");
 
     let out_csv = dir.path().join("gz_out.csv");
     let bin = env!("CARGO_BIN_EXE_guidemaker-scan");
@@ -181,11 +181,11 @@ fn test_features_csv_and_parquet_output() {
     let feat_parquet = dir.path().join("feat.parquet");
 
     let mut f_fasta = File::create(&fasta_path).unwrap();
-    writeln!(f_fasta, ">chr1\nACGTACGTACGTACGTACGTCGG").unwrap();
+    writeln!(f_fasta, ">chr1\nACGTACGTACGTACGTACGTCGGAA").unwrap();
 
     let mut f_gff = File::create(&gff_path).unwrap();
     writeln!(f_gff, "##gff-version 3").unwrap();
-    writeln!(f_gff, "chr1\tRefSeq\tgene\t1\t23\t.\t+\t.\tID=gene-b0001;locus_tag=b0001").unwrap();
+    writeln!(f_gff, "chr1\tRefSeq\tgene\t1\t25\t.\t+\t.\tID=gene-b0001;locus_tag=b0001").unwrap();
     writeln!(f_gff, "chr1\tRefSeq\tCDS\t5\t20\t.\t-\t.\tID=cds-b0001;locus_tag=b0001").unwrap();
 
     let bin = env!("CARGO_BIN_EXE_guidemaker-scan");
@@ -384,10 +384,16 @@ fn test_step3_cli_execution() {
         .finish()
         .unwrap();
 
-    // seq0 and seq1 have distance 1 (< d=2) to each other -> filtered out
-    // seq2 passes -> output DataFrame height is 1
     assert_eq!(df_step3.height(), 1);
     assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_dist"));
     assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_seq"));
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_cfd"));
     assert_eq!(df_step3.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+
+    let cfd_col_step3 = df_step3.column("nn_cfd").unwrap().list().unwrap();
+    let cfd_series_step3 = cfd_col_step3.get_as_series(0).unwrap();
+    assert_eq!(cfd_series_step3.len(), 2);
+    for val in cfd_series_step3.f32().unwrap().into_iter().flatten() {
+        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
+    }
 }

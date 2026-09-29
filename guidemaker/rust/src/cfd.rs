@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 // Substitution Matrix Layout: [Position 0..19][WT_2Bit][OFF_2Bit]
 // Encoding Map: A = 0b00 (0), C = 0b01 (1), G = 0b10 (2), T/U = 0b11 (3)
 static CFD_2BIT_MATRIX: [[[f32; 4]; 4]; 20] = [
@@ -49,9 +47,10 @@ static CFD_2BIT_MATRIX: [[[f32; 4]; 4]; 20] = [
 #[inline(always)]
 pub fn calculate_cfd_2bit(wt_seq: u64, off_seq: u64, target_len: usize) -> f32 {
     let mut score: f32 = 1.0;
+    let eval_len = target_len.min(20);
 
-    // Evaluate up to the target length (ignoring any subsequent trailing PAM bits)
-    for position_idx in 0..target_len {
+    // Evaluate up to 20 positions (ignoring any subsequent trailing PAM / flank bits)
+    for position_idx in 0..eval_len {
         let shift = 64 - 2 * (position_idx + 1);
 
         let wt_code = ((wt_seq >> shift) & 0b11) as usize;
