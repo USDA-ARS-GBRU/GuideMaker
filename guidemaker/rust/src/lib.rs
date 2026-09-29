@@ -19,6 +19,11 @@ pub struct SeqRecord {
     pub seq: Vec<u8>,
 }
 
+/// Control generation 
+pub mod controls;
+pub use controls::{generate_flexible_negative_controls, SeedOrientation};
+
+
 /// Representation of a single candidate hit
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TargetHit {
@@ -224,6 +229,8 @@ impl TopNMatches {
 }
 
 /// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
+
+// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
 // Helper to extract 4 independent 12-bit blocks (6 bases each) from the MSB of the u64 sequence
 #[inline(always)]
 fn extract_pigeonhole_blocks(seq: u64) -> [usize; 4] {
@@ -235,12 +242,11 @@ fn extract_pigeonhole_blocks(seq: u64) -> [usize; 4] {
 }
 
 // Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
-// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
 pub fn execute_step3(
     guides_df: &DataFrame,
     d: u32,
     top_n: usize,
-    _method: &str,
+    _method: &str, 
     target_len: usize,
 ) -> Result<(DataFrame, Step3Stats)> {
     let start_total = Instant::now();
@@ -271,15 +277,25 @@ pub fn execute_step3(
     }
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
-    // --- STEP 2: ZERO-ALLOCATION STREAM & SEARCH OVER 317M TARGETS ---
+    // --- STEP 2: PRE-ALLOCATE FLAT UNIFIED BUFFERS ---
     let start_search = Instant::now();
+    let num_rows = guides_df.height();
 
-    let results: Vec<(bool, Vec<u32>, Vec<u64>)> = (0..guides_df.height())
+    let mut flat_dists = vec![0u32; num_rows * top_n];
+    let mut flat_seqs = vec![0u64; num_rows * top_n];
+    let mut passed_mask = vec![false; num_rows];
+
+    // Thread-safe pointer tracking bridges
+    let flat_dists_ptr = flat_dists.as_mut_ptr() as usize;
+    let flat_seqs_ptr = flat_seqs.as_mut_ptr() as usize;
+    let passed_mask_ptr = passed_mask.as_mut_ptr() as usize;
+
+    (0..num_rows)
         .into_par_iter()
         .with_min_len(1024)
-        .map(|i| {
+        .for_each(|i| {
             if !cand_vec[i] {
-                return (false, Vec::new(), Vec::new());
+                return;
             }
 
             let query_seq = seq_vec[i];
@@ -288,25 +304,19 @@ pub fn execute_step3(
             let mut top_matches = TopNMatches::new(top_n);
             let mut pass = true;
 
-            // Inline macro-like processing lambda to avoid duplicating array loop code 
-            // and eliminate all runtime allocations, sorting, and deduplications
             let mut process_bucket = |candidates: &[usize]| -> bool {
                 for &ref_idx in candidates {
-                    if i == ref_idx {
-                        continue;
-                    }
+                    if i == ref_idx { continue; }
                     let ref_seq = seq_vec[ref_idx];
                     let dist = base_hamming_distance_masked(query_seq, ref_seq, target_mask);
                     
-                    if dist < d {
-                        return false; // Fail fast immediately
-                    }
+                    if dist < d { return false; }
                     top_matches.insert(dist, ref_seq);
                 }
                 true
             };
 
-            // Sequentially stream buckets straight out of L3 cache
+            // Fix indexing expressions explicitly via specific array components
             if pass { pass = process_bucket(&table0[q_blocks[0]]); }
             if pass { pass = process_bucket(&table1[q_blocks[1]]); }
             if pass { pass = process_bucket(&table2[q_blocks[2]]); }
@@ -314,30 +324,27 @@ pub fn execute_step3(
 
             if pass {
                 let (dists, seqs) = top_matches.into_results();
-                (true, dists, seqs)
-            } else {
-                (false, Vec::new(), Vec::new())
+                let offset = i * top_n;
+
+                unsafe {
+                    let out_dists = (flat_dists_ptr as *mut u32).add(offset);
+                    let out_seqs = (flat_seqs_ptr as *mut u64).add(offset);
+                    let out_mask = (passed_mask_ptr as *mut bool).add(i);
+
+                    *out_mask = true;
+                    for k in 0..dists.len() {
+                        *out_dists.add(k) = dists[k];
+                        *out_seqs.add(k) = seqs[k];
+                    }
+                }
             }
-        })
-        .collect();
+        });
     let search_time_sec = start_search.elapsed().as_secs_f64();
 
-    // --- STEP 3: CONSTRUCT POLARS DATAFRAME OUTPUTS ---
+    // --- STEP 3: HIGH SPEED POLARS DATA EXTRACTION ---
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
-    let mut passed_mask = Vec::with_capacity(guides_df.height());
-    let mut passed_dists = Vec::new();
-    let mut passed_seqs = Vec::new();
-
-    for (pass, dists, seqs) in results {
-        passed_mask.push(pass);
-        if pass {
-            passed_dists.push(dists);
-            passed_seqs.push(seqs);
-        }
-    }
-
-    let passed_candidates = passed_dists.len();
+    let passed_candidates = passed_mask.iter().filter(|&&m| m).count();
     let failed_candidates = total_candidates.saturating_sub(passed_candidates);
     let pass_rate = if total_candidates > 0 {
         (passed_candidates as f64 / total_candidates as f64) * 100.0
@@ -345,16 +352,35 @@ pub fn execute_step3(
         0.0
     };
 
+    // Slice out the final passing rows
     let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &passed_mask);
     let filtered_df = guides_df.filter(&mask_ca)?;
 
-    let dist_series_vec: Vec<Series> = passed_dists
+    // Build the collection columns only for rows where passed_mask[i] is true
+    let mut passed_dists_nested = Vec::with_capacity(passed_candidates);
+    let mut passed_seqs_nested = Vec::with_capacity(passed_candidates);
+
+    for i in 0..num_rows {
+        if passed_mask[i] {
+            let offset = i * top_n;
+            
+            // Extract the fixed-size top-N windows directly out of memory
+            let row_dists = flat_dists[offset..(offset + top_n)].to_vec();
+            let row_seqs = flat_seqs[offset..(offset + top_n)].to_vec();
+            
+            passed_dists_nested.push(row_dists);
+            passed_seqs_nested.push(row_seqs);
+        }
+    }
+
+    // Standard Polars List Series compilation
+    let dist_series_vec: Vec<Series> = passed_dists_nested
         .into_iter()
         .map(|v| Series::new("".into(), v))
         .collect();
     let nn_dist_series = Series::new("nn_dist".into(), dist_series_vec);
 
-    let seq_series_vec: Vec<Series> = passed_seqs
+    let seq_series_vec: Vec<Series> = passed_seqs_nested
         .into_iter()
         .map(|v| Series::new("".into(), v))
         .collect();
@@ -376,6 +402,7 @@ pub fn execute_step3(
 
     Ok((final_df, stats))
 }
+
 
 
 
