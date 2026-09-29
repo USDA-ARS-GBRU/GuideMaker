@@ -15,6 +15,14 @@ struct Args {
     #[arg(short = 'd', default_value_t = 2)]
     d: u32,
 
+    /// Number of top nearest neighbors to compute
+    #[arg(short = 'k', long, default_value_t = 3)]
+    top_n: usize,
+
+    /// Search method ("hnsw" or "exact")
+    #[arg(short = 'm', long, default_value = "hnsw")]
+    method: String,
+
     /// Target guide length in nt
     #[arg(long = "target-len", default_value_t = 20)]
     target_len: usize,
@@ -71,8 +79,8 @@ fn main() -> Result<()> {
     let df = build_dataframe(&hits, &chrom_names)?;
     println!("Generated DataFrame in {:.3}s", start_gen.elapsed().as_secs_f64());
 
-    println!("\nExecuting Step-3 MIH Off-Target Hamming Filter (d={}, threads={})...", args.d, args.threads);
-    let (_out_df, stats) = execute_step3(&df, args.d, args.target_len)?;
+    println!("\nExecuting Step-3 Off-Target Hamming Filter (d={}, top_n={}, method={}, threads={})...", args.d, args.top_n, args.method, args.threads);
+    let (_out_df, stats) = execute_step3(&df, args.d, args.top_n, &args.method, args.target_len)?;
 
     println!("\n--- Step-3 Benchmark Results ---");
     println!("Total Candidate Guides : {}", stats.total_candidates);
