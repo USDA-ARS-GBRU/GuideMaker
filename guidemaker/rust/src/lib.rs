@@ -245,29 +245,17 @@ fn extract_pigeonhole_blocks(seq: u64) -> [usize; 4] {
     [block0, block1, block2, block3]
 }
 
-// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
-pub fn execute_step3(
-    guides_df: &DataFrame,
-    d: u32,
-    top_n: usize,
-    _method: &str, 
-    target_len: usize,
-) -> Result<(DataFrame, Step3Stats)> {
-    let start_total = Instant::now();
+/// Full-Genome Pigeonhole Index tables for Step 3 off-target search
+pub struct PigeonholeIndex {
+    pub table0: Vec<Vec<usize>>,
+    pub table1: Vec<Vec<usize>>,
+    pub table2: Vec<Vec<usize>>,
+    pub table3: Vec<Vec<usize>>,
+    pub ref_seq_vec: Vec<u64>,
+}
 
-    let cand_ca = guides_df.column("candidate")?.bool()?;
-    let cand_vec: Vec<bool> = cand_ca.into_no_null_iter().collect();
-
-    let seq_ca = guides_df.column("seq")?.u64()?;
-    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
-
-    let total_candidates = cand_vec.iter().filter(|&&c| c).count();
-    // Generates a 40-bit mask that isolates just the 20 nt target region for the Pigeonhole index
-    let target_mask = compute_target_mask(target_len.min(20));
-
-    // --- STEP 1: BUILD PIGEONHOLE INDEX (1.3M Reference Guides) ---
-    let start_idx = Instant::now();
-    
+/// Build Pigeonhole Index for a reference sequence vector across all genomic targets
+pub fn build_pigeonhole_index(seq_vec: &[u64]) -> PigeonholeIndex {
     let mut table0 = vec![Vec::<usize>::new(); 4096];
     let mut table1 = vec![Vec::<usize>::new(); 4096];
     let mut table2 = vec![Vec::<usize>::new(); 4096];
@@ -280,18 +268,45 @@ pub fn execute_step3(
         table2[blocks[2]].push(idx);
         table3[blocks[3]].push(idx);
     }
-    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
-    // --- STEP 2: PRE-ALLOCATE FLAT UNIFIED BUFFERS ---
+    PigeonholeIndex {
+        table0,
+        table1,
+        table2,
+        table3,
+        ref_seq_vec: seq_vec.to_vec(),
+    }
+}
+
+/// Execute Step 3 on a DataFrame chunk using a full-genome Pigeonhole Index
+pub fn execute_step3_indexed(
+    chunk_df: &DataFrame,
+    global_row_offset: usize,
+    index: &PigeonholeIndex,
+    d: u32,
+    top_n: usize,
+    _method: &str,
+    target_len: usize,
+) -> Result<(DataFrame, Step3Stats)> {
+    let start_total = Instant::now();
+
+    let cand_ca = chunk_df.column("candidate")?.bool()?;
+    let cand_vec: Vec<bool> = cand_ca.into_no_null_iter().collect();
+
+    let seq_ca = chunk_df.column("seq")?.u64()?;
+    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
+
+    let total_candidates = cand_vec.iter().filter(|&&c| c).count();
+    let target_mask = compute_target_mask(target_len.min(20));
+
     let start_search = Instant::now();
-    let num_rows = guides_df.height();
+    let num_rows = chunk_df.height();
 
     let mut flat_dists = vec![0u32; num_rows * top_n];
     let mut flat_seqs = vec![0u64; num_rows * top_n];
-    let mut flat_cfds = vec![1.0f32; num_rows * top_n]; // Allocation-free CFD buffer tracker
+    let mut flat_cfds = vec![1.0f32; num_rows * top_n];
     let mut passed_mask = vec![false; num_rows];
 
-    // Thread-safe pointer tracking bridges
     let flat_dists_ptr = flat_dists.as_mut_ptr() as usize;
     let flat_seqs_ptr = flat_seqs.as_mut_ptr() as usize;
     let flat_cfds_ptr = flat_cfds.as_mut_ptr() as usize;
@@ -305,6 +320,7 @@ pub fn execute_step3(
                 return;
             }
 
+            let global_idx = global_row_offset + i;
             let query_seq = seq_vec[i];
             let q_blocks = extract_pigeonhole_blocks(query_seq);
 
@@ -313,8 +329,8 @@ pub fn execute_step3(
 
             let mut process_bucket = |candidates: &[usize]| -> bool {
                 for &ref_idx in candidates {
-                    if i == ref_idx { continue; }
-                    let ref_seq = seq_vec[ref_idx];
+                    if global_idx == ref_idx { continue; }
+                    let ref_seq = index.ref_seq_vec[ref_idx];
                     let dist = base_hamming_distance_masked(query_seq, ref_seq, target_mask);
                     
                     if dist < d { return false; }
@@ -323,10 +339,10 @@ pub fn execute_step3(
                 true
             };
 
-            if pass { pass = process_bucket(&table0[q_blocks[0]]); }
-            if pass { pass = process_bucket(&table1[q_blocks[1]]); }
-            if pass { pass = process_bucket(&table2[q_blocks[2]]); }
-            if pass { pass = process_bucket(&table3[q_blocks[3]]); }
+            if pass { pass = process_bucket(&index.table0[q_blocks[0]]); }
+            if pass { pass = process_bucket(&index.table1[q_blocks[1]]); }
+            if pass { pass = process_bucket(&index.table2[q_blocks[2]]); }
+            if pass { pass = process_bucket(&index.table3[q_blocks[3]]); }
 
             if pass {
                 let (dists, seqs) = top_matches.into_results();
@@ -343,7 +359,6 @@ pub fn execute_step3(
                         *out_dists.add(k) = dists[k];
                         *out_seqs.add(k) = seqs[k];
 
-                        // ON-THE-FLY REGISTERS CFD SCORE EXTRACTION
                         let cfd_score = crate::cfd::calculate_cfd_2bit(query_seq, seqs[k], target_len);
                         *out_cfds.add(k) = cfd_score;
                     }
@@ -352,7 +367,6 @@ pub fn execute_step3(
         });
     let search_time_sec = start_search.elapsed().as_secs_f64();
 
-    // --- STEP 3: HIGH SPEED POLARS DATA EXTRACTION ---
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
     let passed_candidates = passed_mask.iter().filter(|&&m| m).count();
@@ -363,11 +377,9 @@ pub fn execute_step3(
         0.0
     };
 
-    // Slice out the final passing rows
     let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &passed_mask);
-    let filtered_df = guides_df.filter(&mask_ca)?;
+    let filtered_df = chunk_df.filter(&mask_ca)?;
 
-    // Build the collection columns only for rows where passed_mask[i] is true
     let mut passed_dists_nested = Vec::with_capacity(passed_candidates);
     let mut passed_seqs_nested = Vec::with_capacity(passed_candidates);
     let mut passed_cfds_nested = Vec::with_capacity(passed_candidates);
@@ -375,19 +387,12 @@ pub fn execute_step3(
     for i in 0..num_rows {
         if passed_mask[i] {
             let offset = i * top_n;
-            
-            // Extract the fixed-size top-N windows directly out of memory
-            let row_dists = flat_dists[offset..(offset + top_n)].to_vec();
-            let row_seqs = flat_seqs[offset..(offset + top_n)].to_vec();
-            let row_cfds = flat_cfds[offset..(offset + top_n)].to_vec();
-            
-            passed_dists_nested.push(row_dists);
-            passed_seqs_nested.push(row_seqs);
-            passed_cfds_nested.push(row_cfds);
+            passed_dists_nested.push(flat_dists[offset..(offset + top_n)].to_vec());
+            passed_seqs_nested.push(flat_seqs[offset..(offset + top_n)].to_vec());
+            passed_cfds_nested.push(flat_cfds[offset..(offset + top_n)].to_vec());
         }
     }
 
-    // Standard Polars List Series compilation
     let dist_series_vec: Vec<Series> = passed_dists_nested
         .into_iter()
         .map(|v| Series::new("".into(), v))
@@ -416,11 +421,30 @@ pub fn execute_step3(
         passed_candidates,
         failed_candidates,
         pass_rate,
-        index_build_time_sec,
+        index_build_time_sec: 0.0,
         search_time_sec,
         total_time_sec,
     };
 
+    Ok((final_df, stats))
+}
+
+// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
+pub fn execute_step3(
+    guides_df: &DataFrame,
+    d: u32,
+    top_n: usize,
+    method: &str,
+    target_len: usize,
+) -> Result<(DataFrame, Step3Stats)> {
+    let start_idx = Instant::now();
+    let seq_ca = guides_df.column("seq")?.u64()?;
+    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
+    let index = build_pigeonhole_index(&seq_vec);
+    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+
+    let (final_df, mut stats) = execute_step3_indexed(guides_df, 0, &index, d, top_n, method, target_len)?;
+    stats.index_build_time_sec = index_build_time_sec;
     Ok((final_df, stats))
 }
 
