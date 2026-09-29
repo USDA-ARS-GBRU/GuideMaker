@@ -262,7 +262,8 @@ pub fn execute_step3(
     let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
 
     let total_candidates = cand_vec.iter().filter(|&&c| c).count();
-    let target_mask = compute_target_mask(target_len);
+    // Generates a 40-bit mask that isolates just the 20 nt target region for the Pigeonhole index
+    let target_mask = compute_target_mask(target_len.min(20));
 
     // --- STEP 1: BUILD PIGEONHOLE INDEX (1.3M Reference Guides) ---
     let start_idx = Instant::now();
