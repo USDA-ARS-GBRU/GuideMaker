@@ -85,7 +85,6 @@ fn main() -> Result<()> {
 
     let start_pipeline = Instant::now();
 
-    // 1. Inspect Parquet metadata to calculate streaming boundaries without reading data
     let file = File::open(&args.guides)
         .with_context(|| format!("Failed to open input Parquet file at {:?}", args.guides))?;
     let mut reader = ParquetReader::new(file);
@@ -96,96 +95,69 @@ fn main() -> Result<()> {
     println!("Threshold Mismatch Limit       : d = {}", args.d);
     println!("Top-N Nearest Neighbors        : n = {}", args.top_n);
 
-    // 2. Load all sequence registers to build full-genome reference index
-    println!("\nBuilding full-genome reference index across all {} targets...", total_rows);
-    let start_idx = Instant::now();
-    let full_seq_df = LazyFrame::scan_parquet(&args.guides, ScanArgsParquet::default())?
-        .select([col("seq")])
+    // 1. Scan and load ONLY candidate guide rows (candidate == true) into memory (~100MB RAM)
+    println!("\nLoading Candidate Guides (candidate == true)...");
+    let cand_df = LazyFrame::scan_parquet(&args.guides, ScanArgsParquet::default())?
+        .filter(col("candidate").eq(lit(true)))
         .collect()?;
-    let seq_ca = full_seq_df.column("seq")?.u64()?;
-    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
-    let full_index = build_pigeonhole_index(&seq_vec);
-    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
-    println!("Full-genome reference index built in {:.2}s.", index_build_time_sec);
 
+    println!("Building Candidate Guide Index for {} candidate guides...", cand_df.height());
+    let start_idx = Instant::now();
+    let candidate_index = build_candidate_index(&cand_df, args.top_n)?;
+    let index_build_time_sec = start_idx.elapsed().as_secs_f64();
+    let total_candidates = candidate_index.candidates.len();
+    println!(
+        "Candidate Index Built: {} candidate guides indexed in {:.2}s.",
+        total_candidates, index_build_time_sec
+    );
+
+    // 2. Stream all genomic targets in auto-tuned chunks from disk against candidate index
     let mut current_row = 0;
     let mut chunk_idx = 0;
-    let mut temporary_file_paths = Vec::new();
-
-    let mut accum_total_candidates = 0;
-    let mut accum_passed_candidates = 0;
-    let mut accum_failed_candidates = 0;
     let mut accum_search_time = 0.0;
 
-    // 3. Core Slicing Loop: Process candidate chunks against full-genome index
     while current_row < total_rows {
         let n_rows_to_read = std::cmp::min(args.chunk_size, total_rows - current_row);
         println!(
-            "-> Processing Chunk {} | Rows {}-{}...",
+            "-> Scanning Genomic Targets Chunk {} | Rows {}-{}...",
             chunk_idx, current_row, current_row + n_rows_to_read
         );
 
-        let chunk_df = LazyFrame::scan_parquet(&args.guides, ScanArgsParquet::default())?
+        let targets_chunk_df = LazyFrame::scan_parquet(&args.guides, ScanArgsParquet::default())?
             .slice(current_row as i64, n_rows_to_read as u32)
             .collect()?;
 
-        let (mut processed_chunk_df, stats) = execute_step3_indexed(
-            &chunk_df,
-            current_row,
-            &full_index,
-            args.d,
-            args.top_n,
-            &args.method,
-            args.target_len,
-        )?;
+        let start_chunk = Instant::now();
+        scan_targets_against_candidates(&targets_chunk_df, &candidate_index, args.d, args.target_len)?;
+        accum_search_time += start_chunk.elapsed().as_secs_f64();
 
-        accum_total_candidates += stats.total_candidates;
-        accum_passed_candidates += stats.passed_candidates;
-        accum_failed_candidates += stats.failed_candidates;
-        accum_search_time += stats.search_time_sec;
-
-        let tmp_path = format!("final_chunk_{}.parquet", chunk_idx);
-        let tmp_file = File::create(&tmp_path)?;
-        ParquetWriter::new(tmp_file).finish(&mut processed_chunk_df)?;
-
-        temporary_file_paths.push(tmp_path);
         current_row += n_rows_to_read;
         chunk_idx += 1;
     }
 
-    // 4. Assemble Master Dataset via Lazy Construction without loading data into memory
-    println!("\nAll chunks processed. Assembling final unified output dataset via Lazy Schema...");
+    // 3. Compile final results DataFrame for passing candidate guides
+    println!("\nCompiling final output dataset for passing candidate guides...");
+    let mut final_df = build_candidate_results_dataframe(&cand_df, candidate_index, args.top_n, args.target_len)?;
 
-    let mut chunk_lazy_frames = Vec::new();
-    for path in &temporary_file_paths {
-        let lf = LazyFrame::scan_parquet(path, ScanArgsParquet::default())?;
-        chunk_lazy_frames.push(lf);
-    }
-
-    let joined_lazy = concat(chunk_lazy_frames, UnionArgs::default())?;
-
-    let mut final_output_df = joined_lazy.collect().context("Failed to collect final concatenated dataframes")?;
-
-    let out_file = File::create(&args.out)
-        .with_context(|| format!("Failed to create final output file at {:?}", args.out))?;
-    ParquetWriter::new(out_file).finish(&mut final_output_df)?;
-
-    for path in temporary_file_paths {
-        let _ = std::fs::remove_file(path);
-    }
-
-    let global_total_time = start_pipeline.elapsed().as_secs_f64();
-    let global_pass_rate = if accum_total_candidates > 0 {
-        (accum_passed_candidates as f64 / accum_total_candidates as f64) * 100.0
+    let passed_candidates = final_df.height();
+    let failed_candidates = total_candidates.saturating_sub(passed_candidates);
+    let pass_rate = if total_candidates > 0 {
+        (passed_candidates as f64 / total_candidates as f64) * 100.0
     } else {
         0.0
     };
 
+    let out_file = File::create(&args.out)
+        .with_context(|| format!("Failed to create final output file at {:?}", args.out))?;
+    ParquetWriter::new(out_file).finish(&mut final_df)?;
+
+    let global_total_time = start_pipeline.elapsed().as_secs_f64();
+
     println!("\n=== Step-3 Final Consolidated Streaming Summary ===");
-    println!("Total Candidate Inputs : {}", accum_total_candidates);
-    println!("Passed Candidates      : {}", accum_passed_candidates);
-    println!("Failed Candidates      : {}", accum_failed_candidates);
-    println!("Global Pass Rate       : {:.2}%", global_pass_rate);
+    println!("Total Candidate Inputs : {}", total_candidates);
+    println!("Passed Candidates      : {}", passed_candidates);
+    println!("Failed Candidates      : {}", failed_candidates);
+    println!("Global Pass Rate       : {:.2}%", pass_rate);
     println!(
         "Accumulated Timings    : Index Build: {:.2}s | Nearest Neighbor Search: {:.2}s",
         index_build_time_sec, accum_search_time
