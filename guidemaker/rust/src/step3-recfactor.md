@@ -54,3 +54,11 @@ Before merging, verify the codebase against the following performance checkpoint
 1. **CPU Scaling:** Core utilization across your 15 threads should remain near 100% during the target scanning phase (no threads hanging or sleeping due to lock contention).
 2. **Memory Footprint:** Resident memory usage must remain flat and predictable beneath the 24.00 GB ceiling throughout all 40 streaming chunks.
 3. **Deterministic Alignment:** Confirm that running the pipeline yields identical rows and correctly structured list series outputs where metrics perfectly match their target candidate rows.
+
+
+### 5. Output 
+
+* The script should retun a polars dataframe in parquet format  with the candidates after candidates with an hamming distance below threshold have been removed. the data frame should have new columns: 
+1. neighbors: a list with the top N targets in 2bit encoded uint64 format.
+2. nn_dist: a list with the hamming distance for the targets in the same order as the neighbor list.
+3. cfd: A list with the CDF scores of the nearist neighbors.
