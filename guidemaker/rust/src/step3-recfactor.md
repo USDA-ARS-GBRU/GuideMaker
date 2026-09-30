@@ -11,6 +11,8 @@ of genomic target sites to remove candidates celow a thhreshold hamming distance
 * **DNA sequence** the originating data is a DNA string {G,A,T,C} with a target length of 20-27 characters, plus ad pam sit of 3 plus two additional charaters, total lenth does not exceed 32. this is 2 bit encoded. The additioan data is passed for doench efficiency estimation but is masked for  hamming distance opperations and fitlering
 * **Hardware Profile:** 15 active CPU threads, 24.00 GB System RAM ceiling.
 * **Target Metric:** The final pipeline must complete execution over all 317M targets in minutes (e.g., 1 to 60 min), faster is better.
+* **Reasonable answers** for this dataset the number of guides removed should be less thant 5% at d=3 less thant 1% at d=2 the max filtering d allowed is 3.
+* **Maximum Nearest neighbors value** to speed up computations we only need to compute nearest neighbors up to a hamming distance of 8. above 8 na may be recorded for neighbors nndist and CFD. omitting NN 8 is not requred but may be done if it speeds u search signifigantly, without complicating the code too much.
 
 ## 3. Mandatory Architectural Criteria
 
