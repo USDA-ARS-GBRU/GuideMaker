@@ -43,11 +43,22 @@ pub struct Step2Args {
     /// Comma-separated feature types (e.g. CDS, gene, mRNA), 'all' for all features, or 'disable' to turn off spatial filter
     #[arg(long, value_delimiter = ',', default_value = "CDS")]
     pub feature_types: Vec<String>,
+
+    /// Number of processing threads (0 for auto/all cores)
+    #[arg(long, default_value_t = 0)]
+    pub threads: usize,
 }
 
 fn main() -> Result<()> {
     polars::enable_string_cache();
     let args = Step2Args::parse();
+
+    if args.threads > 0 {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(args.threads)
+            .build_global()
+            .ok();
+    }
 
     let is_5prime = match args.orientation.to_lowercase().as_str() {
         "5prime" => true,

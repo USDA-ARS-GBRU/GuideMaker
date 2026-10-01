@@ -940,6 +940,32 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     Ok(df)
 }
 
+#[derive(Clone, Copy)]
+struct Window {
+    min: u32,
+    max: u32,
+    pk: u32,
+}
+
+pub fn column_to_u32_codes(df: &DataFrame, name: &str) -> Result<Vec<u32>> {
+    let col = df.column(name)?;
+    if let Ok(cat) = col.categorical() {
+        Ok(cat.physical().into_no_null_iter().collect())
+    } else {
+        let casted = col.cast(&DataType::String)?;
+        let str_ca = casted.str()?;
+        let mut map: HashMap<String, u32> = HashMap::new();
+        let mut codes = Vec::with_capacity(df.height());
+        for opt in str_ca.into_iter() {
+            let s = opt.unwrap_or("");
+            let next_code = map.len() as u32;
+            let code = *map.entry(s.to_string()).or_insert(next_code);
+            codes.push(code);
+        }
+        Ok(codes)
+    }
+}
+
 /// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys Series and candidate pass mask
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
@@ -970,7 +996,7 @@ pub fn evaluate_spatial_filter(
         Some(ftypes) => ftypes.iter().any(|t| t.trim().eq_ignore_ascii_case("all")),
     };
 
-    let chrom_vec = column_to_string_vec(guides_df, "chrom")?;
+    let chrom_codes = column_to_u32_codes(guides_df, "chrom")?;
     let start_ca = guides_df.column("start")?.u32()?;
     let stop_ca = guides_df.column("stop")?.u32()?;
 
@@ -980,14 +1006,38 @@ pub fn evaluate_spatial_filter(
         (0..features_df.height() as u32).collect()
     };
 
-    let feat_chrom_vec = column_to_string_vec(features_df, "chrom")?;
+    let feat_chrom_codes = column_to_u32_codes(features_df, "chrom")?;
     let feat_start_ca = features_df.column("feature_start")?.u32()?;
     let feat_end_ca = features_df.column("feature_end")?.u32()?;
     let feat_strand_ca = features_df.column("strand")?.bool()?;
     let feat_type_vec = column_to_string_vec(features_df, "feature_type")?;
 
-    const BIN_SHIFT: u32 = 16; // 64 kb genomic bins
-    let mut chrom_bin_map: HashMap<String, HashMap<u32, Vec<(u32, u32, u32)>>> = HashMap::new();
+    const BIN_SHIFT: u32 = 16; // 64 KiB bins
+
+    let mut max_bin_per_chrom: HashMap<u32, u32> = HashMap::new();
+    for i in 0..features_df.height() {
+        let chrom_code = feat_chrom_codes[i];
+        let f_start = feat_start_ca.get(i).unwrap_or(0);
+        let f_end = feat_end_ca.get(i).unwrap_or(0);
+        let f_strand = feat_strand_ca.get(i).unwrap_or(true);
+
+        let (_w_min, w_max) = if f_strand {
+            (f_start.saturating_sub(before), f_start.saturating_add(into))
+        } else {
+            (f_end.saturating_sub(into), f_end.saturating_add(before))
+        };
+
+        let end_bin = w_max >> BIN_SHIFT;
+        max_bin_per_chrom
+            .entry(chrom_code)
+            .and_modify(|m| *m = (*m).max(end_bin))
+            .or_insert(end_bin);
+    }
+
+    let mut chrom_bins: HashMap<u32, Vec<Vec<Window>>> = HashMap::new();
+    for (&chrom_code, &max_bin) in max_bin_per_chrom.iter() {
+        chrom_bins.insert(chrom_code, vec![Vec::new(); (max_bin as usize) + 1]);
+    }
 
     for i in 0..features_df.height() {
         if !is_all_types {
@@ -999,7 +1049,7 @@ pub fn evaluate_spatial_filter(
             }
         }
 
-        let chrom = &feat_chrom_vec[i];
+        let chrom_code = feat_chrom_codes[i];
         let f_start = feat_start_ca.get(i).unwrap_or(0);
         let f_end = feat_end_ca.get(i).unwrap_or(0);
         let f_strand = feat_strand_ca.get(i).unwrap_or(true);
@@ -1014,9 +1064,12 @@ pub fn evaluate_spatial_filter(
         let start_bin = w_min >> BIN_SHIFT;
         let end_bin = w_max >> BIN_SHIFT;
 
-        let bin_map = chrom_bin_map.entry(chrom.clone()).or_default();
-        for b in start_bin..=end_bin {
-            bin_map.entry(b).or_default().push((w_min, w_max, pk));
+        if let Some(bins) = chrom_bins.get_mut(&chrom_code) {
+            for b in start_bin..=end_bin {
+                if (b as usize) < bins.len() {
+                    bins[b as usize].push(Window { min: w_min, max: w_max, pk });
+                }
+            }
         }
     }
 
@@ -1035,19 +1088,19 @@ pub fn evaluate_spatial_filter(
             let mut passes = Vec::with_capacity(chunk.len());
 
             for &i in chunk {
-                let chrom = &chrom_vec[i];
+                let chrom_code = chrom_codes[i];
                 let g_start = start_ca.get(i).unwrap_or(0);
                 let g_stop = stop_ca.get(i).unwrap_or(0);
                 let midpoint = (g_start + g_stop) / 2;
 
                 let mut matched_pks = Vec::new();
 
-                if let Some(bin_map) = chrom_bin_map.get(chrom) {
-                    let b = midpoint >> BIN_SHIFT;
-                    if let Some(win_list) = bin_map.get(&b) {
-                        for &(w_min, w_max, pk) in win_list {
-                            if midpoint >= w_min && midpoint <= w_max {
-                                matched_pks.push(pk);
+                if let Some(bins) = chrom_bins.get(&chrom_code) {
+                    let b = (midpoint >> BIN_SHIFT) as usize;
+                    if b < bins.len() {
+                        for w in &bins[b] {
+                            if midpoint >= w.min && midpoint <= w.max {
+                                matched_pks.push(w.pk);
                             }
                         }
                     }
