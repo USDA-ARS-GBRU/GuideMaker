@@ -940,51 +940,14 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     Ok(df)
 }
 
-/// Flat Compressed Sparse Row (CSR) Pigeonhole Hash Table for zero-allocation bucket lookups
-struct FlatPigeonholeTable {
-    offsets: Vec<u32>,
-    target_ids: Vec<u32>,
-}
-
-impl FlatPigeonholeTable {
-    fn build(num_buckets: usize, keys: &[usize]) -> Self {
-        let mut counts = vec![0u32; num_buckets];
-        for &k in keys {
-            counts[k] += 1;
-        }
-
-        let mut offsets = vec![0u32; num_buckets + 1];
-        for i in 0..num_buckets {
-            offsets[i + 1] = offsets[i] + counts[i];
-        }
-
-        let mut cursor = offsets.clone();
-        let mut target_ids = vec![0u32; keys.len()];
-        for (j, &k) in keys.iter().enumerate() {
-            let pos = cursor[k] as usize;
-            target_ids[pos] = j as u32;
-            cursor[k] += 1;
-        }
-
-        FlatPigeonholeTable { offsets, target_ids }
-    }
-
-    #[inline(always)]
-    fn get_bucket_targets(&self, key: usize) -> &[u32] {
-        let start = self.offsets[key] as usize;
-        let end = self.offsets[key + 1] as usize;
-        &self.target_ids[start..end]
-    }
-}
-
-/// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys and candidate pass mask using 64kb Genomic Binning
+/// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys Series and candidate pass mask
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
     features_df: &DataFrame,
     before: u32,
     into: u32,
     feature_types: Option<&[String]>,
-) -> Result<(Vec<Option<Vec<u32>>>, Vec<bool>)> {
+) -> Result<(Series, Vec<bool>)> {
     let num_guides = guides_df.height();
 
     let is_disabled = match feature_types {
@@ -996,10 +959,10 @@ pub fn evaluate_spatial_filter(
     };
 
     if is_disabled {
-        let feature_keys_vec = vec![None; num_guides];
+        let feature_keys_series = Series::full_null("feature_keys".into(), num_guides, &DataType::List(Box::new(DataType::UInt32)));
         let init_cand_ca = guides_df.column("candidate")?.bool()?;
         let passes_vec: Vec<bool> = init_cand_ca.into_no_null_iter().collect();
-        return Ok((feature_keys_vec, passes_vec));
+        return Ok((feature_keys_series, passes_vec));
     }
 
     let is_all_types = match feature_types {
@@ -1057,98 +1020,166 @@ pub fn evaluate_spatial_filter(
         }
     }
 
-    let results: Vec<(Option<Vec<u32>>, bool)> = (0..num_guides)
-        .into_par_iter()
-        .map(|i| {
-            let chrom = &chrom_vec[i];
-            let g_start = start_ca.get(i).unwrap_or(0);
-            let g_stop = stop_ca.get(i).unwrap_or(0);
-            let midpoint = (g_start + g_stop) / 2;
+    let chunk_size = 250_000;
+    let guide_indices: Vec<usize> = (0..num_guides).collect();
 
-            if let Some(bin_map) = chrom_bin_map.get(chrom) {
-                let b = midpoint >> BIN_SHIFT;
-                if let Some(win_list) = bin_map.get(&b) {
-                    let mut stack_buf = [0u32; 32];
-                    let mut stack_len = 0;
-                    let mut overflow_pks: Option<Vec<u32>> = None;
+    let (series_chunks, passes_chunks): (Vec<Series>, Vec<Vec<bool>>) = guide_indices
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            let mut builder = ListPrimitiveChunkedBuilder::<UInt32Type>::new(
+                "".into(),
+                chunk.len(),
+                chunk.len() * 2,
+                DataType::UInt32,
+            );
+            let mut passes = Vec::with_capacity(chunk.len());
 
-                    for &(w_min, w_max, pk) in win_list {
-                        if midpoint >= w_min && midpoint <= w_max {
-                            if stack_len < 32 {
-                                stack_buf[stack_len] = pk;
-                                stack_len += 1;
-                            } else {
-                                if overflow_pks.is_none() {
-                                    overflow_pks = Some(stack_buf[..32].to_vec());
-                                }
-                                overflow_pks.as_mut().unwrap().push(pk);
+            for &i in chunk {
+                let chrom = &chrom_vec[i];
+                let g_start = start_ca.get(i).unwrap_or(0);
+                let g_stop = stop_ca.get(i).unwrap_or(0);
+                let midpoint = (g_start + g_stop) / 2;
+
+                let mut matched_pks = Vec::new();
+
+                if let Some(bin_map) = chrom_bin_map.get(chrom) {
+                    let b = midpoint >> BIN_SHIFT;
+                    if let Some(win_list) = bin_map.get(&b) {
+                        for &(w_min, w_max, pk) in win_list {
+                            if midpoint >= w_min && midpoint <= w_max {
+                                matched_pks.push(pk);
                             }
                         }
                     }
+                }
 
-                    if let Some(pks) = overflow_pks {
-                        return (Some(pks), true);
-                    } else if stack_len > 0 {
-                        return (Some(stack_buf[..stack_len].to_vec()), true);
-                    }
+                if !matched_pks.is_empty() {
+                    builder.append_slice(&matched_pks);
+                    passes.push(true);
+                } else {
+                    builder.append_null();
+                    passes.push(false);
                 }
             }
 
-            (None, false)
+            (builder.finish().into_series(), passes)
         })
-        .collect();
+        .unzip();
 
-    let mut feature_keys_vec = Vec::with_capacity(num_guides);
-    let mut passes_vec = Vec::with_capacity(num_guides);
+    let feature_keys_series = if !series_chunks.is_empty() {
+        let first_series = series_chunks[0].clone();
+        let mut combined_ca: ListChunked = first_series.list().unwrap().clone();
+        for ch in &series_chunks[1..] {
+            let list_ca: &ListChunked = ch.list().unwrap();
+            combined_ca.append(list_ca).unwrap();
+        }
+        let mut s = combined_ca.into_series();
+        s.rename("feature_keys".into());
+        s
+    } else {
+        Series::new_empty("feature_keys".into(), &DataType::List(Box::new(DataType::UInt32)))
+    };
 
-    for (keys, pass) in results {
-        feature_keys_vec.push(keys);
-        passes_vec.push(pass);
-    }
+    let passes_vec: Vec<bool> = passes_chunks.into_iter().flatten().collect();
 
-    Ok((feature_keys_vec, passes_vec))
+    Ok((feature_keys_series, passes_vec))
 }
 
-/// Multi-Threaded Parallel LSR Hamming Distance <= 1 Filter across active candidate guides using CSR Flat Tables & Single-Pass Extraction
+/// Flat Compressed Sparse Row (CSR) Inverted Pigeonhole Index over LSR-20 region (2.55 GB RAM for 317M targets)
+struct FlatCsrPigeonholeIndex {
+    offsets0: Vec<u32>,
+    ids0: Vec<u32>,
+    offsets1: Vec<u32>,
+    ids1: Vec<u32>,
+}
+
+impl FlatCsrPigeonholeIndex {
+    fn build(lsr20_vec: &[u64]) -> Self {
+        let num_targets = lsr20_vec.len();
+        let num_buckets = 1048576; // 2^20 keys
+
+        let mut counts0 = vec![0u32; num_buckets];
+        let mut counts1 = vec![0u32; num_buckets];
+
+        for &lsr20 in lsr20_vec {
+            let k0 = ((lsr20 >> 44) as usize) & 0xFFFFF;
+            let k1 = ((lsr20 >> 24) as usize) & 0xFFFFF;
+            counts0[k0] += 1;
+            counts1[k1] += 1;
+        }
+
+        let mut offsets0 = vec![0u32; num_buckets + 1];
+        let mut offsets1 = vec![0u32; num_buckets + 1];
+        for i in 0..num_buckets {
+            offsets0[i + 1] = offsets0[i] + counts0[i];
+            offsets1[i + 1] = offsets1[i] + counts1[i];
+        }
+
+        let mut cursor0 = offsets0.clone();
+        let mut cursor1 = offsets1.clone();
+
+        let mut ids0 = vec![0u32; num_targets];
+        let mut ids1 = vec![0u32; num_targets];
+
+        for (j, &lsr20) in lsr20_vec.iter().enumerate() {
+            let k0 = ((lsr20 >> 44) as usize) & 0xFFFFF;
+            let k1 = ((lsr20 >> 24) as usize) & 0xFFFFF;
+
+            let pos0 = cursor0[k0] as usize;
+            ids0[pos0] = j as u32;
+            cursor0[k0] += 1;
+
+            let pos1 = cursor1[k1] as usize;
+            ids1[pos1] = j as u32;
+            cursor1[k1] += 1;
+        }
+
+        FlatCsrPigeonholeIndex {
+            offsets0,
+            ids0,
+            offsets1,
+            ids1,
+        }
+    }
+
+    #[inline(always)]
+    fn get_postings0(&self, key0: usize) -> &[u32] {
+        let start = self.offsets0[key0] as usize;
+        let end = self.offsets0[key0 + 1] as usize;
+        &self.ids0[start..end]
+    }
+
+    #[inline(always)]
+    fn get_postings1(&self, key1: usize) -> &[u32] {
+        let start = self.offsets1[key1] as usize;
+        let end = self.offsets1[key1 + 1] as usize;
+        &self.ids1[start..end]
+    }
+}
+
+/// Multi-Threaded Parallel LSR-20 Hamming Distance <= 1 Filter across candidate guides
 pub fn evaluate_lsr_hamming_filter(
     guides_df: &DataFrame,
     current_candidates: &[bool],
     target_len: usize,
-    lsr_len: usize,
+    _lsr_len: usize,
     is_5prime: bool,
 ) -> Result<Vec<bool>> {
     let num_guides = guides_df.height();
     let seq_ca = guides_df.column("seq")?.u64()?;
     let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
 
-    let active_lsr_len = lsr_len.min(32);
-    let lsr_mask = compute_target_mask(active_lsr_len);
+    let lsr_mask = compute_target_mask(20);
 
-    let m0 = active_lsr_len / 2;
-    let m1 = active_lsr_len - m0;
-
-    let shift0 = (64 - 2 * m0) as u32;
-    let mask0 = if 2 * m0 >= 64 { usize::MAX } else { (1usize << (2 * m0)) - 1 };
-
-    let shift1 = (64 - 2 * active_lsr_len) as u32;
-    let mask1 = if 2 * m1 >= 64 { usize::MAX } else { (1usize << (2 * m1)) - 1 };
-
-    let table_size0 = 1usize << (2 * m0);
-    let table_size1 = 1usize << (2 * m1);
-
-    let (lsr_vec, (keys0, keys1)): (Vec<u64>, (Vec<usize>, Vec<usize>)) = seq_vec
+    let lsr20_vec: Vec<u64> = seq_vec
         .par_iter()
         .map(|&seq| {
-            let key = extract_lsr_key(seq, target_len, active_lsr_len, is_5prime);
-            let cand_lsr = (key << (64 - 2 * active_lsr_len)) & lsr_mask;
-            let b0 = ((cand_lsr >> shift0) as usize) & mask0;
-            let b1 = ((cand_lsr >> shift1) as usize) & mask1;
-            (cand_lsr, (b0, b1))
+            let key = extract_lsr_key(seq, target_len, 20, is_5prime);
+            (key << 24) & lsr_mask
         })
-        .unzip();
+        .collect();
 
-    let table0 = FlatPigeonholeTable::build(table_size0, &keys0);
-    let table1 = FlatPigeonholeTable::build(table_size1, &keys1);
+    let index = FlatCsrPigeonholeIndex::build(&lsr20_vec);
 
     let passes: Vec<bool> = (0..num_guides)
         .into_par_iter()
@@ -1157,22 +1188,22 @@ pub fn evaluate_lsr_hamming_filter(
                 return false;
             }
 
-            let cand_lsr = lsr_vec[i];
-            let b0 = keys0[i];
-            let b1 = keys1[i];
+            let cand_lsr20 = lsr20_vec[i];
+            let k0 = ((cand_lsr20 >> 44) as usize) & 0xFFFFF;
+            let k1 = ((cand_lsr20 >> 24) as usize) & 0xFFFFF;
 
-            let targets0 = table0.get_bucket_targets(b0);
-            for &j_u32 in targets0 {
+            let postings0 = index.get_postings0(k0);
+            for &j_u32 in postings0 {
                 let j = j_u32 as usize;
-                if j != i && base_hamming_distance_masked(cand_lsr, lsr_vec[j], lsr_mask) <= 1 {
+                if j != i && base_hamming_distance_masked(cand_lsr20, lsr20_vec[j], lsr_mask) <= 1 {
                     return false;
                 }
             }
 
-            let targets1 = table1.get_bucket_targets(b1);
-            for &j_u32 in targets1 {
+            let postings1 = index.get_postings1(k1);
+            for &j_u32 in postings1 {
                 let j = j_u32 as usize;
-                if j != i && base_hamming_distance_masked(cand_lsr, lsr_vec[j], lsr_mask) <= 1 {
+                if j != i && base_hamming_distance_masked(cand_lsr20, lsr20_vec[j], lsr_mask) <= 1 {
                     return false;
                 }
             }
@@ -1201,9 +1232,9 @@ pub fn execute_step2(
     let init_cand_ca = guides_df.column("candidate")?.bool()?;
     let mut current_candidates: Vec<bool> = init_cand_ca.into_no_null_iter().collect();
 
-    // 1. Interval screening (spatial filter) FIRST
+    // 1. Spatial interval filter FIRST
     let start_sp = Instant::now();
-    let (feature_keys_vec, spatial_passes) = evaluate_spatial_filter(
+    let (feature_keys_series, spatial_passes) = evaluate_spatial_filter(
         guides_df,
         features_df,
         before,
@@ -1219,7 +1250,7 @@ pub fn execute_step2(
     }
     let rows_passing_spatial = current_candidates.iter().filter(|&&b| b).count();
 
-    // 2. LSR Hamming distance <= 1 screening SECOND
+    // 2. LSR-20 Hamming distance <= 1 filter SECOND
     let start_lsr = Instant::now();
     let lsr_passes = evaluate_lsr_hamming_filter(
         guides_df,
@@ -1239,38 +1270,6 @@ pub fn execute_step2(
 
     let final_candidate_rows = current_candidates.iter().filter(|&&b| b).count();
     let total_time_sec = start_total.elapsed().as_secs_f64();
-
-    let chunk_size = 500_000;
-    let chunks: Vec<Series> = feature_keys_vec
-        .par_chunks(chunk_size)
-        .map(|chunk| {
-            let mut builder = ListPrimitiveChunkedBuilder::<UInt32Type>::new(
-                "".into(),
-                chunk.len(),
-                chunk.len() * 2,
-                DataType::UInt32,
-            );
-            for keys_opt in chunk {
-                match keys_opt {
-                    Some(keys) => builder.append_slice(keys),
-                    None => builder.append_null(),
-                }
-            }
-            builder.finish().into_series()
-        })
-        .collect();
-
-    let feature_keys_series = if !chunks.is_empty() {
-        let mut combined_ca = chunks[0].list().unwrap().clone();
-        for ch in &chunks[1..] {
-            combined_ca.append(ch.list().unwrap()).unwrap();
-        }
-        let mut s = combined_ca.into_series();
-        s.rename("feature_keys".into());
-        s
-    } else {
-        Series::new_empty("feature_keys".into(), &DataType::List(Box::new(DataType::UInt32)))
-    };
 
     let mut output_df = guides_df.clone();
     let cand_series = Series::new("candidate".into(), current_candidates);
