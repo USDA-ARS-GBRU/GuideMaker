@@ -111,6 +111,16 @@ fn acceptance_test_4_csv_parquet_parity_and_cli() {
 }
 
 #[test]
+fn test_target_len_25_scan() {
+    let seq = b"ACGTACGTACGTACGTACGTACGTACGGAA"; // 25nt target + 3nt PAM + 2nt flank = 30nt window
+    let pam_masks = parse_pam_masks("NGG").unwrap();
+    let hits = search_3prime_forward(0, seq, &pam_masks, 25);
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].start, 0);
+    assert_eq!(hits[0].stop, 25);
+}
+
+#[test]
 fn acceptance_test_5_boundary_conditions_and_ambiguous_skipping() {
     let short_seq = b"CGG";
     let pam_masks = parse_pam_masks("NGG").unwrap();

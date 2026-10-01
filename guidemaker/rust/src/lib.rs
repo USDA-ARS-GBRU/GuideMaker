@@ -902,19 +902,18 @@ pub fn read_feature_records(path: &Path) -> Result<Vec<FeatureRecord>> {
     }
 }
 
-
 /// Build Polars features DataFrame from FeatureRecord list
 pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame> {
-    let n = features.len();
+    let mut chrom_vec = Vec::with_capacity(features.len());
+    let mut start_vec = Vec::with_capacity(features.len());
+    let mut end_vec = Vec::with_capacity(features.len());
+    let mut strand_vec = Vec::with_capacity(features.len());
+    let mut id_vec = Vec::with_capacity(features.len());
+    let mut type_vec = Vec::with_capacity(features.len());
+    let mut pk_vec = Vec::with_capacity(features.len());
 
-    let mut chrom_vec = Vec::with_capacity(n);
-    let mut start_vec = Vec::with_capacity(n);
-    let mut end_vec   = Vec::with_capacity(n);
-    let mut strand_vec = Vec::with_capacity(n);
-    let mut id_vec     = Vec::with_capacity(n);
-    let mut type_vec   = Vec::with_capacity(n);
-
-    for f in features {
+    for (i, f) in features.iter().enumerate() {
+        pk_vec.push(i as u32);
         chrom_vec.push(f.chrom.as_str());
         start_vec.push(f.feature_start);
         end_vec.push(f.feature_end);
@@ -923,24 +922,19 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
         type_vec.push(f.feature_type.as_str());
     }
 
-    // Build categorical columns
-    let chrom_series = Series::new("chrom", chrom_vec)
+    let chrom_series = Series::new("chrom".into(), chrom_vec)
         .cast(&DataType::Categorical(None, CategoricalOrdering::Physical))?;
-    let type_series  = Series::new("feature_type", type_vec)
+    let type_series = Series::new("feature_type".into(), type_vec)
         .cast(&DataType::Categorical(None, CategoricalOrdering::Physical))?;
-
-    // Add a sequential u32 primary key (1-based). 
-    // NOTE: This will overflow if n > u32::MAX; use u64 in that scenario.
-    let primary_key: Vec<u32> = (1..=n as u32).collect();
 
     let df = DataFrame::new(vec![
-        Series::new("primary_key", primary_key),
-        chrom_series,
-        Series::new("feature_start", start_vec),
-        Series::new("feature_end", end_vec),
-        Series::new("strand", strand_vec),
-        Series::new("feature_id", id_vec),
-        type_series,
+        Series::new("primary_key".into(), pk_vec).into(),
+        chrom_series.into(),
+        Series::new("feature_start".into(), start_vec).into(),
+        Series::new("feature_end".into(), end_vec).into(),
+        Series::new("strand".into(), strand_vec).into(),
+        Series::new("feature_id".into(), id_vec).into(),
+        type_series.into(),
     ])?;
 
     Ok(df)
@@ -1280,13 +1274,13 @@ pub fn pam_matches_forward(pam_masks: &[u8], seq_bytes: &[u8], pos: usize) -> bo
     true
 }
 
-/// Encode a target sequence (up to 26 nt) into a left-aligned 2-bit u64.
+/// Encode a target sequence (up to 31 nt) into a left-aligned 2-bit u64.
 /// A=00, C=01, G=10, T=11.
-/// Returns error if non-ATCG base encountered or length outside 1..=26.
+/// Returns error if non-ATCG base encountered or length outside 1..=31.
 pub fn encode_2bit_u64(seq_bytes: &[u8]) -> Result<u64> {
-    if seq_bytes.is_empty() || seq_bytes.len() > 26 {
+    if seq_bytes.is_empty() || seq_bytes.len() > 31 {
         return Err(anyhow!(
-            "Target length must be between 1 and 26, got {}",
+            "Target length must be between 1 and 31, got {}",
             seq_bytes.len()
         ));
     }
@@ -1550,7 +1544,7 @@ mod tests {
         assert_eq!(encoded, 0x1B00_0000_0000_0000);
 
         assert!(encode_2bit_u64(b"ACGTN").is_err());
-        let long_seq = vec![b'A'; 27];
+        let long_seq = vec![b'A'; 32];
         assert!(encode_2bit_u64(&long_seq).is_err());
     }
 
