@@ -1645,7 +1645,10 @@ pub fn write_parquet(df: &mut DataFrame, path: &Path) -> Result<()> {
     let file = std::fs::File::create(path)
         .with_context(|| format!("Failed to create Parquet file at {:?}", path))?;
     ParquetWriter::new(file)
-        .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(1)?)))
+        .with_compression(ParquetCompression::Uncompressed)
+        .set_parallel(true)
+        .with_row_group_size(Some(1_000_000))
+        .with_data_page_size(Some(2 * 1024 * 1024))
         .finish(df)?;
     Ok(())
 }
