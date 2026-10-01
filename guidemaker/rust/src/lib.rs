@@ -940,6 +940,43 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     Ok(df)
 }
 
+/// Flat Compressed Sparse Row (CSR) Pigeonhole Hash Table for zero-allocation bucket lookups
+struct FlatPigeonholeTable {
+    offsets: Vec<u32>,
+    target_ids: Vec<u32>,
+}
+
+impl FlatPigeonholeTable {
+    fn build(num_buckets: usize, keys: &[usize]) -> Self {
+        let mut counts = vec![0u32; num_buckets];
+        for &k in keys {
+            counts[k] += 1;
+        }
+
+        let mut offsets = vec![0u32; num_buckets + 1];
+        for i in 0..num_buckets {
+            offsets[i + 1] = offsets[i] + counts[i];
+        }
+
+        let mut cursor = offsets.clone();
+        let mut target_ids = vec![0u32; keys.len()];
+        for (j, &k) in keys.iter().enumerate() {
+            let pos = cursor[k] as usize;
+            target_ids[pos] = j as u32;
+            cursor[k] += 1;
+        }
+
+        FlatPigeonholeTable { offsets, target_ids }
+    }
+
+    #[inline(always)]
+    fn get_bucket_targets(&self, key: usize) -> &[u32] {
+        let start = self.offsets[key] as usize;
+        let end = self.offsets[key + 1] as usize;
+        &self.target_ids[start..end]
+    }
+}
+
 /// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys and candidate pass mask using 64kb Genomic Binning
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
@@ -1031,15 +1068,28 @@ pub fn evaluate_spatial_filter(
             if let Some(bin_map) = chrom_bin_map.get(chrom) {
                 let b = midpoint >> BIN_SHIFT;
                 if let Some(win_list) = bin_map.get(&b) {
-                    let mut matched_pks = Vec::new();
+                    let mut stack_buf = [0u32; 32];
+                    let mut stack_len = 0;
+                    let mut overflow_pks: Option<Vec<u32>> = None;
+
                     for &(w_min, w_max, pk) in win_list {
                         if midpoint >= w_min && midpoint <= w_max {
-                            matched_pks.push(pk);
+                            if stack_len < 32 {
+                                stack_buf[stack_len] = pk;
+                                stack_len += 1;
+                            } else {
+                                if overflow_pks.is_none() {
+                                    overflow_pks = Some(stack_buf[..32].to_vec());
+                                }
+                                overflow_pks.as_mut().unwrap().push(pk);
+                            }
                         }
                     }
 
-                    if !matched_pks.is_empty() {
-                        return (Some(matched_pks), true);
+                    if let Some(pks) = overflow_pks {
+                        return (Some(pks), true);
+                    } else if stack_len > 0 {
+                        return (Some(stack_buf[..stack_len].to_vec()), true);
                     }
                 }
             }
@@ -1059,7 +1109,7 @@ pub fn evaluate_spatial_filter(
     Ok((feature_keys_vec, passes_vec))
 }
 
-/// Multi-Threaded Parallel LSR Hamming Distance <= 1 Filter across active candidate guides
+/// Multi-Threaded Parallel LSR Hamming Distance <= 1 Filter across active candidate guides using CSR Flat Tables
 pub fn evaluate_lsr_hamming_filter(
     guides_df: &DataFrame,
     current_candidates: &[bool],
@@ -1094,15 +1144,11 @@ pub fn evaluate_lsr_hamming_filter(
     let table_size0 = 1usize << (2 * m0);
     let table_size1 = 1usize << (2 * m1);
 
-    let mut table0 = vec![Vec::<u32>::new(); table_size0];
-    let mut table1 = vec![Vec::<u32>::new(); table_size1];
+    let keys0: Vec<usize> = lsr_vec.iter().map(|&lsr| ((lsr >> shift0) as usize) & mask0).collect();
+    let keys1: Vec<usize> = lsr_vec.iter().map(|&lsr| ((lsr >> shift1) as usize) & mask1).collect();
 
-    for (j, &lsr) in lsr_vec.iter().enumerate() {
-        let b0 = ((lsr >> shift0) as usize) & mask0;
-        let b1 = ((lsr >> shift1) as usize) & mask1;
-        table0[b0].push(j as u32);
-        table1[b1].push(j as u32);
-    }
+    let table0 = FlatPigeonholeTable::build(table_size0, &keys0);
+    let table1 = FlatPigeonholeTable::build(table_size1, &keys1);
 
     let passes: Vec<bool> = (0..num_guides)
         .into_par_iter()
@@ -1112,32 +1158,27 @@ pub fn evaluate_lsr_hamming_filter(
             }
 
             let cand_lsr = lsr_vec[i];
-            let b0 = ((cand_lsr >> shift0) as usize) & mask0;
-            let b1 = ((cand_lsr >> shift1) as usize) & mask1;
+            let b0 = keys0[i];
+            let b1 = keys1[i];
 
-            let is_off_target = |target_idx: u32| -> bool {
-                let j = target_idx as usize;
-                if j == i {
+            let targets0 = table0.get_bucket_targets(b0);
+            for &j_u32 in targets0 {
+                let j = j_u32 as usize;
+                if j != i && base_hamming_distance_masked(cand_lsr, lsr_vec[j], lsr_mask) <= 1 {
                     return false;
                 }
-                base_hamming_distance_masked(cand_lsr, lsr_vec[j], lsr_mask) <= 1
-            };
+            }
 
-            for &j in &table0[b0] {
-                if is_off_target(j) {
-                    return true;
+            let targets1 = table1.get_bucket_targets(b1);
+            for &j_u32 in targets1 {
+                let j = j_u32 as usize;
+                if j != i && base_hamming_distance_masked(cand_lsr, lsr_vec[j], lsr_mask) <= 1 {
+                    return false;
                 }
             }
 
-            for &j in &table1[b1] {
-                if is_off_target(j) {
-                    return true;
-                }
-            }
-
-            false
+            true
         })
-        .map(|has_off_target| !has_off_target)
         .collect();
 
     Ok(passes)
