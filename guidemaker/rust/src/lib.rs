@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
 
@@ -20,7 +20,7 @@ pub struct SeqRecord {
     pub seq: Vec<u8>,
 }
 
-/// Control generation 
+/// Control generation
 pub mod controls;
 pub use controls::{generate_flexible_negative_controls, SeedOrientation};
 
@@ -910,8 +910,10 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     let mut strand_vec = Vec::with_capacity(features.len());
     let mut id_vec = Vec::with_capacity(features.len());
     let mut type_vec = Vec::with_capacity(features.len());
+    let mut pk_vec = Vec::with_capacity(features.len());
 
-    for f in features {
+    for (i, f) in features.iter().enumerate() {
+        pk_vec.push(i as u32);
         chrom_vec.push(f.chrom.as_str());
         start_vec.push(f.feature_start);
         end_vec.push(f.feature_end);
@@ -926,6 +928,7 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
         .cast(&DataType::Categorical(None, CategoricalOrdering::Physical))?;
 
     let df = DataFrame::new(vec![
+        Series::new("primary_key".into(), pk_vec).into(),
         chrom_series.into(),
         Series::new("feature_start".into(), start_vec).into(),
         Series::new("feature_end".into(), end_vec).into(),
@@ -937,24 +940,29 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     Ok(df)
 }
 
-/// Parallel Spatial Feature-Proximity Window Filter evaluated ONLY on active candidate rows
+/// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys and candidate pass mask
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
     features_df: &DataFrame,
-    current_candidates: &[bool],
     before: u32,
     into: u32,
     feature_types: Option<&[String]>,
-) -> Result<Vec<bool>> {
+) -> Result<(Vec<Option<Vec<u32>>>, Vec<bool>)> {
     let num_guides = guides_df.height();
 
-    if let Some(ftypes) = feature_types {
-        if ftypes.iter().any(|t| {
+    let is_disabled = match feature_types {
+        Some(ftypes) => ftypes.iter().any(|t| {
             let lower = t.trim().to_lowercase();
             lower == "disable" || lower == "none" || lower == "off"
-        }) {
-            return Ok(current_candidates.to_vec());
-        }
+        }),
+        None => false,
+    };
+
+    if is_disabled {
+        let feature_keys_vec = vec![None; num_guides];
+        let init_cand_ca = guides_df.column("candidate")?.bool()?;
+        let passes_vec: Vec<bool> = init_cand_ca.into_no_null_iter().collect();
+        return Ok((feature_keys_vec, passes_vec));
     }
 
     let is_all_types = match feature_types {
@@ -966,13 +974,19 @@ pub fn evaluate_spatial_filter(
     let start_ca = guides_df.column("start")?.u32()?;
     let stop_ca = guides_df.column("stop")?.u32()?;
 
+    let feat_pks: Vec<u32> = if let Ok(col) = features_df.column("primary_key") {
+        col.cast(&DataType::UInt32)?.u32()?.into_no_null_iter().collect()
+    } else {
+        (0..features_df.height() as u32).collect()
+    };
+
     let feat_chrom_vec = column_to_string_vec(features_df, "chrom")?;
     let feat_start_ca = features_df.column("feature_start")?.u32()?;
     let feat_end_ca = features_df.column("feature_end")?.u32()?;
     let feat_strand_ca = features_df.column("strand")?.bool()?;
     let feat_type_vec = column_to_string_vec(features_df, "feature_type")?;
 
-    let mut chrom_tss_map: HashMap<String, Vec<u32>> = HashMap::new();
+    let mut chrom_tss_map: HashMap<String, Vec<(u32, u32)>> = HashMap::new();
 
     for i in 0..features_df.height() {
         if !is_all_types {
@@ -988,13 +1002,99 @@ pub fn evaluate_spatial_filter(
         let f_start = feat_start_ca.get(i).unwrap_or(0);
         let f_end = feat_end_ca.get(i).unwrap_or(0);
         let f_strand = feat_strand_ca.get(i).unwrap_or(true);
+        let pk = feat_pks[i];
 
         let tss = if f_strand { f_start } else { f_end };
-        chrom_tss_map.entry(chrom.clone()).or_default().push(tss);
+        chrom_tss_map.entry(chrom.clone()).or_default().push((tss, pk));
     }
 
     for tss_vec in chrom_tss_map.values_mut() {
-        tss_vec.sort_unstable();
+        tss_vec.sort_unstable_by_key(|&(tss, _)| tss);
+    }
+
+    let results: Vec<(Option<Vec<u32>>, bool)> = (0..num_guides)
+        .into_par_iter()
+        .map(|i| {
+            let chrom = &chrom_vec[i];
+            let g_start = start_ca.get(i).unwrap_or(0);
+            let g_stop = stop_ca.get(i).unwrap_or(0);
+            let midpoint = (g_start + g_stop) / 2;
+
+            if let Some(tss_list) = chrom_tss_map.get(chrom) {
+                let lower = midpoint.saturating_sub(into);
+                let upper = midpoint.saturating_add(before);
+
+                let start_idx = tss_list.partition_point(|&(tss, _)| tss <= lower);
+                let mut matched_pks = Vec::new();
+                let mut idx = start_idx;
+                while idx < tss_list.len() && tss_list[idx].0 < upper {
+                    matched_pks.push(tss_list[idx].1);
+                    idx += 1;
+                }
+
+                if !matched_pks.is_empty() {
+                    return (Some(matched_pks), true);
+                }
+            }
+
+            (None, false)
+        })
+        .collect();
+
+    let mut feature_keys_vec = Vec::with_capacity(num_guides);
+    let mut passes_vec = Vec::with_capacity(num_guides);
+
+    for (keys, pass) in results {
+        feature_keys_vec.push(keys);
+        passes_vec.push(pass);
+    }
+
+    Ok((feature_keys_vec, passes_vec))
+}
+
+/// Multi-Threaded Parallel LSR Hamming Distance <= 1 Filter across active candidate guides
+pub fn evaluate_lsr_hamming_filter(
+    guides_df: &DataFrame,
+    current_candidates: &[bool],
+    target_len: usize,
+    lsr_len: usize,
+    is_5prime: bool,
+) -> Result<Vec<bool>> {
+    let num_guides = guides_df.height();
+    let seq_ca = guides_df.column("seq")?.u64()?;
+    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
+
+    let active_lsr_len = lsr_len.min(32);
+    let lsr_mask = compute_target_mask(active_lsr_len);
+
+    let lsr_vec: Vec<u64> = seq_vec
+        .iter()
+        .map(|&seq| {
+            let key = extract_lsr_key(seq, target_len, active_lsr_len, is_5prime);
+            (key << (64 - 2 * active_lsr_len)) & lsr_mask
+        })
+        .collect();
+
+    let m0 = active_lsr_len / 2;
+    let m1 = active_lsr_len - m0;
+
+    let shift0 = (64 - 2 * m0) as u32;
+    let mask0 = if 2 * m0 >= 64 { usize::MAX } else { (1usize << (2 * m0)) - 1 };
+
+    let shift1 = (64 - 2 * active_lsr_len) as u32;
+    let mask1 = if 2 * m1 >= 64 { usize::MAX } else { (1usize << (2 * m1)) - 1 };
+
+    let table_size0 = 1usize << (2 * m0);
+    let table_size1 = 1usize << (2 * m1);
+
+    let mut table0 = vec![Vec::<u32>::new(); table_size0];
+    let mut table1 = vec![Vec::<u32>::new(); table_size1];
+
+    for (j, &lsr) in lsr_vec.iter().enumerate() {
+        let b0 = ((lsr >> shift0) as usize) & mask0;
+        let b1 = ((lsr >> shift1) as usize) & mask1;
+        table0[b0].push(j as u32);
+        table1[b1].push(j as u32);
     }
 
     let passes: Vec<bool> = (0..num_guides)
@@ -1004,104 +1104,36 @@ pub fn evaluate_spatial_filter(
                 return false;
             }
 
-            let chrom = &chrom_vec[i];
-            let g_start = start_ca.get(i).unwrap_or(0);
-            let g_stop = stop_ca.get(i).unwrap_or(0);
-            let midpoint = (g_start + g_stop) / 2;
+            let cand_lsr = lsr_vec[i];
+            let b0 = ((cand_lsr >> shift0) as usize) & mask0;
+            let b1 = ((cand_lsr >> shift1) as usize) & mask1;
 
-            if let Some(tss_list) = chrom_tss_map.get(chrom) {
-                let upper = midpoint.saturating_add(before);
+            let is_off_target = |target_idx: u32| -> bool {
+                let j = target_idx as usize;
+                if j == i {
+                    return false;
+                }
+                base_hamming_distance_masked(cand_lsr, lsr_vec[j], lsr_mask) <= 1
+            };
 
-                let idx = if midpoint < into {
-                    0
-                } else {
-                    let lower = midpoint - into;
-                    tss_list.partition_point(|&x| x <= lower)
-                };
+            for &j in &table0[b0] {
+                if is_off_target(j) {
+                    return true;
+                }
+            }
 
-                if idx < tss_list.len() && tss_list[idx] < upper {
+            for &j in &table1[b1] {
+                if is_off_target(j) {
                     return true;
                 }
             }
 
             false
         })
+        .map(|has_off_target| !has_off_target)
         .collect();
 
     Ok(passes)
-}
-
-/// Multi-Threaded Parallel LSR Uniqueness Filter across active candidate guides
-pub fn evaluate_lsr_uniqueness(
-    seq_slice: &[u64],
-    current_candidates: &[bool],
-    target_len: usize,
-    lsr_len: usize,
-    is_5prime: bool,
-) -> Vec<bool> {
-    if lsr_len <= 14 {
-        let table_size = 1usize << (2 * lsr_len);
-        let counts: Vec<AtomicU32> = (0..table_size).map(|_| AtomicU32::new(0)).collect();
-
-        seq_slice
-            .par_iter()
-            .enumerate()
-            .for_each(|(i, &seq)| {
-                if current_candidates[i] {
-                    let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime) as usize;
-                    counts[key].fetch_add(1, Ordering::Relaxed);
-                }
-            });
-
-        seq_slice
-            .par_iter()
-            .enumerate()
-            .map(|(i, &seq)| {
-                if current_candidates[i] {
-                    let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime) as usize;
-                    counts[key].load(Ordering::Relaxed) == 1
-                } else {
-                    false
-                }
-            })
-            .collect()
-    } else {
-        let counts: HashMap<u64, u32> = seq_slice
-            .par_iter()
-            .enumerate()
-            .fold(
-                || HashMap::new(),
-                |mut acc, (i, &seq)| {
-                    if current_candidates[i] {
-                        let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime);
-                        *acc.entry(key).or_insert(0) += 1;
-                    }
-                    acc
-                },
-            )
-            .reduce(
-                || HashMap::new(),
-                |mut map1, map2| {
-                    for (k, v) in map2 {
-                        *map1.entry(k).or_insert(0) += v;
-                    }
-                    map1
-                },
-            );
-
-        seq_slice
-            .par_iter()
-            .enumerate()
-            .map(|(i, &seq)| {
-                if current_candidates[i] {
-                    let key = extract_lsr_key(seq, target_len, lsr_len, is_5prime);
-                    counts.get(&key) == Some(&1)
-                } else {
-                    false
-                }
-            })
-            .collect()
-    }
 }
 
 /// Execute Step-2 Pipeline and collect benchmark statistics
@@ -1118,26 +1150,18 @@ pub fn execute_step2(
     let start_total = Instant::now();
     let total_input_rows = guides_df.height();
 
-    let seq_ca = guides_df.column("seq")?.u64()?;
-    let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
+    let init_cand_ca = guides_df.column("candidate")?.bool()?;
+    let mut current_candidates: Vec<bool> = init_cand_ca.into_no_null_iter().collect();
 
-    let mut current_candidates = vec![true; total_input_rows];
-
-    // Evaluate LSR uniqueness first
-    let start_lsr = Instant::now();
-    let lsr_passes = evaluate_lsr_uniqueness(&seq_vec, &current_candidates, target_len, lsr_len, is_5prime);
-    let lsr_time_sec = start_lsr.elapsed().as_secs_f64();
-
-    for i in 0..total_input_rows {
-        if !lsr_passes[i] {
-            current_candidates[i] = false;
-        }
-    }
-    let rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
-
-    // Evaluate Spatial filter strictly on LSR candidate rows
+    // 1. Interval screening (spatial filter) FIRST
     let start_sp = Instant::now();
-    let spatial_passes = evaluate_spatial_filter(guides_df, features_df, &current_candidates, before, into, feature_types)?;
+    let (feature_keys_vec, spatial_passes) = evaluate_spatial_filter(
+        guides_df,
+        features_df,
+        before,
+        into,
+        feature_types,
+    )?;
     let spatial_time_sec = start_sp.elapsed().as_secs_f64();
 
     for i in 0..total_input_rows {
@@ -1147,12 +1171,46 @@ pub fn execute_step2(
     }
     let rows_passing_spatial = current_candidates.iter().filter(|&&b| b).count();
 
+    // 2. LSR Hamming distance <= 1 screening SECOND
+    let start_lsr = Instant::now();
+    let lsr_passes = evaluate_lsr_hamming_filter(
+        guides_df,
+        &current_candidates,
+        target_len,
+        lsr_len,
+        is_5prime,
+    )?;
+    let lsr_time_sec = start_lsr.elapsed().as_secs_f64();
+
+    for i in 0..total_input_rows {
+        if !lsr_passes[i] {
+            current_candidates[i] = false;
+        }
+    }
+    let rows_passing_lsr = current_candidates.iter().filter(|&&b| b).count();
+
     let final_candidate_rows = current_candidates.iter().filter(|&&b| b).count();
     let total_time_sec = start_total.elapsed().as_secs_f64();
+
+    let mut builder = ListPrimitiveChunkedBuilder::<UInt32Type>::new(
+        "feature_keys".into(),
+        total_input_rows,
+        total_input_rows * 2,
+        DataType::UInt32,
+    );
+    for keys_opt in feature_keys_vec {
+        match keys_opt {
+            Some(keys) => builder.append_slice(&keys),
+            None => builder.append_null(),
+        }
+    }
+    let feature_keys_ca = builder.finish();
+    let feature_keys_series = feature_keys_ca.into_series();
 
     let mut output_df = guides_df.clone();
     let cand_series = Series::new("candidate".into(), current_candidates);
     output_df.replace("candidate", cand_series)?;
+    output_df.with_column(feature_keys_series)?;
 
     let stats = Step2Stats {
         total_input_rows,
@@ -1549,7 +1607,7 @@ mod tests {
             2000,
             500,
             20,
-            8,
+            20,
             false,
             Some(&["gene".to_string()]),
         )
@@ -1560,6 +1618,11 @@ mod tests {
         assert_eq!(cand_ca.get(1), Some(false));
         assert_eq!(cand_ca.get(2), Some(false));
         assert_eq!(stats.final_candidate_rows, 0);
+
+        let keys_ca = filtered_df.column("feature_keys").unwrap().list().unwrap();
+        assert!(keys_ca.get_as_series(0).is_some());
+        assert!(keys_ca.get_as_series(1).is_some());
+        assert!(keys_ca.get_as_series(2).is_none());
     }
 
     #[test]
@@ -1594,13 +1657,14 @@ mod tests {
             2000,
             500,
             20,
-            8,
+            20,
             false,
             Some(&["all".to_string()]),
         )
         .unwrap();
         assert_eq!(stats_all.final_candidate_rows, 1);
         assert_eq!(df_all.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+        assert!(df_all.column("feature_keys").unwrap().list().unwrap().get_as_series(0).is_some());
 
         // 2. With "disable" feature types -> spatial filter disabled, passes based on LSR alone
         let (df_dis, stats_dis) = execute_step2(
@@ -1609,12 +1673,13 @@ mod tests {
             2000,
             500,
             20,
-            8,
+            20,
             false,
             Some(&["disable".to_string()]),
         )
         .unwrap();
         assert_eq!(stats_dis.final_candidate_rows, 1);
         assert_eq!(df_dis.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+        assert!(df_dis.column("feature_keys").unwrap().list().unwrap().get_as_series(0).is_none());
     }
 }

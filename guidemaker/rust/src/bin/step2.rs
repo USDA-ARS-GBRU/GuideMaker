@@ -33,7 +33,7 @@ pub struct Step2Args {
     pub into: u32,
 
     /// Seed length in nt used for LSR uniqueness test
-    #[arg(long, default_value_t = 8)]
+    #[arg(long, default_value_t = 20)]
     pub lsr_len: usize,
 
     /// Output Parquet file path

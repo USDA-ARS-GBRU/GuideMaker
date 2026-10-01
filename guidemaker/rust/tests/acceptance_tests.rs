@@ -218,7 +218,7 @@ fn test_features_csv_and_parquet_output() {
     assert_eq!(parquet_df.height(), 2);
     assert_eq!(
         parquet_df.get_column_names(),
-        vec!["chrom", "feature_start", "feature_end", "strand", "feature_id", "feature_type"]
+        vec!["primary_key", "chrom", "feature_start", "feature_end", "strand", "feature_id", "feature_type"]
     );
 }
 
