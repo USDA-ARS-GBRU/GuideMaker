@@ -1109,7 +1109,7 @@ pub fn evaluate_spatial_filter(
     Ok((feature_keys_vec, passes_vec))
 }
 
-/// Multi-Threaded Parallel LSR Hamming Distance <= 1 Filter across active candidate guides using CSR Flat Tables
+/// Multi-Threaded Parallel LSR Hamming Distance <= 1 Filter across active candidate guides using CSR Flat Tables & Single-Pass Extraction
 pub fn evaluate_lsr_hamming_filter(
     guides_df: &DataFrame,
     current_candidates: &[bool],
@@ -1124,14 +1124,6 @@ pub fn evaluate_lsr_hamming_filter(
     let active_lsr_len = lsr_len.min(32);
     let lsr_mask = compute_target_mask(active_lsr_len);
 
-    let lsr_vec: Vec<u64> = seq_vec
-        .iter()
-        .map(|&seq| {
-            let key = extract_lsr_key(seq, target_len, active_lsr_len, is_5prime);
-            (key << (64 - 2 * active_lsr_len)) & lsr_mask
-        })
-        .collect();
-
     let m0 = active_lsr_len / 2;
     let m1 = active_lsr_len - m0;
 
@@ -1144,8 +1136,16 @@ pub fn evaluate_lsr_hamming_filter(
     let table_size0 = 1usize << (2 * m0);
     let table_size1 = 1usize << (2 * m1);
 
-    let keys0: Vec<usize> = lsr_vec.iter().map(|&lsr| ((lsr >> shift0) as usize) & mask0).collect();
-    let keys1: Vec<usize> = lsr_vec.iter().map(|&lsr| ((lsr >> shift1) as usize) & mask1).collect();
+    let (lsr_vec, (keys0, keys1)): (Vec<u64>, (Vec<usize>, Vec<usize>)) = seq_vec
+        .par_iter()
+        .map(|&seq| {
+            let key = extract_lsr_key(seq, target_len, active_lsr_len, is_5prime);
+            let cand_lsr = (key << (64 - 2 * active_lsr_len)) & lsr_mask;
+            let b0 = ((cand_lsr >> shift0) as usize) & mask0;
+            let b1 = ((cand_lsr >> shift1) as usize) & mask1;
+            (cand_lsr, (b0, b1))
+        })
+        .unzip();
 
     let table0 = FlatPigeonholeTable::build(table_size0, &keys0);
     let table1 = FlatPigeonholeTable::build(table_size1, &keys1);
@@ -1240,20 +1240,37 @@ pub fn execute_step2(
     let final_candidate_rows = current_candidates.iter().filter(|&&b| b).count();
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
-    let mut builder = ListPrimitiveChunkedBuilder::<UInt32Type>::new(
-        "feature_keys".into(),
-        total_input_rows,
-        total_input_rows * 2,
-        DataType::UInt32,
-    );
-    for keys_opt in feature_keys_vec {
-        match keys_opt {
-            Some(keys) => builder.append_slice(&keys),
-            None => builder.append_null(),
+    let chunk_size = 500_000;
+    let chunks: Vec<Series> = feature_keys_vec
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            let mut builder = ListPrimitiveChunkedBuilder::<UInt32Type>::new(
+                "".into(),
+                chunk.len(),
+                chunk.len() * 2,
+                DataType::UInt32,
+            );
+            for keys_opt in chunk {
+                match keys_opt {
+                    Some(keys) => builder.append_slice(keys),
+                    None => builder.append_null(),
+                }
+            }
+            builder.finish().into_series()
+        })
+        .collect();
+
+    let feature_keys_series = if !chunks.is_empty() {
+        let mut combined_ca = chunks[0].list().unwrap().clone();
+        for ch in &chunks[1..] {
+            combined_ca.append(ch.list().unwrap()).unwrap();
         }
-    }
-    let feature_keys_ca = builder.finish();
-    let feature_keys_series = feature_keys_ca.into_series();
+        let mut s = combined_ca.into_series();
+        s.rename("feature_keys".into());
+        s
+    } else {
+        Series::new_empty("feature_keys".into(), &DataType::List(Box::new(DataType::UInt32)))
+    };
 
     let mut output_df = guides_df.clone();
     let cand_series = Series::new("candidate".into(), current_candidates);
@@ -1575,7 +1592,9 @@ pub fn write_csv(df: &mut DataFrame, path: &Path) -> Result<()> {
 pub fn write_parquet(df: &mut DataFrame, path: &Path) -> Result<()> {
     let file = std::fs::File::create(path)
         .with_context(|| format!("Failed to create Parquet file at {:?}", path))?;
-    ParquetWriter::new(file).finish(df)?;
+    ParquetWriter::new(file)
+        .with_compression(ParquetCompression::Zstd(Some(ZstdLevel::try_new(1)?)))
+        .finish(df)?;
     Ok(())
 }
 
