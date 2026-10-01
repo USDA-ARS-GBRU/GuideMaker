@@ -986,7 +986,7 @@ pub fn evaluate_spatial_filter(
     let feat_strand_ca = features_df.column("strand")?.bool()?;
     let feat_type_vec = column_to_string_vec(features_df, "feature_type")?;
 
-    let mut chrom_tss_map: HashMap<String, Vec<(u32, u32)>> = HashMap::new();
+    let mut chrom_windows_map: HashMap<String, Vec<(u32, u32, u32)>> = HashMap::new();
 
     for i in 0..features_df.height() {
         if !is_all_types {
@@ -1004,12 +1004,20 @@ pub fn evaluate_spatial_filter(
         let f_strand = feat_strand_ca.get(i).unwrap_or(true);
         let pk = feat_pks[i];
 
-        let tss = if f_strand { f_start } else { f_end };
-        chrom_tss_map.entry(chrom.clone()).or_default().push((tss, pk));
+        let (w_min, w_max) = if f_strand {
+            (f_start.saturating_sub(before), f_start.saturating_add(into))
+        } else {
+            (f_end.saturating_sub(into), f_end.saturating_add(before))
+        };
+
+        chrom_windows_map
+            .entry(chrom.clone())
+            .or_default()
+            .push((w_min, w_max, pk));
     }
 
-    for tss_vec in chrom_tss_map.values_mut() {
-        tss_vec.sort_unstable_by_key(|&(tss, _)| tss);
+    for win_vec in chrom_windows_map.values_mut() {
+        win_vec.sort_unstable_by_key(|&(w_min, _, _)| w_min);
     }
 
     let results: Vec<(Option<Vec<u32>>, bool)> = (0..num_guides)
@@ -1020,16 +1028,13 @@ pub fn evaluate_spatial_filter(
             let g_stop = stop_ca.get(i).unwrap_or(0);
             let midpoint = (g_start + g_stop) / 2;
 
-            if let Some(tss_list) = chrom_tss_map.get(chrom) {
-                let lower = midpoint.saturating_sub(into);
-                let upper = midpoint.saturating_add(before);
-
-                let start_idx = tss_list.partition_point(|&(tss, _)| tss <= lower);
+            if let Some(win_list) = chrom_windows_map.get(chrom) {
+                let limit_idx = win_list.partition_point(|&(w_min, _, _)| w_min <= midpoint);
                 let mut matched_pks = Vec::new();
-                let mut idx = start_idx;
-                while idx < tss_list.len() && tss_list[idx].0 < upper {
-                    matched_pks.push(tss_list[idx].1);
-                    idx += 1;
+                for k in 0..limit_idx {
+                    if midpoint <= win_list[k].1 {
+                        matched_pks.push(win_list[k].2);
+                    }
                 }
 
                 if !matched_pks.is_empty() {
@@ -1637,6 +1642,7 @@ mod tests {
         assert_eq!(cand_ca.get(2), Some(false));
         assert_eq!(stats.final_candidate_rows, 0);
 
+        println!("Filtered DF columns: {:?}", filtered_df.get_column_names());
         let keys_ca = filtered_df.column("feature_keys").unwrap().list().unwrap();
         assert!(keys_ca.get_as_series(0).is_some());
         assert!(keys_ca.get_as_series(1).is_some());
