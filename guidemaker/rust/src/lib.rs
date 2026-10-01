@@ -902,18 +902,19 @@ pub fn read_feature_records(path: &Path) -> Result<Vec<FeatureRecord>> {
     }
 }
 
+
 /// Build Polars features DataFrame from FeatureRecord list
 pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame> {
-    let mut chrom_vec = Vec::with_capacity(features.len());
-    let mut start_vec = Vec::with_capacity(features.len());
-    let mut end_vec = Vec::with_capacity(features.len());
-    let mut strand_vec = Vec::with_capacity(features.len());
-    let mut id_vec = Vec::with_capacity(features.len());
-    let mut type_vec = Vec::with_capacity(features.len());
-    let mut pk_vec = Vec::with_capacity(features.len());
+    let n = features.len();
 
-    for (i, f) in features.iter().enumerate() {
-        pk_vec.push(i as u32);
+    let mut chrom_vec = Vec::with_capacity(n);
+    let mut start_vec = Vec::with_capacity(n);
+    let mut end_vec   = Vec::with_capacity(n);
+    let mut strand_vec = Vec::with_capacity(n);
+    let mut id_vec     = Vec::with_capacity(n);
+    let mut type_vec   = Vec::with_capacity(n);
+
+    for f in features {
         chrom_vec.push(f.chrom.as_str());
         start_vec.push(f.feature_start);
         end_vec.push(f.feature_end);
@@ -922,19 +923,24 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
         type_vec.push(f.feature_type.as_str());
     }
 
-    let chrom_series = Series::new("chrom".into(), chrom_vec)
+    // Build categorical columns
+    let chrom_series = Series::new("chrom", chrom_vec)
         .cast(&DataType::Categorical(None, CategoricalOrdering::Physical))?;
-    let type_series = Series::new("feature_type".into(), type_vec)
+    let type_series  = Series::new("feature_type", type_vec)
         .cast(&DataType::Categorical(None, CategoricalOrdering::Physical))?;
 
+    // Add a sequential u32 primary key (1-based). 
+    // NOTE: This will overflow if n > u32::MAX; use u64 in that scenario.
+    let primary_key: Vec<u32> = (1..=n as u32).collect();
+
     let df = DataFrame::new(vec![
-        Series::new("primary_key".into(), pk_vec).into(),
-        chrom_series.into(),
-        Series::new("feature_start".into(), start_vec).into(),
-        Series::new("feature_end".into(), end_vec).into(),
-        Series::new("strand".into(), strand_vec).into(),
-        Series::new("feature_id".into(), id_vec).into(),
-        type_series.into(),
+        Series::new("primary_key", primary_key),
+        chrom_series,
+        Series::new("feature_start", start_vec),
+        Series::new("feature_end", end_vec),
+        Series::new("strand", strand_vec),
+        Series::new("feature_id", id_vec),
+        type_series,
     ])?;
 
     Ok(df)
