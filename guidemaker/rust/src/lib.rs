@@ -940,7 +940,7 @@ pub fn build_features_dataframe(features: &[FeatureRecord]) -> Result<DataFrame>
     Ok(df)
 }
 
-/// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys and candidate pass mask
+/// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys and candidate pass mask using 64kb Genomic Binning
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
     features_df: &DataFrame,
@@ -986,7 +986,8 @@ pub fn evaluate_spatial_filter(
     let feat_strand_ca = features_df.column("strand")?.bool()?;
     let feat_type_vec = column_to_string_vec(features_df, "feature_type")?;
 
-    let mut chrom_windows_map: HashMap<String, Vec<(u32, u32, u32)>> = HashMap::new();
+    const BIN_SHIFT: u32 = 16; // 64 kb genomic bins
+    let mut chrom_bin_map: HashMap<String, HashMap<u32, Vec<(u32, u32, u32)>>> = HashMap::new();
 
     for i in 0..features_df.height() {
         if !is_all_types {
@@ -1010,14 +1011,13 @@ pub fn evaluate_spatial_filter(
             (f_end.saturating_sub(into), f_end.saturating_add(before))
         };
 
-        chrom_windows_map
-            .entry(chrom.clone())
-            .or_default()
-            .push((w_min, w_max, pk));
-    }
+        let start_bin = w_min >> BIN_SHIFT;
+        let end_bin = w_max >> BIN_SHIFT;
 
-    for win_vec in chrom_windows_map.values_mut() {
-        win_vec.sort_unstable_by_key(|&(w_min, _, _)| w_min);
+        let bin_map = chrom_bin_map.entry(chrom.clone()).or_default();
+        for b in start_bin..=end_bin {
+            bin_map.entry(b).or_default().push((w_min, w_max, pk));
+        }
     }
 
     let results: Vec<(Option<Vec<u32>>, bool)> = (0..num_guides)
@@ -1028,17 +1028,19 @@ pub fn evaluate_spatial_filter(
             let g_stop = stop_ca.get(i).unwrap_or(0);
             let midpoint = (g_start + g_stop) / 2;
 
-            if let Some(win_list) = chrom_windows_map.get(chrom) {
-                let limit_idx = win_list.partition_point(|&(w_min, _, _)| w_min <= midpoint);
-                let mut matched_pks = Vec::new();
-                for k in 0..limit_idx {
-                    if midpoint <= win_list[k].1 {
-                        matched_pks.push(win_list[k].2);
+            if let Some(bin_map) = chrom_bin_map.get(chrom) {
+                let b = midpoint >> BIN_SHIFT;
+                if let Some(win_list) = bin_map.get(&b) {
+                    let mut matched_pks = Vec::new();
+                    for &(w_min, w_max, pk) in win_list {
+                        if midpoint >= w_min && midpoint <= w_max {
+                            matched_pks.push(pk);
+                        }
                     }
-                }
 
-                if !matched_pks.is_empty() {
-                    return (Some(matched_pks), true);
+                    if !matched_pks.is_empty() {
+                        return (Some(matched_pks), true);
+                    }
                 }
             }
 
