@@ -1249,11 +1249,20 @@ pub fn iupac_mask(c: char) -> Result<u8> {
 }
 
 /// Convert a PAM string into a vector of per-base IUPAC bitmasks.
+/// Validates that the PAM length is between 3 and 5 nt.
 pub fn parse_pam_masks(pam: &str) -> Result<Vec<u8>> {
     if pam.is_empty() {
         return Err(anyhow!("PAM string cannot be empty"));
     }
-    pam.chars().map(iupac_mask).collect()
+    let masks: Result<Vec<u8>> = pam.chars().map(iupac_mask).collect();
+    let masks = masks?;
+    if masks.len() < 3 || masks.len() > 5 {
+        return Err(anyhow!(
+            "PAM length must be 3, 4, or 5 nt, got {}",
+            masks.len()
+        ));
+    }
+    Ok(masks)
 }
 
 /// Check if PAM matches the sequence at position `pos`.
@@ -1313,7 +1322,7 @@ pub fn search_5prime_forward(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
-    let flank_len = 2;
+    let flank_len = 5usize.saturating_sub(pam_len);
     let seq_len = seq.len();
     let total_window = target_len + pam_len + flank_len;
     if seq_len < total_window {
@@ -1356,7 +1365,7 @@ pub fn search_5prime_reverse(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
-    let flank_len = 2;
+    let flank_len = 5usize.saturating_sub(pam_len);
     let seq_len = seq.len();
     let total_window = target_len + pam_len + flank_len;
     if seq_len < total_window {
@@ -1398,7 +1407,7 @@ pub fn search_3prime_forward(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
-    let flank_len = 2;
+    let flank_len = 5usize.saturating_sub(pam_len);
     let seq_len = seq.len();
     let total_window = target_len + pam_len + flank_len;
     if seq_len < total_window {
@@ -1439,7 +1448,7 @@ pub fn search_3prime_reverse(
 ) -> Vec<TargetHit> {
     let mut hits = Vec::new();
     let pam_len = pam_masks.len();
-    let flank_len = 2;
+    let flank_len = 5usize.saturating_sub(pam_len);
     let seq_len = seq.len();
     let total_window = target_len + pam_len + flank_len;
     if seq_len < total_window {
@@ -1535,6 +1544,15 @@ mod tests {
         assert_eq!(iupac_mask('N').unwrap(), 15);
         assert_eq!(iupac_mask('M').unwrap(), 3);
         assert!(iupac_mask('Z').is_err());
+    }
+
+    #[test]
+    fn test_pam_length_validation() {
+        assert!(parse_pam_masks("NGG").is_ok());
+        assert!(parse_pam_masks("TTTN").is_ok());
+        assert!(parse_pam_masks("TTTVN").is_ok());
+        assert!(parse_pam_masks("NG").is_err());
+        assert!(parse_pam_masks("NNGGNN").is_err());
     }
 
     #[test]
