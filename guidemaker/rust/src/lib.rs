@@ -149,11 +149,18 @@ pub fn extract_slice_key(seq: u64, pos: usize, slice_len: usize) -> usize {
     ((seq >> shift) as usize) & mask
 }
 
+/// Compact entry stored contiguously in inverted index buckets
+#[derive(Debug, Clone, Copy)]
+pub struct BucketEntry {
+    pub cand_idx: u32,
+    pub cand_seq: u64,
+}
+
 /// Representation of a candidate guide record for Step 3 search
 pub struct Step3CandidateRecord {
     pub guide_df_idx: usize,
     pub seq: u64,
-    pub chrom: String,
+    pub chrom_code: u32,
     pub start: u32,
     pub stop: u32,
     pub strand: bool,
@@ -163,11 +170,58 @@ pub struct Step3CandidateRecord {
     pub hits_scanned: AtomicU32,
 }
 
+/// Thread-local state for tracking best off-target hit per candidate
+#[derive(Clone)]
+pub struct LocalCandidateBest {
+    pub best_target_seq: u64,
+    pub best_hamming: u8,
+    pub best_cfd: f32,
+    pub hits_scanned: u32,
+}
+
+impl Default for LocalCandidateBest {
+    fn default() -> Self {
+        Self {
+            best_target_seq: 0,
+            best_hamming: 255,
+            best_cfd: 0.0,
+            hits_scanned: 0,
+        }
+    }
+}
+
+impl LocalCandidateBest {
+    #[inline(always)]
+    pub fn update(&mut self, target_seq: u64, hamming: u8, cfd: f32) {
+        let is_better = if cfd > self.best_cfd {
+            true
+        } else if (cfd - self.best_cfd).abs() < 1e-6 {
+            (hamming < self.best_hamming)
+                || (hamming == self.best_hamming && target_seq < self.best_target_seq)
+        } else {
+            false
+        };
+
+        if is_better {
+            self.best_cfd = cfd;
+            self.best_hamming = hamming;
+            self.best_target_seq = target_seq;
+        }
+    }
+
+    pub fn merge(&mut self, other: &LocalCandidateBest) {
+        self.hits_scanned += other.hits_scanned;
+        if other.best_cfd > 0.0 {
+            self.update(other.best_target_seq, other.best_hamming, other.best_cfd);
+        }
+    }
+}
+
 /// Slice-based inverted index over candidate guides
 pub struct Step3CandidateIndex {
     pub slice_len: usize,
     pub offsets: Vec<usize>,
-    pub buckets: Vec<Vec<u32>>, // per-slice buckets
+    pub buckets: Vec<Vec<BucketEntry>>, // per-slice buckets with contiguous sequence payloads
     pub candidates: Vec<Step3CandidateRecord>,
 }
 
@@ -184,7 +238,7 @@ pub fn build_step3_candidate_index(
     let seq_ca = guides_df.column("seq")?.u64()?;
     let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
 
-    let chrom_vec = column_to_string_vec(guides_df, "chrom")?;
+    let chrom_codes = column_to_u32_codes(guides_df, "chrom")?;
     let start_ca = guides_df.column("start")?.u32()?;
     let stop_ca = guides_df.column("stop")?.u32()?;
     let strand_ca = guides_df.column("strand")?.bool()?;
@@ -193,7 +247,7 @@ pub fn build_step3_candidate_index(
     let num_buckets_per_slice = 1usize << (2 * config.slice_len);
     let total_buckets = num_slices * num_buckets_per_slice;
 
-    let mut buckets = vec![Vec::<u32>::new(); total_buckets];
+    let mut buckets = vec![Vec::<BucketEntry>::new(); total_buckets];
     let mut candidates = Vec::new();
 
     for (df_idx, &is_cand) in cand_vec.iter().enumerate() {
@@ -203,21 +257,23 @@ pub fn build_step3_candidate_index(
 
         let cand_idx = candidates.len() as u32;
         let seq = seq_vec[df_idx];
-        let chrom = chrom_vec[df_idx].clone();
+        let chrom_code = chrom_codes[df_idx];
         let start = start_ca.get(df_idx).unwrap_or(0);
         let stop = stop_ca.get(df_idx).unwrap_or(0);
         let strand = strand_ca.get(df_idx).unwrap_or(true);
 
+        let entry = BucketEntry { cand_idx, cand_seq: seq };
+
         for (s_idx, &offset) in config.slice_offsets.iter().enumerate() {
             let key = extract_slice_key(seq, offset, config.slice_len);
             let b_idx = s_idx * num_buckets_per_slice + key;
-            buckets[b_idx].push(cand_idx);
+            buckets[b_idx].push(entry);
         }
 
         candidates.push(Step3CandidateRecord {
             guide_df_idx: df_idx,
             seq,
-            chrom,
+            chrom_code,
             start,
             stop,
             strand,
@@ -284,6 +340,33 @@ pub fn compute_cfd_mismatch_only(cand_seq: u64, target_seq: u64, lsr_len: usize)
     score
 }
 
+/// Thread-local worker scratch state for lock-free parallel target scanning
+pub struct WorkerScratch {
+    pub visited_tag: Vec<u32>,
+    pub tag_counter: u32,
+    pub local_bests: Vec<LocalCandidateBest>,
+}
+
+impl WorkerScratch {
+    pub fn new(num_candidates: usize) -> Self {
+        Self {
+            visited_tag: vec![0u32; num_candidates],
+            tag_counter: 0,
+            local_bests: vec![LocalCandidateBest::default(); num_candidates],
+        }
+    }
+
+    #[inline(always)]
+    pub fn next_target_tag(&mut self) -> u32 {
+        self.tag_counter = self.tag_counter.wrapping_add(1);
+        if self.tag_counter == 0 {
+            self.visited_tag.fill(0);
+            self.tag_counter = 1;
+        }
+        self.tag_counter
+    }
+}
+
 /// Scan a batch of targets against the candidate guide index
 pub fn scan_targets_batch_against_index(
     targets_df: &DataFrame,
@@ -291,86 +374,104 @@ pub fn scan_targets_batch_against_index(
     config: &Step3Config,
 ) -> Result<()> {
     let num_targets = targets_df.height();
-    if num_targets == 0 || index.candidates.is_empty() {
+    let num_candidates = index.candidates.len();
+    if num_targets == 0 || num_candidates == 0 {
         return Ok(());
     }
 
     let seq_ca = targets_df.column("seq")?.u64()?;
     let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
 
-    let chrom_vec = column_to_string_vec(targets_df, "chrom")?;
+    let chrom_codes = column_to_u32_codes(targets_df, "chrom")?;
     let start_ca = targets_df.column("start")?.u32()?;
     let strand_ca = targets_df.column("strand")?.bool()?;
 
     let target_mask = compute_target_mask(config.lsr_len.min(20));
     let num_buckets_per_slice = 1usize << (2 * config.slice_len);
 
-    (0..num_targets)
+    let per_thread_bests: Vec<Vec<LocalCandidateBest>> = (0..num_targets)
         .into_par_iter()
         .with_min_len(1024)
-        .for_each_init(
-            || Vec::<u32>::with_capacity(128),
-            |union_buf, g_idx| {
+        .fold(
+            || WorkerScratch::new(num_candidates),
+            |mut scratch, g_idx| {
                 let g_seq = seq_vec[g_idx];
-                let g_chrom = &chrom_vec[g_idx];
+                let g_chrom_code = chrom_codes[g_idx];
                 let g_start = start_ca.get(g_idx).unwrap_or(0);
                 let g_strand = strand_ca.get(g_idx).unwrap_or(true);
 
-                union_buf.clear();
+                let current_tag = scratch.next_target_tag();
 
                 for (s_idx, &offset) in index.offsets.iter().enumerate() {
                     let key = extract_slice_key(g_seq, offset, index.slice_len);
                     let b_idx = s_idx * num_buckets_per_slice + key;
-                    union_buf.extend_from_slice(&index.buckets[b_idx]);
-                }
+                    let bucket = &index.buckets[b_idx];
 
-                if union_buf.is_empty() {
-                    return;
-                }
+                    for entry in bucket {
+                        let c_idx = entry.cand_idx as usize;
 
-                union_buf.sort_unstable();
-                union_buf.dedup();
+                        // O(1) candidate deduplication per target probe using thread-local tag array
+                        if scratch.visited_tag[c_idx] == current_tag {
+                            continue;
+                        }
+                        scratch.visited_tag[c_idx] = current_tag;
 
-                for &cand_idx_u32 in union_buf.iter() {
-                    let cand = &index.candidates[cand_idx_u32 as usize];
+                        // Fast 20-nt LSR bitwise Hamming prefilter directly on contiguous candidate sequence
+                        let mismatches = base_hamming_distance_masked(entry.cand_seq, g_seq, target_mask);
+                        if mismatches >= config.prefilter_mismatch {
+                            continue;
+                        }
 
-                    // Candidate self-locus skip check
-                    if g_strand == cand.strand && g_start == cand.start && g_chrom == &cand.chrom {
-                        continue;
-                    }
+                        // Candidate self-locus skip check deferred until sequence matches
+                        if entry.cand_seq == g_seq {
+                            let cand = &index.candidates[c_idx];
+                            if g_strand == cand.strand && g_start == cand.start && g_chrom_code == cand.chrom_code {
+                                continue;
+                            }
+                        }
 
-                    // 20-nt LSR bitwise Hamming prefilter
-                    let mismatches = base_hamming_distance_masked(cand.seq, g_seq, target_mask);
-                    if mismatches >= config.prefilter_mismatch {
-                        continue;
-                    }
+                        scratch.local_bests[c_idx].hits_scanned += 1;
 
-                    cand.hits_scanned.fetch_add(1, Ordering::Relaxed);
-
-                    // CFD score computation
-                    let cfd_score = compute_cfd_mismatch_only(cand.seq, g_seq, config.lsr_len);
-
-                    let mut best_cfd = cand.best_cfd.lock().unwrap();
-                    let update = if cfd_score > *best_cfd {
-                        true
-                    } else if (cfd_score - *best_cfd).abs() < 1e-6 {
-                        // Tie-breaker: prefer lower Hamming, then lower 2-bit target sequence
-                        let best_h = *cand.best_hamming.lock().unwrap();
-                        let best_seq = *cand.best_target_seq.lock().unwrap();
-                        ((mismatches as u8) < best_h)
-                            || ((mismatches as u8) == best_h && g_seq < best_seq)
-                    } else {
-                        false
-                    };
-
-                    if update {
-                        *best_cfd = cfd_score;
-                        *cand.best_hamming.lock().unwrap() = mismatches as u8;
-                        *cand.best_target_seq.lock().unwrap() = g_seq;
+                        // CFD score computation
+                        let cfd_score = compute_cfd_mismatch_only(entry.cand_seq, g_seq, config.lsr_len);
+                        scratch.local_bests[c_idx].update(g_seq, mismatches as u8, cfd_score);
                     }
                 }
+
+                scratch
             },
-        );
+        )
+        .map(|scratch| scratch.local_bests)
+        .collect();
+
+    // Lock-free parallel reduce/merge into atomic/mutex candidates
+    index.candidates.par_iter().enumerate().for_each(|(c_idx, cand)| {
+        let mut aggregated = LocalCandidateBest::default();
+        for thread_bests in &per_thread_bests {
+            aggregated.merge(&thread_bests[c_idx]);
+        }
+
+        if aggregated.hits_scanned > 0 {
+            cand.hits_scanned.fetch_add(aggregated.hits_scanned, Ordering::Relaxed);
+            if aggregated.best_cfd > 0.0 {
+                let mut best_cfd = cand.best_cfd.lock().unwrap();
+                let mut best_ham = cand.best_hamming.lock().unwrap();
+                let mut best_seq = cand.best_target_seq.lock().unwrap();
+
+                let mut current = LocalCandidateBest {
+                    best_target_seq: *best_seq,
+                    best_hamming: *best_ham,
+                    best_cfd: *best_cfd,
+                    hits_scanned: 0,
+                };
+                current.merge(&aggregated);
+
+                *best_cfd = current.best_cfd;
+                *best_ham = current.best_hamming;
+                *best_seq = current.best_target_seq;
+            }
+        }
+    });
 
     Ok(())
 }

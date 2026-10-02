@@ -3,6 +3,7 @@ use clap::Parser;
 use guidemaker_scan::*;
 use polars::prelude::*;
 use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -133,9 +134,11 @@ fn main() -> Result<()> {
     );
 
     // 2. Stream all target rows in batch chunks against candidate slice index
+    println!("\nStarting parallel streaming target search engine...");
     let mut current_row = 0;
     let mut chunk_idx = 0;
     let mut accum_search_time = 0.0;
+    let start_search_all = Instant::now();
 
     while current_row < total_rows {
         let n_rows_to_read = std::cmp::min(args.batch_size, total_rows - current_row);
@@ -145,13 +148,34 @@ fn main() -> Result<()> {
 
         let start_chunk = Instant::now();
         scan_targets_batch_against_index(&targets_chunk_df, &index, &config)?;
-        accum_search_time += start_chunk.elapsed().as_secs_f64();
+        let chunk_time = start_chunk.elapsed().as_secs_f64();
+        accum_search_time += chunk_time;
 
         current_row += n_rows_to_read;
         chunk_idx += 1;
+
+        let pct = (current_row as f64 / total_rows as f64) * 100.0;
+        let elapsed_search = start_search_all.elapsed().as_secs_f64();
+        let global_rate = current_row as f64 / elapsed_search.max(1e-6);
+        let chunk_rate = n_rows_to_read as f64 / chunk_time.max(1e-6);
+        let remaining_rows = total_rows - current_row;
+        let eta_sec = remaining_rows as f64 / global_rate.max(1e-6);
+
+        print!(
+            "\r[Streaming Progress] Batch {:>4} | Targets: {}/{} ({:>5.1}%) | Chunk Rate: {:>8.0} tgt/s | Avg Rate: {:>8.0} tgt/s | Elapsed: {:>6.1}s | ETA: {:>6.1}s",
+            chunk_idx,
+            current_row,
+            total_rows,
+            pct,
+            chunk_rate,
+            global_rate,
+            elapsed_search,
+            eta_sec
+        );
+        let _ = std::io::stdout().flush();
     }
 
-    println!("\nProcessed {} streaming target batches in {:.2}s.", chunk_idx, accum_search_time);
+    println!("\n\nProcessed {} streaming target batches ({:.0} total targets) in {:.2}s.", chunk_idx, total_rows, accum_search_time);
 
     // 3. Materialize final DataFrame with appended best_* columns
     println!("Compiling final output dataset with max-CFD off-target metrics...");
