@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
@@ -70,6 +71,9 @@ pub struct Step3Stats {
     pub index_build_time_sec: f64,
     pub search_time_sec: f64,
     pub total_time_sec: f64,
+    pub total_bucket_probes: u64,
+    pub total_candidates_deduped: u64,
+    pub total_cfd_evaluations: u64,
 }
 
 /// Calculate precomputed left-aligned target mask
@@ -98,6 +102,7 @@ pub struct Step3Config {
     pub slice_offsets: Vec<usize>,
     pub prefilter_mismatch: u32,
     pub keep_noncandidates: bool,
+    pub max_bucket_depth: usize,
 }
 
 impl Default for Step3Config {
@@ -108,6 +113,7 @@ impl Default for Step3Config {
             slice_offsets: vec![2, 7, 12],
             prefilter_mismatch: 5,
             keep_noncandidates: false,
+            max_bucket_depth: usize::MAX,
         }
     }
 }
@@ -156,7 +162,24 @@ pub struct BucketEntry {
     pub cand_seq: u64,
 }
 
-/// Representation of a candidate guide record for Step 3 search (atomic & lock-free)
+#[derive(Debug, Clone, Copy)]
+pub struct BestMatch {
+    pub seq: u64,
+    pub hamming: u32,
+    pub cfd: f32,
+}
+
+impl Default for BestMatch {
+    fn default() -> Self {
+        Self {
+            seq: 0,
+            hamming: 255,
+            cfd: 0.0,
+        }
+    }
+}
+
+/// Representation of a candidate guide record for Step 3 search (thread-safe via Mutex for best match)
 pub struct Step3CandidateRecord {
     pub guide_df_idx: usize,
     pub seq: u64,
@@ -164,9 +187,7 @@ pub struct Step3CandidateRecord {
     pub start: u32,
     pub stop: u32,
     pub strand: bool,
-    pub best_target_seq: AtomicU64,
-    pub best_hamming: AtomicU32,
-    pub best_cfd_bits: AtomicU32,
+    pub best_match: Mutex<BestMatch>,
     pub hits_scanned: AtomicU32,
 }
 
@@ -175,38 +196,30 @@ impl Step3CandidateRecord {
     pub fn try_update(&self, target_seq: u64, mismatches: u32, cfd_score: f32) {
         self.hits_scanned.fetch_add(1, Ordering::Relaxed);
 
-        let new_bits = cfd_score.to_bits();
-        let mut current_bits = self.best_cfd_bits.load(Ordering::Relaxed);
+        let mut guard = self.best_match.lock().unwrap();
+        let is_better = if cfd_score > guard.cfd {
+            true
+        } else if (cfd_score - guard.cfd).abs() < 1e-6 {
+            (mismatches < guard.hamming)
+                || (mismatches == guard.hamming && target_seq < guard.seq)
+        } else {
+            false
+        };
 
-        loop {
-            let current_cfd = f32::from_bits(current_bits);
-            if cfd_score < current_cfd {
-                break;
-            }
-
-            if (cfd_score - current_cfd).abs() < 1e-6 {
-                let cur_h = self.best_hamming.load(Ordering::Relaxed);
-                let cur_seq = self.best_target_seq.load(Ordering::Relaxed);
-                if mismatches > cur_h || (mismatches == cur_h && target_seq >= cur_seq) {
-                    break;
-                }
-            }
-
-            match self.best_cfd_bits.compare_exchange_weak(
-                current_bits,
-                new_bits,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => {
-                    self.best_hamming.store(mismatches, Ordering::Relaxed);
-                    self.best_target_seq.store(target_seq, Ordering::Relaxed);
-                    break;
-                }
-                Err(actual) => current_bits = actual,
-            }
+        if is_better {
+            guard.cfd = cfd_score;
+            guard.hamming = mismatches;
+            guard.seq = target_seq;
         }
     }
+}
+
+/// Atomic Search Diagnostics Metrics
+#[derive(Default)]
+pub struct Step3SearchDiagnostics {
+    pub total_bucket_probes: AtomicU64,
+    pub total_candidates_deduped: AtomicU64,
+    pub total_cfd_evaluations: AtomicU64,
 }
 
 /// Slice-based inverted index over candidate guides
@@ -215,6 +228,7 @@ pub struct Step3CandidateIndex {
     pub offsets: Vec<usize>,
     pub buckets: Vec<Vec<BucketEntry>>, // per-slice buckets with contiguous sequence payloads
     pub candidates: Vec<Step3CandidateRecord>,
+    pub diagnostics: Step3SearchDiagnostics,
 }
 
 /// Build slice-based inverted index from candidate guides
@@ -269,11 +283,18 @@ pub fn build_step3_candidate_index(
             start,
             stop,
             strand,
-            best_target_seq: AtomicU64::new(0),
-            best_hamming: AtomicU32::new(255),
-            best_cfd_bits: AtomicU32::new(0.0f32.to_bits()),
+            best_match: Mutex::new(BestMatch::default()),
             hits_scanned: AtomicU32::new(0),
         });
+    }
+
+    // Apply max_bucket_depth filter if configured to prune dense repeat buckets
+    if config.max_bucket_depth < usize::MAX {
+        for bucket in buckets.iter_mut() {
+            if bucket.len() > config.max_bucket_depth {
+                bucket.clear();
+            }
+        }
     }
 
     Ok(Step3CandidateIndex {
@@ -281,6 +302,7 @@ pub fn build_step3_candidate_index(
         offsets: config.slice_offsets.clone(),
         buckets,
         candidates,
+        diagnostics: Step3SearchDiagnostics::default(),
     })
 }
 
@@ -335,6 +357,14 @@ thread_local! {
     static THREAD_SCRATCH: RefCell<(Vec<u32>, u32)> = RefCell::new((Vec::new(), 0));
 }
 
+/// Thread-local metrics accumulator
+#[derive(Default, Clone, Copy)]
+pub struct ThreadMetrics {
+    pub bucket_probes: u64,
+    pub candidates_deduped: u64,
+    pub cfd_evaluations: u64,
+}
+
 /// Scan a batch of targets against the candidate guide index
 pub fn scan_targets_batch_against_index(
     targets_df: &DataFrame,
@@ -357,59 +387,81 @@ pub fn scan_targets_batch_against_index(
     let target_mask = compute_target_mask(config.lsr_len.min(20));
     let num_buckets_per_slice = 1usize << (2 * config.slice_len);
 
-    (0..num_targets)
+    let batch_metrics = (0..num_targets)
         .into_par_iter()
         .with_min_len(1024)
-        .for_each(|g_idx| {
-            let g_seq = seq_vec[g_idx];
-            let g_chrom_code = chrom_codes[g_idx];
-            let g_start = start_ca.get(g_idx).unwrap_or(0);
-            let g_strand = strand_ca.get(g_idx).unwrap_or(true);
+        .fold(
+            || ThreadMetrics::default(),
+            |mut metrics, g_idx| {
+                let g_seq = seq_vec[g_idx];
+                let g_chrom_code = chrom_codes[g_idx];
+                let g_start = start_ca.get(g_idx).unwrap_or(0);
+                let g_strand = strand_ca.get(g_idx).unwrap_or(true);
 
-            THREAD_SCRATCH.with(|scratch_cell| {
-                let mut scratch = scratch_cell.borrow_mut();
-                if scratch.0.len() < num_candidates {
-                    scratch.0.resize(num_candidates, 0);
-                }
-                scratch.1 = scratch.1.wrapping_add(1);
-                if scratch.1 == 0 {
-                    scratch.0.fill(0);
-                    scratch.1 = 1;
-                }
-                let current_tag = scratch.1;
-                let visited_tag = &mut scratch.0;
+                THREAD_SCRATCH.with(|scratch_cell| {
+                    let mut scratch = scratch_cell.borrow_mut();
+                    if scratch.0.len() < num_candidates {
+                        scratch.0.resize(num_candidates, 0);
+                    }
+                    scratch.1 = scratch.1.wrapping_add(1);
+                    if scratch.1 == 0 {
+                        scratch.0.fill(0);
+                        scratch.1 = 1;
+                    }
+                    let current_tag = scratch.1;
+                    let visited_tag = &mut scratch.0;
 
-                for (s_idx, &offset) in index.offsets.iter().enumerate() {
-                    let key = extract_slice_key(g_seq, offset, index.slice_len);
-                    let b_idx = s_idx * num_buckets_per_slice + key;
-                    let bucket = &index.buckets[b_idx];
+                    for (s_idx, &offset) in index.offsets.iter().enumerate() {
+                        let key = extract_slice_key(g_seq, offset, index.slice_len);
+                        let b_idx = s_idx * num_buckets_per_slice + key;
+                        let bucket = &index.buckets[b_idx];
 
-                    for entry in bucket {
-                        let c_idx = entry.cand_idx as usize;
+                        metrics.bucket_probes += bucket.len() as u64;
 
-                        if visited_tag[c_idx] == current_tag {
-                            continue;
-                        }
-                        visited_tag[c_idx] = current_tag;
+                        for entry in bucket {
+                            let c_idx = entry.cand_idx as usize;
 
-                        let mismatches = base_hamming_distance_masked(entry.cand_seq, g_seq, target_mask);
-                        if mismatches >= config.prefilter_mismatch {
-                            continue;
-                        }
-
-                        if entry.cand_seq == g_seq {
-                            let cand = &index.candidates[c_idx];
-                            if g_strand == cand.strand && g_start == cand.start && g_chrom_code == cand.chrom_code {
+                            if visited_tag[c_idx] == current_tag {
                                 continue;
                             }
-                        }
+                            visited_tag[c_idx] = current_tag;
+                            metrics.candidates_deduped += 1;
 
-                        let cfd_score = compute_cfd_mismatch_only(entry.cand_seq, g_seq, config.lsr_len);
-                        index.candidates[c_idx].try_update(g_seq, mismatches, cfd_score);
+                            let mismatches = base_hamming_distance_masked(entry.cand_seq, g_seq, target_mask);
+                            if mismatches >= config.prefilter_mismatch {
+                                continue;
+                            }
+
+                            if entry.cand_seq == g_seq {
+                                let cand = &index.candidates[c_idx];
+                                if g_strand == cand.strand && g_start == cand.start && g_chrom_code == cand.chrom_code {
+                                    continue;
+                                }
+                            }
+
+                            metrics.cfd_evaluations += 1;
+                            let cfd_score = compute_cfd_mismatch_only(entry.cand_seq, g_seq, config.lsr_len);
+                            index.candidates[c_idx].try_update(g_seq, mismatches, cfd_score);
+                        }
                     }
-                }
-            });
-        });
+                });
+
+                metrics
+            },
+        )
+        .reduce(
+            || ThreadMetrics::default(),
+            |mut a, b| {
+                a.bucket_probes += b.bucket_probes;
+                a.candidates_deduped += b.candidates_deduped;
+                a.cfd_evaluations += b.cfd_evaluations;
+                a
+            },
+        );
+
+    index.diagnostics.total_bucket_probes.fetch_add(batch_metrics.bucket_probes, Ordering::Relaxed);
+    index.diagnostics.total_candidates_deduped.fetch_add(batch_metrics.candidates_deduped, Ordering::Relaxed);
+    index.diagnostics.total_cfd_evaluations.fetch_add(batch_metrics.cfd_evaluations, Ordering::Relaxed);
 
     Ok(())
 }
@@ -428,9 +480,10 @@ pub fn build_step3_results_dataframe(
     let mut cand_hits_scanned = vec![0u32; num_cands];
 
     for (i, cand) in index.candidates.iter().enumerate() {
-        cand_best_seq[i] = cand.best_target_seq.load(Ordering::Relaxed);
-        cand_best_hamming[i] = cand.best_hamming.load(Ordering::Relaxed);
-        cand_best_cfd[i] = f32::from_bits(cand.best_cfd_bits.load(Ordering::Relaxed));
+        let best = cand.best_match.lock().unwrap();
+        cand_best_seq[i] = best.seq;
+        cand_best_hamming[i] = best.hamming;
+        cand_best_cfd[i] = best.cfd;
         cand_hits_scanned[i] = cand.hits_scanned.load(Ordering::Relaxed);
     }
 
@@ -509,6 +562,11 @@ pub fn execute_step3(
     let search_time_sec = start_search.elapsed().as_secs_f64();
 
     let total_candidates = index.candidates.len();
+
+    let total_bucket_probes = index.diagnostics.total_bucket_probes.load(Ordering::Relaxed);
+    let total_candidates_deduped = index.diagnostics.total_candidates_deduped.load(Ordering::Relaxed);
+    let total_cfd_evaluations = index.diagnostics.total_cfd_evaluations.load(Ordering::Relaxed);
+
     let final_df = build_step3_results_dataframe(guides_df, index, &config)?;
 
     let passed_candidates = final_df.height();
@@ -529,6 +587,9 @@ pub fn execute_step3(
         index_build_time_sec,
         search_time_sec,
         total_time_sec,
+        total_bucket_probes,
+        total_candidates_deduped,
+        total_cfd_evaluations,
     };
 
     Ok((final_df, stats))

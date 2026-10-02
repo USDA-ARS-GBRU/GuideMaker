@@ -5,6 +5,7 @@ use polars::prelude::*;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 #[derive(Parser, Debug)]
@@ -58,6 +59,10 @@ pub struct Step3Args {
     #[arg(long, default_value_t = false)]
     pub keep_noncandidates: bool,
 
+    /// Maximum candidate depth per slice bucket (buckets exceeding this limit are skipped to prune high-density repeats)
+    #[arg(long, default_value_t = usize::MAX)]
+    pub max_bucket_depth: usize,
+
     /// Output Parquet file path
     #[arg(long)]
     pub out: PathBuf,
@@ -82,6 +87,7 @@ fn main() -> Result<()> {
         slice_offsets: slice_offsets_vec,
         prefilter_mismatch: effective_prefilter_mismatch,
         keep_noncandidates: args.keep_noncandidates,
+        max_bucket_depth: args.max_bucket_depth,
     };
     config.validate()?;
 
@@ -109,6 +115,9 @@ fn main() -> Result<()> {
     println!(" -> Inverted Index Slice Params : L = {} nt | Offsets = {:?}", config.slice_len, config.slice_offsets);
     println!(" -> Prefilter Mismatch Threshold: < {} mismatches", config.prefilter_mismatch);
     println!(" -> Target Streaming Batch Size: {} rows per batch", args.batch_size);
+    if config.max_bucket_depth < usize::MAX {
+        println!(" -> Max Slice Bucket Depth Cutoff: {} candidates/bucket", config.max_bucket_depth);
+    }
     println!("============================================================");
 
     let start_pipeline = Instant::now();
@@ -120,19 +129,38 @@ fn main() -> Result<()> {
 
     println!("Total Reference Targets Loaded : {}", total_rows);
 
-    // 1. Scan ONLY candidate guide rows (candidate == true) (~100 MB RAM) to build the candidate index
+    // 1. Scan input table and extract candidate guides (candidate == true)
     println!("\nScanning input dataset for candidate guides (candidate == true)...");
-    let cand_df = LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?
-        .filter(col("candidate").eq(lit(true)))
-        .collect()?;
+    let full_df = if config.keep_noncandidates {
+        LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?.collect()?
+    } else {
+        LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?
+            .filter(col("candidate").eq(lit(true)))
+            .collect()?
+    };
 
     let start_idx = Instant::now();
-    let index = build_step3_candidate_index(&cand_df, &config)?;
+    let index = build_step3_candidate_index(&full_df, &config)?;
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
     let total_candidates = index.candidates.len();
+
+    let total_entries: usize = index.buckets.iter().map(|b| b.len()).sum();
+    let avg_bucket_len = if !index.buckets.is_empty() {
+        total_entries as f64 / index.buckets.len() as f64
+    } else {
+        0.0
+    };
+    let max_bucket_len = index.buckets.iter().map(|b| b.len()).max().unwrap_or(0);
+
     println!(
-        "Candidate Slice Index Built: {} candidate guides indexed in {:.2}s.",
-        total_candidates, index_build_time_sec
+        "Candidate Slice Index Built: {} candidate guides indexed across {} buckets in {:.2}s.",
+        total_candidates,
+        index.buckets.len(),
+        index_build_time_sec
+    );
+    println!(
+        "Slice Bucket Statistics     : Avg Depth = {:.2} candidates/bucket | Max Depth = {} candidates",
+        avg_bucket_len, max_bucket_len
     );
 
     // 2. Stream target rows in streaming batch chunks (selecting strictly target columns) against the candidate slice index
@@ -180,14 +208,25 @@ fn main() -> Result<()> {
 
     println!("\n\nProcessed {} streaming target batches ({:.0} total targets) in {:.2}s.", chunk_idx, total_rows, accum_search_time);
 
-    // 3. Materialize final DataFrame with appended best_* metrics
-    println!("Compiling final output dataset with max-CFD off-target metrics...");
-    let full_df = if config.keep_noncandidates {
-        LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?.collect()?
+    let total_probes = index.diagnostics.total_bucket_probes.load(Ordering::Relaxed);
+    let total_deduped = index.diagnostics.total_candidates_deduped.load(Ordering::Relaxed);
+    let total_cfd = index.diagnostics.total_cfd_evaluations.load(Ordering::Relaxed);
+
+    let probes_per_tgt = total_probes as f64 / total_rows as f64;
+    let dedup_per_tgt = total_deduped as f64 / total_rows as f64;
+    let cfd_per_cand = if total_candidates > 0 {
+        total_cfd as f64 / total_candidates as f64
     } else {
-        cand_df
+        0.0
     };
 
+    println!("\n=== Search Engine Performance & Diagnostics Breakdown ===");
+    println!("Total Bucket Probes        : {} ({:.2} candidate probes/target)", total_probes, probes_per_tgt);
+    println!("Unique Candidates Checked  : {} ({:.2} deduped candidates/target)", total_deduped, dedup_per_tgt);
+    println!("CFD Matrix Evaluations     : {} ({:.2} CFD evaluations/candidate)", total_cfd, cfd_per_cand);
+
+    // 3. Materialize final DataFrame with appended best_* metrics
+    println!("\nCompiling final output dataset with max-CFD off-target metrics...");
     let mut final_df = build_step3_results_dataframe(&full_df, index, &config)?;
 
     let out_file = File::create(&args.out)
