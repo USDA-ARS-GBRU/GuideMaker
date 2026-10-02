@@ -966,15 +966,20 @@ pub fn column_to_u32_codes(df: &DataFrame, name: &str) -> Result<Vec<u32>> {
     }
 }
 
-/// Parallel Spatial Feature-Proximity Window Filter returning matching feature primary keys Series and candidate pass mask
+/// Parallel Spatial Feature-Proximity Window Filter returning junction DataFrame (target_key, feature_key) and candidate pass mask
 pub fn evaluate_spatial_filter(
     guides_df: &DataFrame,
     features_df: &DataFrame,
     before: u32,
     into: u32,
     feature_types: Option<&[String]>,
-) -> Result<(Series, Vec<bool>)> {
+) -> Result<(DataFrame, Vec<bool>)> {
     let num_guides = guides_df.height();
+
+    let empty_junction = DataFrame::new(vec![
+        Series::new_empty("target_key".into(), &DataType::UInt32).into(),
+        Series::new_empty("feature_key".into(), &DataType::UInt32).into(),
+    ])?;
 
     let is_disabled = match feature_types {
         Some(ftypes) => ftypes.iter().any(|t| {
@@ -985,15 +990,20 @@ pub fn evaluate_spatial_filter(
     };
 
     if is_disabled {
-        let feature_keys_series = Series::full_null("feature_keys".into(), num_guides, &DataType::List(Box::new(DataType::UInt32)));
         let init_cand_ca = guides_df.column("candidate")?.bool()?;
         let passes_vec: Vec<bool> = init_cand_ca.into_no_null_iter().collect();
-        return Ok((feature_keys_series, passes_vec));
+        return Ok((empty_junction, passes_vec));
     }
 
     let is_all_types = match feature_types {
         None => false,
         Some(ftypes) => ftypes.iter().any(|t| t.trim().eq_ignore_ascii_case("all")),
+    };
+
+    let target_pks: Vec<u32> = if let Ok(col) = guides_df.column("primary_key") {
+        col.cast(&DataType::UInt32)?.u32()?.into_no_null_iter().collect()
+    } else {
+        (0..num_guides as u32).collect()
     };
 
     let chrom_codes = column_to_u32_codes(guides_df, "chrom")?;
@@ -1076,15 +1086,11 @@ pub fn evaluate_spatial_filter(
     let chunk_size = 250_000;
     let guide_indices: Vec<usize> = (0..num_guides).collect();
 
-    let (series_chunks, passes_chunks): (Vec<Series>, Vec<Vec<bool>>) = guide_indices
+    let (junction_chunks, passes_chunks): (Vec<(Vec<u32>, Vec<u32>)>, Vec<Vec<bool>>) = guide_indices
         .par_chunks(chunk_size)
         .map(|chunk| {
-            let mut builder = ListPrimitiveChunkedBuilder::<UInt32Type>::new(
-                "".into(),
-                chunk.len(),
-                chunk.len() * 2,
-                DataType::UInt32,
-            );
+            let mut target_keys = Vec::new();
+            let mut feature_keys = Vec::new();
             let mut passes = Vec::with_capacity(chunk.len());
 
             for &i in chunk {
@@ -1092,50 +1098,45 @@ pub fn evaluate_spatial_filter(
                 let g_start = start_ca.get(i).unwrap_or(0);
                 let g_stop = stop_ca.get(i).unwrap_or(0);
                 let midpoint = (g_start + g_stop) / 2;
+                let t_pk = target_pks[i];
 
-                let mut matched_pks = Vec::new();
+                let mut matched = false;
 
                 if let Some(bins) = chrom_bins.get(&chrom_code) {
                     let b = (midpoint >> BIN_SHIFT) as usize;
                     if b < bins.len() {
                         for w in &bins[b] {
                             if midpoint >= w.min && midpoint <= w.max {
-                                matched_pks.push(w.pk);
+                                target_keys.push(t_pk);
+                                feature_keys.push(w.pk);
+                                matched = true;
                             }
                         }
                     }
                 }
 
-                if !matched_pks.is_empty() {
-                    builder.append_slice(&matched_pks);
-                    passes.push(true);
-                } else {
-                    builder.append_null();
-                    passes.push(false);
-                }
+                passes.push(matched);
             }
 
-            (builder.finish().into_series(), passes)
+            ((target_keys, feature_keys), passes)
         })
         .unzip();
 
-    let feature_keys_series = if !series_chunks.is_empty() {
-        let first_series = series_chunks[0].clone();
-        let mut combined_ca: ListChunked = first_series.list().unwrap().clone();
-        for ch in &series_chunks[1..] {
-            let list_ca: &ListChunked = ch.list().unwrap();
-            combined_ca.append(list_ca).unwrap();
-        }
-        let mut s = combined_ca.into_series();
-        s.rename("feature_keys".into());
-        s
-    } else {
-        Series::new_empty("feature_keys".into(), &DataType::List(Box::new(DataType::UInt32)))
-    };
+    let mut all_target_keys = Vec::new();
+    let mut all_feature_keys = Vec::new();
+    for (tk, fk) in junction_chunks {
+        all_target_keys.extend(tk);
+        all_feature_keys.extend(fk);
+    }
+
+    let junction_df = DataFrame::new(vec![
+        Series::new("target_key".into(), all_target_keys).into(),
+        Series::new("feature_key".into(), all_feature_keys).into(),
+    ])?;
 
     let passes_vec: Vec<bool> = passes_chunks.into_iter().flatten().collect();
 
-    Ok((feature_keys_series, passes_vec))
+    Ok((junction_df, passes_vec))
 }
 
 /// Flat Compressed Sparse Row (CSR) Inverted Pigeonhole Index over LSR-20 region (2.55 GB RAM for 317M targets)
@@ -1268,7 +1269,7 @@ pub fn evaluate_lsr_hamming_filter(
     Ok(passes)
 }
 
-/// Execute Step-2 Pipeline and collect benchmark statistics
+/// Execute Step-2 Pipeline and collect benchmark statistics, returning candidate passes mask, junction DataFrame, and stats
 pub fn execute_step2(
     guides_df: &DataFrame,
     features_df: &DataFrame,
@@ -1278,7 +1279,7 @@ pub fn execute_step2(
     lsr_len: usize,
     is_5prime: bool,
     feature_types: Option<&[String]>,
-) -> Result<(DataFrame, Step2Stats)> {
+) -> Result<(Vec<bool>, DataFrame, Step2Stats)> {
     let start_total = Instant::now();
     let total_input_rows = guides_df.height();
 
@@ -1287,7 +1288,7 @@ pub fn execute_step2(
 
     // 1. Spatial interval filter FIRST
     let start_sp = Instant::now();
-    let (feature_keys_series, spatial_passes) = evaluate_spatial_filter(
+    let (junction_df, spatial_passes) = evaluate_spatial_filter(
         guides_df,
         features_df,
         before,
@@ -1324,11 +1325,6 @@ pub fn execute_step2(
     let final_candidate_rows = current_candidates.iter().filter(|&&b| b).count();
     let total_time_sec = start_total.elapsed().as_secs_f64();
 
-    let mut output_df = guides_df.clone();
-    let cand_series = Series::new("candidate".into(), current_candidates);
-    output_df.replace("candidate", cand_series)?;
-    output_df.with_column(feature_keys_series)?;
-
     let stats = Step2Stats {
         total_input_rows,
         rows_passing_spatial,
@@ -1339,7 +1335,7 @@ pub fn execute_step2(
         total_time_sec,
     };
 
-    Ok((output_df, stats))
+    Ok((current_candidates, junction_df, stats))
 }
 
 /// Convert an IUPAC character to its bitmask.
@@ -1741,7 +1737,7 @@ mod tests {
         }];
         let features_df = build_features_dataframe(&features).unwrap();
 
-        let (filtered_df, stats) = execute_step2(
+        let (cand_passes, junction_df, stats) = execute_step2(
             &guides_df,
             &features_df,
             2000,
@@ -1753,17 +1749,13 @@ mod tests {
         )
         .unwrap();
 
-        let cand_ca = filtered_df.column("candidate").unwrap().bool().unwrap();
-        assert_eq!(cand_ca.get(0), Some(false));
-        assert_eq!(cand_ca.get(1), Some(false));
-        assert_eq!(cand_ca.get(2), Some(false));
+        assert_eq!(cand_passes[0], false);
+        assert_eq!(cand_passes[1], false);
+        assert_eq!(cand_passes[2], false);
         assert_eq!(stats.final_candidate_rows, 0);
 
-        println!("Filtered DF columns: {:?}", filtered_df.get_column_names());
-        let keys_ca = filtered_df.column("feature_keys").unwrap().list().unwrap();
-        assert!(keys_ca.get_as_series(0).is_some());
-        assert!(keys_ca.get_as_series(1).is_some());
-        assert!(keys_ca.get_as_series(2).is_none());
+        println!("Junction DF columns: {:?}", junction_df.get_column_names());
+        assert_eq!(junction_df.height(), 2);
     }
 
     #[test]
@@ -1792,7 +1784,7 @@ mod tests {
         let features_df = build_features_dataframe(&features).unwrap();
 
         // 1. With "all" feature types -> passes exon feature
-        let (df_all, stats_all) = execute_step2(
+        let (cand_all, j_all, stats_all) = execute_step2(
             &guides_df,
             &features_df,
             2000,
@@ -1804,11 +1796,11 @@ mod tests {
         )
         .unwrap();
         assert_eq!(stats_all.final_candidate_rows, 1);
-        assert_eq!(df_all.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
-        assert!(df_all.column("feature_keys").unwrap().list().unwrap().get_as_series(0).is_some());
+        assert_eq!(cand_all[0], true);
+        assert_eq!(j_all.height(), 1);
 
         // 2. With "disable" feature types -> spatial filter disabled, passes based on LSR alone
-        let (df_dis, stats_dis) = execute_step2(
+        let (cand_dis, j_dis, stats_dis) = execute_step2(
             &guides_df,
             &features_df,
             2000,
@@ -1820,7 +1812,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(stats_dis.final_candidate_rows, 1);
-        assert_eq!(df_dis.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
-        assert!(df_dis.column("feature_keys").unwrap().list().unwrap().get_as_series(0).is_none());
+        assert_eq!(cand_dis[0], true);
+        assert_eq!(j_dis.height(), 0);
     }
 }

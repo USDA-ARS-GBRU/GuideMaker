@@ -36,9 +36,13 @@ pub struct Step2Args {
     #[arg(long, default_value_t = 20)]
     pub lsr_len: usize,
 
-    /// Output Parquet file path
+    /// Output Parquet file path for target guides
     #[arg(long)]
     pub out: PathBuf,
+
+    /// Output Parquet file path for target-feature junction table (optional)
+    #[arg(long, visible_alias = "junction_out", alias = "junction-out")]
+    pub junction_out: Option<PathBuf>,
 
     /// Comma-separated feature types (e.g. CDS, gene, mRNA), 'all' for all features, or 'disable' to turn off spatial filter
     #[arg(long, value_delimiter = ',', default_value = "CDS")]
@@ -68,7 +72,7 @@ fn main() -> Result<()> {
 
     let guides_file = File::open(&args.guides)
         .with_context(|| format!("Failed to open guides Parquet file at {:?}", args.guides))?;
-    let guides_df = ParquetReader::new(guides_file).finish()?;
+    let mut guides_df = ParquetReader::new(guides_file).finish()?;
 
     let features_file = File::open(&args.features)
         .with_context(|| format!("Failed to open features Parquet file at {:?}", args.features))?;
@@ -76,7 +80,7 @@ fn main() -> Result<()> {
 
     let ftypes_ref = Some(args.feature_types.as_slice());
 
-    let (mut filtered_df, stats) = execute_step2(
+    let (cand_passes, mut junction_df, stats) = execute_step2(
         &guides_df,
         &features_df,
         args.before,
@@ -86,6 +90,9 @@ fn main() -> Result<()> {
         is_5prime,
         ftypes_ref,
     )?;
+
+    let cand_series = Series::new("candidate".into(), cand_passes);
+    guides_df.replace("candidate", cand_series)?;
 
     let spatial_mode = if args.feature_types.iter().any(|t| {
         let l = t.trim().to_lowercase();
@@ -115,8 +122,13 @@ fn main() -> Result<()> {
         stats.lsr_time_sec, stats.spatial_time_sec, stats.total_time_sec
     );
 
-    write_parquet(&mut filtered_df, &args.out)?;
-    println!("Output written to {:?}", args.out);
+    write_parquet(&mut guides_df, &args.out)?;
+    println!("Target output written to {:?}", args.out);
+
+    if let Some(j_out) = &args.junction_out {
+        write_parquet(&mut junction_df, j_out)?;
+        println!("Junction output written to {:?}", j_out);
+    }
 
     Ok(())
 }

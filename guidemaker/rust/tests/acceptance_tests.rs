@@ -239,6 +239,7 @@ fn test_step2_cli_execution_with_feature_types() {
     let guides_path = dir.path().join("guides.parquet");
     let features_path = dir.path().join("features.parquet");
     let out_all = dir.path().join("filtered_all.parquet");
+    let junction_all = dir.path().join("junction_all.parquet");
     let out_disable = dir.path().join("filtered_disable.parquet");
 
     let hits = vec![
@@ -289,6 +290,8 @@ fn test_step2_cli_execution_with_feature_types() {
         .arg("8")
         .arg("--out")
         .arg(&out_all)
+        .arg("--junction_out")
+        .arg(&junction_all)
         .arg("--feature-types")
         .arg("all")
         .status()
@@ -296,14 +299,20 @@ fn test_step2_cli_execution_with_feature_types() {
 
     assert!(status_all.success());
     assert!(out_all.exists());
+    assert!(junction_all.exists());
 
     let df_all = ParquetReader::new(File::open(&out_all).unwrap())
         .finish()
         .unwrap();
-    assert!(df_all.get_column_names().iter().any(|&c| c == "feature_keys"), "Columns in output step2 df: {:?}", df_all.get_column_names());
     let cand_all = df_all.column("candidate").unwrap().bool().unwrap();
     assert_eq!(cand_all.get(0), Some(true));
     assert_eq!(cand_all.get(1), Some(true));
+
+    let j_df = ParquetReader::new(File::open(&junction_all).unwrap())
+        .finish()
+        .unwrap();
+    assert_eq!(j_df.get_column_names(), vec!["target_key", "feature_key"]);
+    assert_eq!(j_df.height(), 2);
 
     let status_dis = Command::new(bin)
         .arg("--guides")
