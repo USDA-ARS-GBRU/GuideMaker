@@ -3,12 +3,12 @@ use bio::alphabets::dna;
 use flate2::read::GzDecoder;
 use polars::prelude::*;
 use rayon::prelude::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
 
@@ -156,7 +156,7 @@ pub struct BucketEntry {
     pub cand_seq: u64,
 }
 
-/// Representation of a candidate guide record for Step 3 search
+/// Representation of a candidate guide record for Step 3 search (atomic & lock-free)
 pub struct Step3CandidateRecord {
     pub guide_df_idx: usize,
     pub seq: u64,
@@ -164,55 +164,47 @@ pub struct Step3CandidateRecord {
     pub start: u32,
     pub stop: u32,
     pub strand: bool,
-    pub best_target_seq: Mutex<u64>,
-    pub best_hamming: Mutex<u8>,
-    pub best_cfd: Mutex<f32>,
+    pub best_target_seq: AtomicU64,
+    pub best_hamming: AtomicU32,
+    pub best_cfd_bits: AtomicU32,
     pub hits_scanned: AtomicU32,
 }
 
-/// Thread-local state for tracking best off-target hit per candidate
-#[derive(Clone)]
-pub struct LocalCandidateBest {
-    pub best_target_seq: u64,
-    pub best_hamming: u8,
-    pub best_cfd: f32,
-    pub hits_scanned: u32,
-}
-
-impl Default for LocalCandidateBest {
-    fn default() -> Self {
-        Self {
-            best_target_seq: 0,
-            best_hamming: 255,
-            best_cfd: 0.0,
-            hits_scanned: 0,
-        }
-    }
-}
-
-impl LocalCandidateBest {
+impl Step3CandidateRecord {
     #[inline(always)]
-    pub fn update(&mut self, target_seq: u64, hamming: u8, cfd: f32) {
-        let is_better = if cfd > self.best_cfd {
-            true
-        } else if (cfd - self.best_cfd).abs() < 1e-6 {
-            (hamming < self.best_hamming)
-                || (hamming == self.best_hamming && target_seq < self.best_target_seq)
-        } else {
-            false
-        };
+    pub fn try_update(&self, target_seq: u64, mismatches: u32, cfd_score: f32) {
+        self.hits_scanned.fetch_add(1, Ordering::Relaxed);
 
-        if is_better {
-            self.best_cfd = cfd;
-            self.best_hamming = hamming;
-            self.best_target_seq = target_seq;
-        }
-    }
+        let new_bits = cfd_score.to_bits();
+        let mut current_bits = self.best_cfd_bits.load(Ordering::Relaxed);
 
-    pub fn merge(&mut self, other: &LocalCandidateBest) {
-        self.hits_scanned += other.hits_scanned;
-        if other.best_cfd > 0.0 {
-            self.update(other.best_target_seq, other.best_hamming, other.best_cfd);
+        loop {
+            let current_cfd = f32::from_bits(current_bits);
+            if cfd_score < current_cfd {
+                break;
+            }
+
+            if (cfd_score - current_cfd).abs() < 1e-6 {
+                let cur_h = self.best_hamming.load(Ordering::Relaxed);
+                let cur_seq = self.best_target_seq.load(Ordering::Relaxed);
+                if mismatches > cur_h || (mismatches == cur_h && target_seq >= cur_seq) {
+                    break;
+                }
+            }
+
+            match self.best_cfd_bits.compare_exchange_weak(
+                current_bits,
+                new_bits,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => {
+                    self.best_hamming.store(mismatches, Ordering::Relaxed);
+                    self.best_target_seq.store(target_seq, Ordering::Relaxed);
+                    break;
+                }
+                Err(actual) => current_bits = actual,
+            }
         }
     }
 }
@@ -277,9 +269,9 @@ pub fn build_step3_candidate_index(
             start,
             stop,
             strand,
-            best_target_seq: Mutex::new(0),
-            best_hamming: Mutex::new(255),
-            best_cfd: Mutex::new(0.0),
+            best_target_seq: AtomicU64::new(0),
+            best_hamming: AtomicU32::new(255),
+            best_cfd_bits: AtomicU32::new(0.0f32.to_bits()),
             hits_scanned: AtomicU32::new(0),
         });
     }
@@ -312,7 +304,6 @@ pub fn compute_cfd_mismatch_only(cand_seq: u64, target_seq: u64, lsr_len: usize)
         return 1.0;
     }
 
-    // Convert bit positions from left-aligned to pos 0..19
     let mut score = 1.0f32;
     let mut remaining = masked_x;
 
@@ -340,31 +331,8 @@ pub fn compute_cfd_mismatch_only(cand_seq: u64, target_seq: u64, lsr_len: usize)
     score
 }
 
-/// Thread-local worker scratch state for lock-free parallel target scanning
-pub struct WorkerScratch {
-    pub visited_tag: Vec<u32>,
-    pub tag_counter: u32,
-    pub local_bests: Vec<LocalCandidateBest>,
-}
-
-impl WorkerScratch {
-    pub fn new(num_candidates: usize) -> Self {
-        Self {
-            visited_tag: vec![0u32; num_candidates],
-            tag_counter: 0,
-            local_bests: vec![LocalCandidateBest::default(); num_candidates],
-        }
-    }
-
-    #[inline(always)]
-    pub fn next_target_tag(&mut self) -> u32 {
-        self.tag_counter = self.tag_counter.wrapping_add(1);
-        if self.tag_counter == 0 {
-            self.visited_tag.fill(0);
-            self.tag_counter = 1;
-        }
-        self.tag_counter
-    }
+thread_local! {
+    static THREAD_SCRATCH: RefCell<(Vec<u32>, u32)> = RefCell::new((Vec::new(), 0));
 }
 
 /// Scan a batch of targets against the candidate guide index
@@ -389,18 +357,27 @@ pub fn scan_targets_batch_against_index(
     let target_mask = compute_target_mask(config.lsr_len.min(20));
     let num_buckets_per_slice = 1usize << (2 * config.slice_len);
 
-    let per_thread_bests: Vec<Vec<LocalCandidateBest>> = (0..num_targets)
+    (0..num_targets)
         .into_par_iter()
         .with_min_len(1024)
-        .fold(
-            || WorkerScratch::new(num_candidates),
-            |mut scratch, g_idx| {
-                let g_seq = seq_vec[g_idx];
-                let g_chrom_code = chrom_codes[g_idx];
-                let g_start = start_ca.get(g_idx).unwrap_or(0);
-                let g_strand = strand_ca.get(g_idx).unwrap_or(true);
+        .for_each(|g_idx| {
+            let g_seq = seq_vec[g_idx];
+            let g_chrom_code = chrom_codes[g_idx];
+            let g_start = start_ca.get(g_idx).unwrap_or(0);
+            let g_strand = strand_ca.get(g_idx).unwrap_or(true);
 
-                let current_tag = scratch.next_target_tag();
+            THREAD_SCRATCH.with(|scratch_cell| {
+                let mut scratch = scratch_cell.borrow_mut();
+                if scratch.0.len() < num_candidates {
+                    scratch.0.resize(num_candidates, 0);
+                }
+                scratch.1 = scratch.1.wrapping_add(1);
+                if scratch.1 == 0 {
+                    scratch.0.fill(0);
+                    scratch.1 = 1;
+                }
+                let current_tag = scratch.1;
+                let visited_tag = &mut scratch.0;
 
                 for (s_idx, &offset) in index.offsets.iter().enumerate() {
                     let key = extract_slice_key(g_seq, offset, index.slice_len);
@@ -410,19 +387,16 @@ pub fn scan_targets_batch_against_index(
                     for entry in bucket {
                         let c_idx = entry.cand_idx as usize;
 
-                        // O(1) candidate deduplication per target probe using thread-local tag array
-                        if scratch.visited_tag[c_idx] == current_tag {
+                        if visited_tag[c_idx] == current_tag {
                             continue;
                         }
-                        scratch.visited_tag[c_idx] = current_tag;
+                        visited_tag[c_idx] = current_tag;
 
-                        // Fast 20-nt LSR bitwise Hamming prefilter directly on contiguous candidate sequence
                         let mismatches = base_hamming_distance_masked(entry.cand_seq, g_seq, target_mask);
                         if mismatches >= config.prefilter_mismatch {
                             continue;
                         }
 
-                        // Candidate self-locus skip check deferred until sequence matches
                         if entry.cand_seq == g_seq {
                             let cand = &index.candidates[c_idx];
                             if g_strand == cand.strand && g_start == cand.start && g_chrom_code == cand.chrom_code {
@@ -430,48 +404,12 @@ pub fn scan_targets_batch_against_index(
                             }
                         }
 
-                        scratch.local_bests[c_idx].hits_scanned += 1;
-
-                        // CFD score computation
                         let cfd_score = compute_cfd_mismatch_only(entry.cand_seq, g_seq, config.lsr_len);
-                        scratch.local_bests[c_idx].update(g_seq, mismatches as u8, cfd_score);
+                        index.candidates[c_idx].try_update(g_seq, mismatches, cfd_score);
                     }
                 }
-
-                scratch
-            },
-        )
-        .map(|scratch| scratch.local_bests)
-        .collect();
-
-    // Lock-free parallel reduce/merge into atomic/mutex candidates
-    index.candidates.par_iter().enumerate().for_each(|(c_idx, cand)| {
-        let mut aggregated = LocalCandidateBest::default();
-        for thread_bests in &per_thread_bests {
-            aggregated.merge(&thread_bests[c_idx]);
-        }
-
-        if aggregated.hits_scanned > 0 {
-            cand.hits_scanned.fetch_add(aggregated.hits_scanned, Ordering::Relaxed);
-            if aggregated.best_cfd > 0.0 {
-                let mut best_cfd = cand.best_cfd.lock().unwrap();
-                let mut best_ham = cand.best_hamming.lock().unwrap();
-                let mut best_seq = cand.best_target_seq.lock().unwrap();
-
-                let mut current = LocalCandidateBest {
-                    best_target_seq: *best_seq,
-                    best_hamming: *best_ham,
-                    best_cfd: *best_cfd,
-                    hits_scanned: 0,
-                };
-                current.merge(&aggregated);
-
-                *best_cfd = current.best_cfd;
-                *best_ham = current.best_hamming;
-                *best_seq = current.best_target_seq;
-            }
-        }
-    });
+            });
+        });
 
     Ok(())
 }
@@ -483,20 +421,21 @@ pub fn build_step3_results_dataframe(
     config: &Step3Config,
 ) -> Result<DataFrame> {
     let total_rows = guides_df.height();
-    let mut cand_best_seq = vec![0u64; index.candidates.len()];
-    let mut cand_best_hamming = vec![255u8; index.candidates.len()];
-    let mut cand_best_cfd = vec![0.0f32; index.candidates.len()];
-    let mut cand_hits_scanned = vec![0u32; index.candidates.len()];
+    let num_cands = index.candidates.len();
+    let mut cand_best_seq = vec![0u64; num_cands];
+    let mut cand_best_hamming = vec![255u32; num_cands];
+    let mut cand_best_cfd = vec![0.0f32; num_cands];
+    let mut cand_hits_scanned = vec![0u32; num_cands];
 
     for (i, cand) in index.candidates.iter().enumerate() {
-        cand_best_seq[i] = *cand.best_target_seq.lock().unwrap();
-        cand_best_hamming[i] = *cand.best_hamming.lock().unwrap();
-        cand_best_cfd[i] = *cand.best_cfd.lock().unwrap();
+        cand_best_seq[i] = cand.best_target_seq.load(Ordering::Relaxed);
+        cand_best_hamming[i] = cand.best_hamming.load(Ordering::Relaxed);
+        cand_best_cfd[i] = f32::from_bits(cand.best_cfd_bits.load(Ordering::Relaxed));
         cand_hits_scanned[i] = cand.hits_scanned.load(Ordering::Relaxed);
     }
 
-    if !config.keep_noncandidates {
-        let mut cand_df_indices = Vec::with_capacity(index.candidates.len());
+    if !config.keep_noncandidates && total_rows != num_cands {
+        let mut cand_df_indices = Vec::with_capacity(num_cands);
         for cand in &index.candidates {
             cand_df_indices.push(cand.guide_df_idx);
         }
@@ -509,14 +448,20 @@ pub fn build_step3_results_dataframe(
         let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &mask);
         let mut filtered_df = guides_df.filter(&mask_ca)?;
 
-        let ham_u32: Vec<u32> = cand_best_hamming.iter().map(|&h| h as u32).collect();
-
         filtered_df.with_column(Series::new("best_target_seq_u64".into(), cand_best_seq))?;
-        filtered_df.with_column(Series::new("best_hamming".into(), ham_u32))?;
+        filtered_df.with_column(Series::new("best_hamming".into(), cand_best_hamming))?;
         filtered_df.with_column(Series::new("best_cfd".into(), cand_best_cfd))?;
         filtered_df.with_column(Series::new("hits_scanned".into(), cand_hits_scanned))?;
 
         Ok(filtered_df)
+    } else if !config.keep_noncandidates {
+        let mut out_df = guides_df.clone();
+        out_df.with_column(Series::new("best_target_seq_u64".into(), cand_best_seq))?;
+        out_df.with_column(Series::new("best_hamming".into(), cand_best_hamming))?;
+        out_df.with_column(Series::new("best_cfd".into(), cand_best_cfd))?;
+        out_df.with_column(Series::new("hits_scanned".into(), cand_hits_scanned))?;
+
+        Ok(out_df)
     } else {
         let mut best_seq_col = vec![0u64; total_rows];
         let mut best_ham_col = vec![255u32; total_rows];
@@ -526,7 +471,7 @@ pub fn build_step3_results_dataframe(
         for (i, cand) in index.candidates.iter().enumerate() {
             let idx = cand.guide_df_idx;
             best_seq_col[idx] = cand_best_seq[i];
-            best_ham_col[idx] = cand_best_hamming[i] as u32;
+            best_ham_col[idx] = cand_best_hamming[i];
             best_cfd_col[idx] = cand_best_cfd[i];
             hits_col[idx] = cand_hits_scanned[i];
         }

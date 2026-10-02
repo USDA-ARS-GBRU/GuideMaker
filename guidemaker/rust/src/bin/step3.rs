@@ -51,7 +51,7 @@ pub struct Step3Args {
     pub threads: Option<usize>,
 
     /// Streaming batch chunk size (number of target rows per chunk)
-    #[arg(long, default_value_t = 100_000)]
+    #[arg(long, default_value_t = 10_000_000)]
     pub batch_size: usize,
 
     /// Whether to keep non-candidate rows in output DataFrame (default false)
@@ -120,12 +120,14 @@ fn main() -> Result<()> {
 
     println!("Total Reference Targets Loaded : {}", total_rows);
 
-    // 1. Scan input table and extract candidate guides (candidate == true)
+    // 1. Scan ONLY candidate guide rows (candidate == true) (~100 MB RAM) to build the candidate index
     println!("\nScanning input dataset for candidate guides (candidate == true)...");
-    let full_df = LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?.collect()?;
+    let cand_df = LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?
+        .filter(col("candidate").eq(lit(true)))
+        .collect()?;
 
     let start_idx = Instant::now();
-    let index = build_step3_candidate_index(&full_df, &config)?;
+    let index = build_step3_candidate_index(&cand_df, &config)?;
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
     let total_candidates = index.candidates.len();
     println!(
@@ -133,7 +135,7 @@ fn main() -> Result<()> {
         total_candidates, index_build_time_sec
     );
 
-    // 2. Stream all target rows in batch chunks against candidate slice index
+    // 2. Stream target rows in streaming batch chunks (selecting strictly target columns) against the candidate slice index
     println!("\nStarting parallel streaming target search engine...");
     let mut current_row = 0;
     let mut chunk_idx = 0;
@@ -144,6 +146,7 @@ fn main() -> Result<()> {
         let n_rows_to_read = std::cmp::min(args.batch_size, total_rows - current_row);
         let targets_chunk_df = LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?
             .slice(current_row as i64, n_rows_to_read as u32)
+            .select([col("seq"), col("chrom"), col("start"), col("strand")])
             .collect()?;
 
         let start_chunk = Instant::now();
@@ -177,8 +180,14 @@ fn main() -> Result<()> {
 
     println!("\n\nProcessed {} streaming target batches ({:.0} total targets) in {:.2}s.", chunk_idx, total_rows, accum_search_time);
 
-    // 3. Materialize final DataFrame with appended best_* columns
+    // 3. Materialize final DataFrame with appended best_* metrics
     println!("Compiling final output dataset with max-CFD off-target metrics...");
+    let full_df = if config.keep_noncandidates {
+        LazyFrame::scan_parquet(&args.input, ScanArgsParquet::default())?.collect()?
+    } else {
+        cand_df
+    };
+
     let mut final_df = build_step3_results_dataframe(&full_df, index, &config)?;
 
     let out_file = File::create(&args.out)
