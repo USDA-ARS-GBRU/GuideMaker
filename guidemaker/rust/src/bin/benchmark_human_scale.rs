@@ -5,22 +5,22 @@ use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[command(name = "benchmark-human-scale")]
-#[command(about = "Generate synthetic human-scale guide dataset and profile Step-3 MIH performance")]
+#[command(about = "Generate synthetic human-scale guide dataset and profile Step-3 inverted slice index performance")]
 struct Args {
     /// Number of synthetic candidate target guides to generate
-    #[arg(short = 'n', long, default_value_t = 1_000_000)]
+    #[arg(short = 'n', long, default_value_t = 100_000)]
     num_guides: usize,
 
-    /// Off-target Hamming distance threshold d
-    #[arg(short = 'd', default_value_t = 2)]
+    /// Off-target Hamming distance threshold d (prefilter mismatch limit)
+    #[arg(short = 'd', default_value_t = 5)]
     d: u32,
 
-    /// Number of top nearest neighbors to compute
+    /// Deprecated parameter (ignored)
     #[arg(short = 'k', long, default_value_t = 3)]
     top_n: usize,
 
-    /// Search method ("hnsw" or "exact")
-    #[arg(short = 'm', long, default_value = "hnsw")]
+    /// Deprecated search method
+    #[arg(short = 'm', long, default_value = "slice")]
     method: String,
 
     /// Target guide length in nt
@@ -79,16 +79,14 @@ fn main() -> Result<()> {
     let df = build_dataframe(&hits, &chrom_names)?;
     println!("Generated DataFrame in {:.3}s", start_gen.elapsed().as_secs_f64());
 
-    println!("\nExecuting Step-3 Off-Target Hamming Filter (d={}, top_n={}, method={}, threads={})...", args.d, args.top_n, args.method, args.threads);
-    let (_out_df, stats) = execute_step3(&df, args.d, args.top_n, &args.method, args.target_len)?;
+    println!("\nExecuting Step-3 Off-Target Slice Index & Max-CFD Search (d={}, threads={})...", args.d, args.threads);
+    let (out_df, stats) = execute_step3(&df, args.d, args.top_n, &args.method, args.target_len)?;
 
     println!("\n--- Step-3 Benchmark Results ---");
     println!("Total Candidate Guides : {}", stats.total_candidates);
-    println!("Passed Candidates      : {}", stats.passed_candidates);
-    println!("Failed Candidates      : {}", stats.failed_candidates);
-    println!("Pass Rate              : {:.2}%", stats.pass_rate);
-    println!("MIH Index Build Time   : {:.4} s", stats.index_build_time_sec);
-    println!("MIH Search Engine Time : {:.4} s", stats.search_time_sec);
+    println!("Output Dataset Height  : {}", out_df.height());
+    println!("Slice Index Build Time : {:.4} s", stats.index_build_time_sec);
+    println!("Slice Streaming Engine : {:.4} s", stats.search_time_sec);
     println!("Total Step-3 Time      : {:.4} s", stats.total_time_sec);
     println!("Throughput             : {:.0} guides/sec", stats.total_candidates as f64 / stats.total_time_sec);
     println!("============================================================");

@@ -360,7 +360,7 @@ fn test_step3_cli_execution() {
             strand: true,
         },
         TargetHit {
-            candidate: true,
+            candidate: false,
             seq: encode_2bit_u64(b"ACGTACGTACGTACGTACGA").unwrap(), // seq1 (1 base diff to seq0)
             chrom_idx: 0,
             start: 2000,
@@ -382,16 +382,16 @@ fn test_step3_cli_execution() {
 
     let bin = env!("CARGO_BIN_EXE_guidemaker-step3");
     let status = Command::new(bin)
-        .arg("--guides")
+        .arg("--input")
         .arg(&guides_path)
-        .arg("-d")
-        .arg("2")
-        .arg("-n")
-        .arg("2")
-        .arg("--method")
-        .arg("hnsw")
-        .arg("--target-len")
+        .arg("--lsr-len")
         .arg("20")
+        .arg("--slice-len")
+        .arg("5")
+        .arg("--slice-offsets")
+        .arg("2,7,12")
+        .arg("--prefilter-mismatch")
+        .arg("5")
         .arg("--out")
         .arg(&out_step3)
         .status()
@@ -404,16 +404,13 @@ fn test_step3_cli_execution() {
         .finish()
         .unwrap();
 
-    assert_eq!(df_step3.height(), 1);
-    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_dist"));
-    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_seq"));
-    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "nn_cfd"));
-    assert_eq!(df_step3.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+    assert_eq!(df_step3.height(), 2);
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "best_target_seq_u64"));
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "best_hamming"));
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "best_cfd"));
+    assert!(df_step3.get_column_names().iter().any(|name| name.as_str() == "hits_scanned"));
 
-    let cfd_col_step3 = df_step3.column("nn_cfd").unwrap().list().unwrap();
-    let cfd_series_step3 = cfd_col_step3.get_as_series(0).unwrap();
-    assert_eq!(cfd_series_step3.len(), 2);
-    for val in cfd_series_step3.f32().unwrap().into_iter().flatten() {
-        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
-    }
+    let cand_col = df_step3.column("candidate").unwrap().bool().unwrap();
+    assert_eq!(cand_col.get(0), Some(true));
+    assert_eq!(cand_col.get(1), Some(true));
 }

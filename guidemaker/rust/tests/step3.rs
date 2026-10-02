@@ -32,57 +32,54 @@ fn test_8_1_base_hamming_correctness() {
 }
 
 #[test]
-fn test_8_3_step3_hnsw_and_exact_methods() {
-    let seq_base = encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap();
-    let seq_near = encode_2bit_u64(b"CCGTACGTACGTACGTACGT").unwrap(); // 1 mismatch
-    let seq_far = encode_2bit_u64(b"TGCATGCATGCATGCATGCA").unwrap(); // 20 mismatches
+fn test_step3_slice_index_and_max_cfd() {
+    let seq_cand1 = encode_2bit_u64(b"ACGTACGTACGTACGTACGT").unwrap();
+    let seq_target_near = encode_2bit_u64(b"CCGTACGTACGTACGTACGT").unwrap(); // 1 mismatch (Pos 0: A->C)
+    let seq_cand_nohit = encode_2bit_u64(b"TGCATGCATGCATGCATGCA").unwrap(); // 20 mismatches
 
     let hits = vec![
-        TargetHit { candidate: true, seq: seq_base, chrom_idx: 0, start: 0, stop: 20, strand: true },
-        TargetHit { candidate: true, seq: seq_near, chrom_idx: 0, start: 100, stop: 120, strand: true },
-        TargetHit { candidate: true, seq: seq_far, chrom_idx: 0, start: 200, stop: 220, strand: true },
+        TargetHit { candidate: true, seq: seq_cand1, chrom_idx: 0, start: 0, stop: 20, strand: true },
+        TargetHit { candidate: false, seq: seq_target_near, chrom_idx: 0, start: 100, stop: 120, strand: true },
+        TargetHit { candidate: true, seq: seq_cand_nohit, chrom_idx: 0, start: 200, stop: 220, strand: true },
     ];
     let chrom_names = vec!["chr1".to_string()];
     let df = build_dataframe(&hits, &chrom_names).unwrap();
 
-    // Test Exact method
-    let (df_exact, stats_exact) = execute_step3(&df, 2, 2, "exact", 20).unwrap();
-    assert_eq!(stats_exact.passed_candidates, 1);
-    assert_eq!(df_exact.height(), 1);
-    assert_eq!(df_exact.column("seq").unwrap().u64().unwrap().get(0), Some(seq_far));
-    assert!(df_exact.get_column_names().iter().any(|&n| n == "nn_dist"));
-    assert!(df_exact.get_column_names().iter().any(|&n| n == "nn_seq"));
-    assert!(df_exact.get_column_names().iter().any(|&n| n == "nn_cfd"));
+    let (df_out, stats) = execute_step3(&df, 5, 3, "hnsw", 20).unwrap();
+    assert_eq!(stats.total_candidates, 2);
+    assert_eq!(df_out.height(), 2);
 
-    let cfd_col_exact = df_exact.column("nn_cfd").unwrap().list().unwrap();
-    let cfd_series_exact = cfd_col_exact.get_as_series(0).unwrap();
-    assert_eq!(cfd_series_exact.len(), 2);
-    for val in cfd_series_exact.f32().unwrap().into_iter().flatten() {
-        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
-    }
+    assert!(df_out.get_column_names().iter().any(|&n| n == "best_target_seq_u64"));
+    assert!(df_out.get_column_names().iter().any(|&n| n == "best_hamming"));
+    assert!(df_out.get_column_names().iter().any(|&n| n == "best_cfd"));
+    assert!(df_out.get_column_names().iter().any(|&n| n == "hits_scanned"));
 
-    // Test HNSW method
-    let (df_hnsw, stats_hnsw) = execute_step3(&df, 2, 2, "hnsw", 20).unwrap();
-    assert_eq!(stats_hnsw.passed_candidates, 1);
-    assert_eq!(df_hnsw.height(), 1);
-    assert_eq!(df_hnsw.column("seq").unwrap().u64().unwrap().get(0), Some(seq_far));
-    assert!(df_hnsw.get_column_names().iter().any(|&n| n == "nn_dist"));
-    assert!(df_hnsw.get_column_names().iter().any(|&n| n == "nn_seq"));
-    assert!(df_hnsw.get_column_names().iter().any(|&n| n == "nn_cfd"));
+    let seq_ca = df_out.column("seq").unwrap().u64().unwrap();
+    let best_cfd_ca = df_out.column("best_cfd").unwrap().f32().unwrap();
+    let best_ham_ca = df_out.column("best_hamming").unwrap().u32().unwrap();
+    let best_tgt_ca = df_out.column("best_target_seq_u64").unwrap().u64().unwrap();
+    let hits_ca = df_out.column("hits_scanned").unwrap().u32().unwrap();
 
-    let cfd_col_hnsw = df_hnsw.column("nn_cfd").unwrap().list().unwrap();
-    let cfd_series_hnsw = cfd_col_hnsw.get_as_series(0).unwrap();
-    assert_eq!(cfd_series_hnsw.len(), 2);
-    for val in cfd_series_hnsw.f32().unwrap().into_iter().flatten() {
-        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
-    }
+    // Row 0: seq_cand1 -> should match seq_target_near
+    assert_eq!(seq_ca.get(0), Some(seq_cand1));
+    assert_eq!(best_tgt_ca.get(0), Some(seq_target_near));
+    assert_eq!(best_ham_ca.get(0), Some(1));
+    assert!(best_cfd_ca.get(0).unwrap() > 0.0);
+    assert!(hits_ca.get(0).unwrap() >= 1);
+
+    // Row 1: seq_cand_nohit -> no hit under prefilter threshold, should have sentinel defaults
+    assert_eq!(seq_ca.get(1), Some(seq_cand_nohit));
+    assert_eq!(best_tgt_ca.get(1), Some(0));
+    assert_eq!(best_ham_ca.get(1), Some(255));
+    assert_eq!(best_cfd_ca.get(1), Some(0.0));
+    assert_eq!(hits_ca.get(1), Some(0));
 }
 
 #[test]
-fn test_8_4_step3_integration_cli() {
+fn test_step3_integration_cli() {
     polars::enable_string_cache();
     let dir = tempdir().unwrap();
-    let guides_path = dir.path().join("guides_input.parquet");
+    let input_path = dir.path().join("input_guides.parquet");
     let out_step3 = dir.path().join("out_step3.parquet");
 
     let hits = vec![
@@ -95,7 +92,7 @@ fn test_8_4_step3_integration_cli() {
             strand: true,
         },
         TargetHit {
-            candidate: true,
+            candidate: false,
             seq: encode_2bit_u64(b"ACGTACGTACGTACGTACGA").unwrap(), // 1 mismatch to hit 0
             chrom_idx: 0,
             start: 2000,
@@ -113,20 +110,20 @@ fn test_8_4_step3_integration_cli() {
     ];
     let chrom_names = vec!["chr1".to_string()];
     let mut guides_df = build_dataframe(&hits, &chrom_names).unwrap();
-    write_parquet(&mut guides_df, &guides_path).unwrap();
+    write_parquet(&mut guides_df, &input_path).unwrap();
 
     let bin = env!("CARGO_BIN_EXE_guidemaker-step3");
     let status = Command::new(bin)
-        .arg("--guides")
-        .arg(&guides_path)
-        .arg("-d")
-        .arg("2")
-        .arg("-n")
-        .arg("2")
-        .arg("--method")
-        .arg("hnsw")
-        .arg("--target-len")
+        .arg("--input")
+        .arg(&input_path)
+        .arg("--lsr-len")
         .arg("20")
+        .arg("--slice-len")
+        .arg("5")
+        .arg("--slice-offsets")
+        .arg("2,7,12")
+        .arg("--prefilter-mismatch")
+        .arg("5")
         .arg("--out")
         .arg(&out_step3)
         .status()
@@ -139,16 +136,13 @@ fn test_8_4_step3_integration_cli() {
         .finish()
         .unwrap();
 
-    assert_eq!(df_out.height(), 1);
-    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "nn_dist"));
-    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "nn_seq"));
-    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "nn_cfd"));
-    assert_eq!(df_out.column("candidate").unwrap().bool().unwrap().get(0), Some(true));
+    assert_eq!(df_out.height(), 2);
+    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "best_target_seq_u64"));
+    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "best_hamming"));
+    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "best_cfd"));
+    assert!(df_out.get_column_names().iter().any(|name| name.as_str() == "hits_scanned"));
 
-    let cfd_col_out = df_out.column("nn_cfd").unwrap().list().unwrap();
-    let cfd_series_out = cfd_col_out.get_as_series(0).unwrap();
-    assert_eq!(cfd_series_out.len(), 2);
-    for val in cfd_series_out.f32().unwrap().into_iter().flatten() {
-        assert!(val >= 0.0 && val <= 1.0, "CFD score {} out of bounds [0.0, 1.0]", val);
-    }
+    let cand_col = df_out.column("candidate").unwrap().bool().unwrap();
+    assert_eq!(cand_col.get(0), Some(true));
+    assert_eq!(cand_col.get(1), Some(true));
 }

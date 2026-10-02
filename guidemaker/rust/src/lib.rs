@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna;
 use flate2::read::GzDecoder;
-use hnsw_rs::prelude::*;
 use polars::prelude::*;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -9,7 +8,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 use zstd::stream::Decoder as ZstdDecoder;
 
@@ -25,8 +24,7 @@ pub mod controls;
 pub use controls::{generate_flexible_negative_controls, SeedOrientation};
 
 pub mod cfd;
-pub use cfd::calculate_cfd_2bit;
-
+pub use cfd::{calculate_cfd_2bit, get_cfd_weight};
 
 /// Representation of a single candidate hit
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,183 +90,94 @@ pub fn base_hamming_distance_masked(a: u64, b: u64, mask: u64) -> u32 {
     (((x | (x >> 1)) & 0x5555_5555_5555_5555) & mask).count_ones()
 }
 
-/// Get segment base count and base offset for segment s out of m segments for target_len bases
-#[inline(always)]
-pub fn get_segment_bounds(s: usize, m: usize, target_len: usize) -> (usize, usize) {
-    let base_len = target_len / m;
-    let rem = target_len % m;
-
-    let mut start_base = 0;
-    for i in 0..s {
-        start_base += base_len + if i < rem { 1 } else { 0 };
-    }
-    let seg_bases = base_len + if s < rem { 1 } else { 0 };
-    (start_base, seg_bases)
-}
-
-/// Multi-Index Hashing (MIH) CSR Table for a single segment
-#[derive(Debug)]
-pub struct MihSegmentTable {
-    pub shift: u32,
-    pub mask: u64,
-    pub offsets: Vec<u32>,
-    pub target_ids: Vec<u32>,
-}
-
-impl MihSegmentTable {
-    pub fn build(seq_vec: &[u64], target_len: usize, s: usize, m: usize) -> Self {
-        let (start_base, seg_bases) = get_segment_bounds(s, m, target_len);
-        let shift = (64 - 2 * (start_base + seg_bases)) as u32;
-        let mask = if 2 * seg_bases >= 64 {
-            u64::MAX
-        } else {
-            (1u64 << (2 * seg_bases)) - 1
-        };
-
-        let num_buckets = 1usize << (2 * seg_bases);
-        let mut bucket_counts = vec![0u32; num_buckets];
-
-        for &seq in seq_vec {
-            let key = ((seq >> shift) & mask) as usize;
-            bucket_counts[key] += 1;
-        }
-
-        let mut offsets = vec![0u32; num_buckets + 1];
-        for i in 0..num_buckets {
-            offsets[i + 1] = offsets[i] + bucket_counts[i];
-        }
-
-        let mut cursor = offsets.clone();
-        let mut target_ids = vec![0u32; seq_vec.len()];
-
-        for (i, &seq) in seq_vec.iter().enumerate() {
-            let key = ((seq >> shift) & mask) as usize;
-            let pos = cursor[key] as usize;
-            target_ids[pos] = i as u32;
-            cursor[key] += 1;
-        }
-
-        MihSegmentTable {
-            shift,
-            mask,
-            offsets,
-            target_ids,
-        }
-    }
-
-    #[inline(always)]
-    pub fn extract_key(&self, seq: u64) -> usize {
-        ((seq >> self.shift) & self.mask) as usize
-    }
-
-    #[inline(always)]
-    pub fn get_bucket_targets(&self, key: usize) -> &[u32] {
-        if key + 1 < self.offsets.len() {
-            let start = self.offsets[key] as usize;
-            let end = self.offsets[key + 1] as usize;
-            &self.target_ids[start..end]
-        } else {
-            &[]
-        }
-    }
-
-    #[inline(always)]
-    pub fn get_bucket_size(&self, key: usize) -> usize {
-        if key + 1 < self.offsets.len() {
-            (self.offsets[key + 1] - self.offsets[key]) as usize
-        } else {
-            0
-        }
-    }
-}
-
-/// DNA Hamming Distance metric for hnsw_rs
-#[derive(Clone, Copy)]
-pub struct DnaHammingDistance {
-    pub mask: u64,
-}
-
-impl Distance<u64> for DnaHammingDistance {
-    #[inline(always)]
-    fn eval(&self, va: &[u64], vb: &[u64]) -> f32 {
-        base_hamming_distance_masked(va[0], vb[0], self.mask) as f32
-    }
-}
-
-/// Helper container for tracking top N nearest matches during exact search
+/// Configuration parameters for Step-3 slice-based inverted index search
 #[derive(Debug, Clone)]
-pub struct TopNMatches {
-    top_n: usize,
-    matches: Vec<(u32, u64)>,
+pub struct Step3Config {
+    pub lsr_len: usize,
+    pub slice_len: usize,
+    pub slice_offsets: Vec<usize>,
+    pub prefilter_mismatch: u32,
+    pub keep_noncandidates: bool,
 }
 
-impl TopNMatches {
-    fn new(top_n: usize) -> Self {
+impl Default for Step3Config {
+    fn default() -> Self {
         Self {
-            top_n,
-            matches: Vec::with_capacity(top_n + 1),
+            lsr_len: 20,
+            slice_len: 5,
+            slice_offsets: vec![2, 7, 12],
+            prefilter_mismatch: 5,
+            keep_noncandidates: false,
         }
-    }
-
-    #[inline(always)]
-    fn insert(&mut self, dist: u32, seq: u64) {
-        if self.matches.len() < self.top_n {
-            self.matches.push((dist, seq));
-            self.matches.sort_unstable_by_key(|&(d, _)| d);
-        } else if dist < self.matches.last().unwrap().0 {
-            self.matches.pop();
-            self.matches.push((dist, seq));
-            self.matches.sort_unstable_by_key(|&(d, _)| d);
-        }
-    }
-
-    fn into_results(self) -> (Vec<u32>, Vec<u64>) {
-        let mut dists = Vec::with_capacity(self.matches.len());
-        let mut seqs = Vec::with_capacity(self.matches.len());
-        for (d, s) in self.matches {
-            dists.push(d);
-            seqs.push(s);
-        }
-        (dists, seqs)
     }
 }
 
-/// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
+impl Step3Config {
+    pub fn validate(&self) -> Result<()> {
+        if self.lsr_len != 20 {
+            return Err(anyhow!(
+                "LSR length must be 20 nt for CFD matrix scoring, got {}",
+                self.lsr_len
+            ));
+        }
+        if self.slice_len == 0 || self.slice_len > 10 {
+            return Err(anyhow!("Slice length must be between 1 and 10"));
+        }
+        if self.slice_offsets.is_empty() {
+            return Err(anyhow!("Slice offsets cannot be empty"));
+        }
+        for &off in &self.slice_offsets {
+            if off + self.slice_len > self.lsr_len {
+                return Err(anyhow!(
+                    "Slice window offset {} + slice len {} exceeds LSR length {}",
+                    off,
+                    self.slice_len,
+                    self.lsr_len
+                ));
+            }
+        }
+        Ok(())
+    }
+}
 
-// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
-// Helper to extract 4 independent 10-bit blocks (5 bases each) from the 20 nt target spacer (bits 24..63)
+/// Helper function to extract a direct-address bucket key for a slice from a 2-bit u64 sequence.
+/// `pos` is 0-based within the 20-nt LSR (bits 24..63).
 #[inline(always)]
-pub fn extract_pigeonhole_blocks(seq: u64) -> [usize; 4] {
-    let block0 = ((seq >> 54) & 0x03FF) as usize;
-    let block1 = ((seq >> 44) & 0x03FF) as usize;
-    let block2 = ((seq >> 34) & 0x03FF) as usize;
-    let block3 = ((seq >> 24) & 0x03FF) as usize;
-    [block0, block1, block2, block3]
+pub fn extract_slice_key(seq: u64, pos: usize, slice_len: usize) -> usize {
+    let shift = 64 - 2 * (pos + slice_len);
+    let mask = (1usize << (2 * slice_len)) - 1;
+    ((seq >> shift) as usize) & mask
 }
 
-/// Representation of a candidate guide for Step 3 search
-pub struct CandidateRecord {
+/// Representation of a candidate guide record for Step 3 search
+pub struct Step3CandidateRecord {
     pub guide_df_idx: usize,
     pub seq: u64,
     pub chrom: String,
     pub start: u32,
     pub stop: u32,
     pub strand: bool,
-    pub passed: AtomicBool,
-    pub top_matches: Mutex<TopNMatches>,
+    pub best_target_seq: Mutex<u64>,
+    pub best_hamming: Mutex<u8>,
+    pub best_cfd: Mutex<f32>,
+    pub hits_scanned: AtomicU32,
 }
 
-/// Pigeonhole Index of candidate guides
-pub struct CandidateIndex {
-    pub table0: Vec<Vec<usize>>,
-    pub table1: Vec<Vec<usize>>,
-    pub table2: Vec<Vec<usize>>,
-    pub table3: Vec<Vec<usize>>,
-    pub candidates: Vec<CandidateRecord>,
+/// Slice-based inverted index over candidate guides
+pub struct Step3CandidateIndex {
+    pub slice_len: usize,
+    pub offsets: Vec<usize>,
+    pub buckets: Vec<Vec<u32>>, // per-slice buckets
+    pub candidates: Vec<Step3CandidateRecord>,
 }
 
-/// Build Pigeonhole Index for candidate guides from guides_df
-pub fn build_candidate_index(guides_df: &DataFrame, top_n: usize) -> Result<CandidateIndex> {
+/// Build slice-based inverted index from candidate guides
+pub fn build_step3_candidate_index(
+    guides_df: &DataFrame,
+    config: &Step3Config,
+) -> Result<Step3CandidateIndex> {
+    config.validate()?;
+
     let cand_ca = guides_df.column("candidate")?.bool()?;
     let cand_vec: Vec<bool> = cand_ca.into_no_null_iter().collect();
 
@@ -280,59 +189,112 @@ pub fn build_candidate_index(guides_df: &DataFrame, top_n: usize) -> Result<Cand
     let stop_ca = guides_df.column("stop")?.u32()?;
     let strand_ca = guides_df.column("strand")?.bool()?;
 
+    let num_slices = config.slice_offsets.len();
+    let num_buckets_per_slice = 1usize << (2 * config.slice_len);
+    let total_buckets = num_slices * num_buckets_per_slice;
+
+    let mut buckets = vec![Vec::<u32>::new(); total_buckets];
     let mut candidates = Vec::new();
-    let mut table0 = vec![Vec::<usize>::new(); 1024];
-    let mut table1 = vec![Vec::<usize>::new(); 1024];
-    let mut table2 = vec![Vec::<usize>::new(); 1024];
-    let mut table3 = vec![Vec::<usize>::new(); 1024];
 
     for (df_idx, &is_cand) in cand_vec.iter().enumerate() {
         if !is_cand {
             continue;
         }
 
-        let cand_idx = candidates.len();
+        let cand_idx = candidates.len() as u32;
         let seq = seq_vec[df_idx];
         let chrom = chrom_vec[df_idx].clone();
         let start = start_ca.get(df_idx).unwrap_or(0);
         let stop = stop_ca.get(df_idx).unwrap_or(0);
         let strand = strand_ca.get(df_idx).unwrap_or(true);
 
-        let blocks = extract_pigeonhole_blocks(seq);
-        table0[blocks[0]].push(cand_idx);
-        table1[blocks[1]].push(cand_idx);
-        table2[blocks[2]].push(cand_idx);
-        table3[blocks[3]].push(cand_idx);
+        for (s_idx, &offset) in config.slice_offsets.iter().enumerate() {
+            let key = extract_slice_key(seq, offset, config.slice_len);
+            let b_idx = s_idx * num_buckets_per_slice + key;
+            buckets[b_idx].push(cand_idx);
+        }
 
-        candidates.push(CandidateRecord {
+        candidates.push(Step3CandidateRecord {
             guide_df_idx: df_idx,
             seq,
             chrom,
             start,
             stop,
             strand,
-            passed: AtomicBool::new(true),
-            top_matches: Mutex::new(TopNMatches::new(top_n)),
+            best_target_seq: Mutex::new(0),
+            best_hamming: Mutex::new(255),
+            best_cfd: Mutex::new(0.0),
+            hits_scanned: AtomicU32::new(0),
         });
     }
 
-    Ok(CandidateIndex {
-        table0,
-        table1,
-        table2,
-        table3,
+    Ok(Step3CandidateIndex {
+        slice_len: config.slice_len,
+        offsets: config.slice_offsets.clone(),
+        buckets,
         candidates,
     })
 }
 
-/// Scan a batch of genomic targets against the candidate guide index
-pub fn scan_targets_against_candidates(
+/// Compute mismatch-only CFD score using branch-light trailing_zeros iteration
+#[inline(always)]
+pub fn compute_cfd_mismatch_only(cand_seq: u64, target_seq: u64, lsr_len: usize) -> f32 {
+    let x = cand_seq ^ target_seq;
+    if x == 0 {
+        return 1.0;
+    }
+
+    let active_bits = 2 * lsr_len.min(20);
+    let mask = if active_bits >= 64 {
+        u64::MAX
+    } else {
+        !((1u64 << (64 - active_bits)) - 1)
+    };
+
+    let masked_x = x & mask;
+    if masked_x == 0 {
+        return 1.0;
+    }
+
+    // Convert bit positions from left-aligned to pos 0..19
+    let mut score = 1.0f32;
+    let mut remaining = masked_x;
+
+    while remaining != 0 {
+        let lz = remaining.leading_zeros() as usize;
+        let bit_pos = 63 - lz;
+        let base_pos = 31 - (bit_pos / 2);
+
+        if base_pos >= lsr_len.min(20) {
+            break;
+        }
+
+        let shift = bit_pos & !1;
+        let q_base = ((cand_seq >> shift) & 0b11) as usize;
+        let t_base = ((target_seq >> shift) & 0b11) as usize;
+
+        if q_base != t_base {
+            score *= get_cfd_weight(base_pos, q_base, t_base);
+        }
+
+        let lane_shift = shift;
+        remaining &= !(0b11u64 << lane_shift);
+    }
+
+    score
+}
+
+/// Scan a batch of targets against the candidate guide index
+pub fn scan_targets_batch_against_index(
     targets_df: &DataFrame,
-    index: &CandidateIndex,
-    d: u32,
-    target_len: usize,
+    index: &Step3CandidateIndex,
+    config: &Step3Config,
 ) -> Result<()> {
     let num_targets = targets_df.height();
+    if num_targets == 0 || index.candidates.is_empty() {
+        return Ok(());
+    }
+
     let seq_ca = targets_df.column("seq")?.u64()?;
     let seq_vec: Vec<u64> = seq_ca.into_no_null_iter().collect();
 
@@ -340,140 +302,168 @@ pub fn scan_targets_against_candidates(
     let start_ca = targets_df.column("start")?.u32()?;
     let strand_ca = targets_df.column("strand")?.bool()?;
 
-    let target_mask = compute_target_mask(target_len.min(20));
+    let target_mask = compute_target_mask(config.lsr_len.min(20));
+    let num_buckets_per_slice = 1usize << (2 * config.slice_len);
 
     (0..num_targets)
         .into_par_iter()
         .with_min_len(1024)
-        .for_each(|g_idx| {
-            let g_seq = seq_vec[g_idx];
-            let g_chrom = &chrom_vec[g_idx];
-            let g_start = start_ca.get(g_idx).unwrap_or(0);
-            let g_strand = strand_ca.get(g_idx).unwrap_or(true);
+        .for_each_init(
+            || Vec::<u32>::with_capacity(128),
+            |union_buf, g_idx| {
+                let g_seq = seq_vec[g_idx];
+                let g_chrom = &chrom_vec[g_idx];
+                let g_start = start_ca.get(g_idx).unwrap_or(0);
+                let g_strand = strand_ca.get(g_idx).unwrap_or(true);
 
-            let blocks = extract_pigeonhole_blocks(g_seq);
+                union_buf.clear();
 
-            let process_candidate = |cand_idx: usize| {
-                let cand = &index.candidates[cand_idx];
+                for (s_idx, &offset) in index.offsets.iter().enumerate() {
+                    let key = extract_slice_key(g_seq, offset, index.slice_len);
+                    let b_idx = s_idx * num_buckets_per_slice + key;
+                    union_buf.extend_from_slice(&index.buckets[b_idx]);
+                }
 
-                // Skip if this genomic target is the candidate guide's own locus
-                if g_strand == cand.strand && g_start == cand.start && g_chrom == &cand.chrom {
+                if union_buf.is_empty() {
                     return;
                 }
 
-                let dist = base_hamming_distance_masked(cand.seq, g_seq, target_mask);
-                if dist < d {
-                    cand.passed.store(false, Ordering::Relaxed);
-                } else {
-                    if let Ok(mut guard) = cand.top_matches.lock() {
-                        guard.insert(dist, g_seq);
+                union_buf.sort_unstable();
+                union_buf.dedup();
+
+                for &cand_idx_u32 in union_buf.iter() {
+                    let cand = &index.candidates[cand_idx_u32 as usize];
+
+                    // Candidate self-locus skip check
+                    if g_strand == cand.strand && g_start == cand.start && g_chrom == &cand.chrom {
+                        continue;
+                    }
+
+                    // 20-nt LSR bitwise Hamming prefilter
+                    let mismatches = base_hamming_distance_masked(cand.seq, g_seq, target_mask);
+                    if mismatches >= config.prefilter_mismatch {
+                        continue;
+                    }
+
+                    cand.hits_scanned.fetch_add(1, Ordering::Relaxed);
+
+                    // CFD score computation
+                    let cfd_score = compute_cfd_mismatch_only(cand.seq, g_seq, config.lsr_len);
+
+                    let mut best_cfd = cand.best_cfd.lock().unwrap();
+                    let update = if cfd_score > *best_cfd {
+                        true
+                    } else if (cfd_score - *best_cfd).abs() < 1e-6 {
+                        // Tie-breaker: prefer lower Hamming, then lower 2-bit target sequence
+                        let best_h = *cand.best_hamming.lock().unwrap();
+                        let best_seq = *cand.best_target_seq.lock().unwrap();
+                        ((mismatches as u8) < best_h)
+                            || ((mismatches as u8) == best_h && g_seq < best_seq)
+                    } else {
+                        false
+                    };
+
+                    if update {
+                        *best_cfd = cfd_score;
+                        *cand.best_hamming.lock().unwrap() = mismatches as u8;
+                        *cand.best_target_seq.lock().unwrap() = g_seq;
                     }
                 }
-            };
-
-            for &c_idx in &index.table0[blocks[0]] { process_candidate(c_idx); }
-            for &c_idx in &index.table1[blocks[1]] { process_candidate(c_idx); }
-            for &c_idx in &index.table2[blocks[2]] { process_candidate(c_idx); }
-            for &c_idx in &index.table3[blocks[3]] { process_candidate(c_idx); }
-        });
+            },
+        );
 
     Ok(())
 }
 
-/// Compile final Polars DataFrame for passing candidate guides from CandidateIndex
-pub fn build_candidate_results_dataframe(
+/// Build final Step-3 Polars DataFrame containing candidates with appended best_* columns
+pub fn build_step3_results_dataframe(
     guides_df: &DataFrame,
-    index: CandidateIndex,
-    top_n: usize,
-    target_len: usize,
+    index: Step3CandidateIndex,
+    config: &Step3Config,
 ) -> Result<DataFrame> {
-    let mut passed_df_indices = Vec::new();
-    let mut passed_dists_nested = Vec::new();
-    let mut passed_seqs_nested = Vec::new();
-    let mut passed_cfds_nested = Vec::new();
+    let total_rows = guides_df.height();
+    let mut cand_best_seq = vec![0u64; index.candidates.len()];
+    let mut cand_best_hamming = vec![255u8; index.candidates.len()];
+    let mut cand_best_cfd = vec![0.0f32; index.candidates.len()];
+    let mut cand_hits_scanned = vec![0u32; index.candidates.len()];
 
-    for cand in index.candidates {
-        if cand.passed.load(Ordering::Relaxed) {
-            passed_df_indices.push(cand.guide_df_idx);
+    for (i, cand) in index.candidates.iter().enumerate() {
+        cand_best_seq[i] = *cand.best_target_seq.lock().unwrap();
+        cand_best_hamming[i] = *cand.best_hamming.lock().unwrap();
+        cand_best_cfd[i] = *cand.best_cfd.lock().unwrap();
+        cand_hits_scanned[i] = cand.hits_scanned.load(Ordering::Relaxed);
+    }
 
-            let top_matches = cand.top_matches.into_inner().unwrap();
-            let (dists, seqs) = top_matches.into_results();
-
-            let mut cfds: Vec<f32> = Vec::with_capacity(seqs.len());
-            for &s in &seqs {
-                let score = crate::cfd::calculate_cfd_2bit(cand.seq, s, target_len);
-                cfds.push(score);
-            }
-
-            let mut padded_dists: Vec<u32> = dists;
-            let mut padded_seqs: Vec<u64> = seqs;
-            let mut padded_cfds: Vec<f32> = cfds;
-            while padded_dists.len() < top_n {
-                padded_dists.push(0);
-                padded_seqs.push(0);
-                padded_cfds.push(1.0);
-            }
-
-            passed_dists_nested.push(padded_dists);
-            passed_seqs_nested.push(padded_seqs);
-            passed_cfds_nested.push(padded_cfds);
+    if !config.keep_noncandidates {
+        let mut cand_df_indices = Vec::with_capacity(index.candidates.len());
+        for cand in &index.candidates {
+            cand_df_indices.push(cand.guide_df_idx);
         }
+
+        let mut mask = vec![false; total_rows];
+        for &idx in &cand_df_indices {
+            mask[idx] = true;
+        }
+
+        let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &mask);
+        let mut filtered_df = guides_df.filter(&mask_ca)?;
+
+        let ham_u32: Vec<u32> = cand_best_hamming.iter().map(|&h| h as u32).collect();
+
+        filtered_df.with_column(Series::new("best_target_seq_u64".into(), cand_best_seq))?;
+        filtered_df.with_column(Series::new("best_hamming".into(), ham_u32))?;
+        filtered_df.with_column(Series::new("best_cfd".into(), cand_best_cfd))?;
+        filtered_df.with_column(Series::new("hits_scanned".into(), cand_hits_scanned))?;
+
+        Ok(filtered_df)
+    } else {
+        let mut best_seq_col = vec![0u64; total_rows];
+        let mut best_ham_col = vec![255u32; total_rows];
+        let mut best_cfd_col = vec![0.0f32; total_rows];
+        let mut hits_col = vec![0u32; total_rows];
+
+        for (i, cand) in index.candidates.iter().enumerate() {
+            let idx = cand.guide_df_idx;
+            best_seq_col[idx] = cand_best_seq[i];
+            best_ham_col[idx] = cand_best_hamming[i] as u32;
+            best_cfd_col[idx] = cand_best_cfd[i];
+            hits_col[idx] = cand_hits_scanned[i];
+        }
+
+        let mut out_df = guides_df.clone();
+        out_df.with_column(Series::new("best_target_seq_u64".into(), best_seq_col))?;
+        out_df.with_column(Series::new("best_hamming".into(), best_ham_col))?;
+        out_df.with_column(Series::new("best_cfd".into(), best_cfd_col))?;
+        out_df.with_column(Series::new("hits_scanned".into(), hits_col))?;
+
+        Ok(out_df)
     }
-
-    let mut passed_mask = vec![false; guides_df.height()];
-    for &df_idx in &passed_df_indices {
-        passed_mask[df_idx] = true;
-    }
-
-    let mask_ca = ChunkedArray::<BooleanType>::from_slice("cand_mask".into(), &passed_mask);
-    let filtered_df = guides_df.filter(&mask_ca)?;
-
-    let dist_series_vec: Vec<Series> = passed_dists_nested
-        .into_iter()
-        .map(|v| Series::new("".into(), v))
-        .collect();
-    let nn_dist_series = Series::new("nn_dist".into(), dist_series_vec);
-
-    let seq_series_vec: Vec<Series> = passed_seqs_nested
-        .into_iter()
-        .map(|v| Series::new("".into(), v))
-        .collect();
-    let nn_seq_series = Series::new("nn_seq".into(), seq_series_vec);
-
-    let cfd_series_vec: Vec<Series> = passed_cfds_nested
-        .into_iter()
-        .map(|v| Series::new("".into(), v))
-        .collect();
-    let nn_cfd_series = Series::new("nn_cfd".into(), cfd_series_vec);
-
-    let mut final_df = filtered_df;
-    final_df.with_column(nn_dist_series)?;
-    final_df.with_column(nn_seq_series)?;
-    final_df.with_column(nn_cfd_series)?;
-
-    Ok(final_df)
 }
 
-// Execute Step 3 candidate reduction and top-N nearest neighbor search pipeline
+/// Execute Step 3 candidate reduction and max-CFD search pipeline using slice-based inverted index
 pub fn execute_step3(
     guides_df: &DataFrame,
     d: u32,
-    top_n: usize,
+    _top_n: usize,
     _method: &str,
     target_len: usize,
 ) -> Result<(DataFrame, Step3Stats)> {
+    let mut config = Step3Config::default();
+    config.lsr_len = target_len.min(20);
+    config.prefilter_mismatch = d.max(1);
+
     let start_total = Instant::now();
 
     let start_idx = Instant::now();
-    let index = build_candidate_index(guides_df, top_n)?;
+    let index = build_step3_candidate_index(guides_df, &config)?;
     let index_build_time_sec = start_idx.elapsed().as_secs_f64();
 
     let start_search = Instant::now();
-    scan_targets_against_candidates(guides_df, &index, d, target_len)?;
+    scan_targets_batch_against_index(guides_df, &index, &config)?;
     let search_time_sec = start_search.elapsed().as_secs_f64();
 
     let total_candidates = index.candidates.len();
-    let final_df = build_candidate_results_dataframe(guides_df, index, top_n, target_len)?;
+    let final_df = build_step3_results_dataframe(guides_df, index, &config)?;
 
     let passed_candidates = final_df.height();
     let failed_candidates = total_candidates.saturating_sub(passed_candidates);
@@ -497,10 +487,6 @@ pub fn execute_step3(
 
     Ok((final_df, stats))
 }
-
-
-
-
 
 /// Extract LSR key from 2-bit u64 sequence depending on orientation
 #[inline(always)]
