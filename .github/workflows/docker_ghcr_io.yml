@@ -57,7 +57,7 @@ jobs:
       # BUILD AND PUSH MULTI-ARCH CONTAINER
       # ------------------------------------------------------------------------
       - name: Build and push GuideMaker Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker-images/Dockerfile
