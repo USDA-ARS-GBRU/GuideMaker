@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rand::RngExt; // Keeps the trait import for .gen() and .gen_bool()
-use crate::base_hamming_distance_masked; // Pulls distance metric natively
+use crate::analysis::distance::base_hamming_distance_masked; // Pulls distance metric natively
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeedOrientation {
