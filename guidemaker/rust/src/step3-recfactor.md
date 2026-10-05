@@ -2,7 +2,9 @@
 
 ## 1) Objective
 
-Implement a rust script that evaluates each **candidate guide** (from a Polars DataFrame, 2‑bit encoded) against a **streaming set of genomic targets** to find the **maximum off‑target** per candidate.
+Write a standa alone rust script that evaluates each **candidate guide** (from a Polars DataFrame, 2‑bit encoded a subset of all rows) against a **streaming set of genomic targets** to:
+1. filter the candidates-target pairs to those with a hamming distance of 5 or less and
+2. for each sett passign hte filter score the pair  using CDF scoring and  retain the maximum score and the sequence of the max scoring  target for each cadndidate.
 
 **Core rules**
 
@@ -26,12 +28,14 @@ Implement a rust script that evaluates each **candidate guide** (from a Polars D
 4      False  11918043498572909088  NC_000001.11  10484  10509    True
 ```
 
-Seq is encoded as [target] [ pam] [pad] of 3prime  orientation, [pad] [pam] [target] if 5prime oreentation. LSR is the area closest to the pam on the target. 
-
+* Seq is encoded as [target] [pam] [pad] of 3prime  orientation, [pad] [pam] [target] if 5prime oreentation. LSR is the area closest to the pam on the target. 
+* the LSR is the first 20 nt nearest the pam site withing the target.
+* Each candidate is unique in hte 20 nt lsr  but some targets may be exact duplicated
+ 
 
 **Candidates (queries)**
 
-* \~1.9M guides; Polars DataFrame.
+* \~1.9M guides; where the candidates column is True in a Polars DataFrame.
 * 2‑bit encoded sequences in `u64` (A=00, C=01, G=10, T=11).
 * LSR length for Hamming filter: **20 nt** (default).
 

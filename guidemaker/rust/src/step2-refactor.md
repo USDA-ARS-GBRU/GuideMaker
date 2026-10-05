@@ -9,7 +9,7 @@ This document describes a refactor of step2.rs and lib.2s to update the protocol
 
 ## Changes
  1. Remove code for dereplicating candidates in the in the LSR
- 2. add code to set the candidate flag to false for any guide that has a hamming distance of  <=1 int the LSR  to any target sequence LSR in the full set (317 million for humans and SpCas9)
+ 2. add code to set the candidate flag to false for any guide that has a hamming distance of  <=1 int the LSR  to any target sequence LSR in the full set (317 million for humans and SpCas9). excluse the candidates own row score as it is trivially 0.
   - a  hardware popcount (.count_ones()) approach may be appropriate for rapidly screening 
  3. During interval screening a column should be added to the Polars target dataframe `feature_keys` with the foreign keys to the features dataframe
  4. make the default LSR 20
