@@ -20,12 +20,26 @@ pub struct SeqRecord {
     pub seq: Vec<u8>,
 }
 
+
 /// Control generation
 pub mod controls;
 pub use controls::{generate_flexible_negative_controls, SeedOrientation};
 
+
+
+
 pub mod cfd;
-pub use cfd::{calculate_cfd_2bit, get_cfd_weight};
+// NEW: re-export the YAML CFD model + evaluator + helpers
+pub use cfd::{
+    CfdMatrix,
+    load_cfd_matrix,
+    cfd_evaluate_lowbits,
+    mismatch_bitmap_lowbits,
+    precompute_max_pos_weights_from_matrix,
+    cfd_evaluate_lowbits_bounded,
+};
+
+
 
 /// Representation of a single candidate hit
 #[derive(Debug, Clone, PartialEq, Eq)]

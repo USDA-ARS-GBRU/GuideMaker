@@ -1,154 +1,182 @@
-// Flattened CFD Substitution Lookup Table: [f32; 320]
-// Outer layout: 20 positions (positions 0..19)
-// Inner layout: 16 base pairs per position -> idx = (pos << 4) + (q_base << 2) + t_base
-// 2-Bit Encoding: A = 0b00 (0), C = 0b01 (1), G = 0b10 (2), T/U = 0b11 (3)
-pub static CFD_2BIT_LUT: [f32; 320] = [
-    // Position 0 (5' End Base of a 20 nt guide)
-    1.0, 1.0, 0.857, 1.0,
-    1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 0.714, 0.9,
-    1.0, 1.0, 0.857, 1.0,
-    // Position 1
-    1.0, 0.8, 0.786, 1.0,
-    0.909, 0.696, 1.0, 0.727,
-    0.636, 1.0, 0.692, 0.846,
-    1.0, 0.84, 0.857, 0.846,
-    // Position 2
-    1.0, 0.611, 0.429, 1.0,
-    0.687, 0.5, 1.0, 0.867,
-    0.5, 1.0, 0.384, 0.75,
-    1.0, 0.5, 0.429, 0.714,
-    // Position 3
-    1.0, 0.625, 0.353, 1.0,
-    0.8, 0.5, 1.0, 0.842,
-    0.364, 1.0, 0.529, 0.9,
-    1.0, 0.625, 0.647, 0.476,
-    // Position 4
-    1.0, 0.72, 0.5, 1.0,
-    0.636, 0.6, 1.0, 0.571,
-    0.3, 1.0, 0.786, 0.867,
-    1.0, 0.64, 1.0, 0.5,
-    // Position 5
-    1.0, 0.714, 0.455, 1.0,
-    0.929, 0.5, 1.0, 0.929,
-    0.667, 1.0, 0.682, 1.0,
-    1.0, 0.571, 0.909, 0.867,
-    // Position 6
-    1.0, 0.706, 0.438, 1.0,
-    0.812, 0.471, 1.0, 0.75,
-    0.571, 1.0, 0.688, 1.0,
-    1.0, 0.588, 0.688, 0.875,
-    // Position 7
-    1.0, 0.733, 0.429, 1.0,
-    0.875, 0.643, 1.0, 0.65,
-    0.625, 1.0, 0.615, 1.0,
-    1.0, 0.733, 1.0, 0.8,
-    // Position 8
-    1.0, 0.667, 0.571, 1.0,
-    0.875, 0.619, 1.0, 0.857,
-    0.533, 1.0, 0.538, 0.643,
-    1.0, 0.619, 0.923, 0.929,
-    // Position 9
-    1.0, 0.556, 0.333, 0.882,
-    0.941, 0.389, 1.0, 0.867,
-    0.812, 1.0, 0.4, 0.933,
-    1.0, 0.5, 0.533, 0.857,
-    // Position 10
-    1.0, 0.65, 0.4, 0.308,
-    0.308, 0.25, 1.0, 0.75,
-    0.385, 1.0, 0.429, 1.0,
-    1.0, 0.4, 0.667, 0.75,
-    // Position 11
-    1.0, 0.722, 0.263, 0.333,
-    0.538, 0.444, 1.0, 0.714,
-    0.384, 1.0, 0.529, 0.933,
-    1.0, 0.5, 0.947, 0.8,
-    // Position 12
-    1.0, 0.652, 0.211, 0.3,
-    0.7, 0.136, 1.0, 0.385,
-    0.3, 1.0, 0.421, 0.923,
-    1.0, 0.261, 0.789, 0.692,
-    // Position 13
-    1.0, 0.467, 0.214, 0.533,
-    0.733, 0.0, 1.0, 0.35,
-    0.267, 1.0, 0.429, 0.75,
-    1.0, 0.0, 0.286, 0.0,
-    // Position 14
-    1.0, 0.65, 0.273, 0.2,
-    0.067, 0.05, 1.0, 0.222,
-    0.143, 1.0, 0.273, 0.941,
-    1.0, 0.05, 0.273, 0.579,
-    // Position 15
-    1.0, 0.192, 0.0, 0.0,
-    0.308, 0.154, 1.0, 1.0,
-    0.0, 1.0, 0.0, 1.0,
-    1.0, 0.346, 0.667, 0.909,
-    // Position 16
-    1.0, 0.176, 0.133, 0.133,
-    0.467, 0.059, 1.0, 0.467,
-    0.25, 1.0, 0.235, 0.933,
-    1.0, 0.118, 0.706, 0.533,
-    // Position 17
-    1.0, 0.4, 0.190, 0.5,
-    0.643, 0.133, 1.0, 0.538,
-    0.667, 1.0, 0.476, 0.692,
-    1.0, 0.333, 0.429, 0.667,
-    // Position 18
-    1.0, 0.375, 0.207, 0.538,
-    0.462, 0.125, 1.0, 0.429,
-    0.667, 1.0, 0.448, 0.714,
-    1.0, 0.25, 0.276, 0.286,
-    // Position 19 (3' End Base immediately adjacent to PAM)
-    1.0, 0.765, 0.227, 0.6,
-    0.3, 0.125, 1.0, 0.5,
-    0.7, 1.0, 0.429, 0.938,
-    1.0, 0.176, 0.091, 0.563,
-];
+//! cfd.rs — Modular CFD scoring with YAML-loaded matrices + low-bit mismatch evaluator (LSR=20 nt)
+//!
+//! Exposes:
+//!  - `CfdMatrix` struct: name + 20×(4×4) weights.
+//!  - `load_cfd_matrix(path, name)` → CfdMatrix (validated).
+//!  - `cfd_evaluate_lowbits(&CfdMatrix, tgt_low, cand_low)` → f32.
+//!  - Helpers: mismatch bitmaps (low/high), precompute bounds, bounded evaluator.
+//!
+//! Bases (2-bit): A=0, C=1, G=2, T=3.
 
-/// Get weight for a mismatch at `pos` (0-based within 20-nt LSR) with query base `q_base` and target base `t_base`.
-/// Returns 1.0 for missing / zero weight.
-#[inline(always)]
-pub fn get_cfd_weight(pos: usize, q_base: usize, t_base: usize) -> f32 {
-    if pos >= 20 || q_base >= 4 || t_base >= 4 {
-        return 1.0;
-    }
-    let idx = (pos << 4) + (q_base << 2) + t_base;
-    let w = CFD_2BIT_LUT[idx];
-    if w == 0.0 { 1.0 } else { w }
+use anyhow::{Context, Result};
+use serde::Deserialize;
+
+pub const LSR_LEN: usize = 20;
+
+// ---------- YAML schema & loader ----------
+
+#[derive(Deserialize)]
+struct CfdModelFile {
+    models: Vec<CfdModelSpec>,
 }
 
-/// Computes the CFD guide-matching score entirely in 2-bit sequence registers using precomputed flat LUT
+#[derive(Deserialize, Clone)]
+struct CfdModelSpec {
+    name: String,
+    enzyme: Option<String>,
+    version: Option<u32>,
+    lsr_len: usize,                  // must be 20
+    alphabet: [String; 4],           // ["A","C","G","T"]
+    weights: Vec<[[f32; 4]; 4]>,     // length = 20, each is 4x4 tgt x cand
+}
+
+/// In-memory evaluator-ready matrix
+#[derive(Clone)]
+pub struct CfdMatrix {
+    pub name: String,
+    pub lsr_len: usize,                  // 20
+    pub weights: Vec<[[f32; 4]; 4]>,     // 20 items
+}
+
+/// Load + validate + select by name
+pub fn load_cfd_matrix(path: &std::path::Path, name: &str) -> Result<CfdMatrix> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read CFD YAML at {:?}", path))?;
+    let parsed: CfdModelFile = serde_yaml::from_str(&text)
+        .with_context(|| format!("Failed to parse CFD YAML at {:?}", path))?;
+
+    let spec = parsed.models
+        .iter()
+        .find(|m| m.name == name)
+        .ok_or_else(|| anyhow::anyhow!("CFD model '{}' not found in {:?}", name, path))?;
+
+    // Basic validation
+    if spec.lsr_len != 20 {
+        anyhow::bail!("CFD model '{}' has lsr_len={}, expected 20", name, spec.lsr_len);
+    }
+    if spec.weights.len() != 20 {
+        anyhow::bail!("CFD model '{}' must have 20 positions; found {}", name, spec.weights.len());
+    }
+    if spec.alphabet != ["A","C","G","T"] {
+        anyhow::bail!("CFD model '{}' must use alphabet [A, C, G, T]", name);
+    }
+
+    Ok(CfdMatrix {
+        name: spec.name.clone(),
+        lsr_len: spec.lsr_len,
+        weights: spec.weights.clone(),
+    })
+}
+
+// ---------- mismatch-only evaluator (low-bit) ----------
+
+const MASK_2BIT_LSB: u64 = 0x5555_5555_5555_5555; // ...0101 pattern: LSB of each 2-bit group
+
+/// Mismatch bitmap for *low-bit* packing (positions in low 40 bits).
+/// Each set bit indicates a mismatch at that position (bit i == position i).
 #[inline(always)]
-pub fn calculate_cfd_2bit(wt_seq: u64, off_seq: u64, target_len: usize) -> f32 {
-    let mut score: f32 = 1.0;
-    let eval_len = target_len.min(20);
+pub fn mismatch_bitmap_lowbits(wt: u64, off: u64, lsr_len_nt: usize) -> u64 {
+    let mut x = wt ^ off;                 // any differing bit in a 2-bit symbol indicates mismatch
+    x |= x >> 1;                          // fold 2-bit groups: set group LSB if either bit differs
+    x & MASK_2BIT_LSB & ((1u64 << lsr_len_nt) - 1)
+}
 
-    for position_idx in 0..eval_len {
-        let shift = 64 - 2 * (position_idx + 1);
+/// CFD score for *low-bit* packed sequences using the loaded matrix.
+#[inline(always)]
+pub fn cfd_evaluate_lowbits(
+    cfd: &CfdMatrix,
+    tgt_low: u64,
+    cand_low: u64,
+) -> f32 {
+    // Build mismatch bitmap once
+    let m = mismatch_bitmap_lowbits(tgt_low, cand_low, cfd.lsr_len);
+    if m == 0 { return 1.0; }
 
-        let wt_code = ((wt_seq >> shift) & 0b11) as usize;
-        let off_code = ((off_seq >> shift) & 0b11) as usize;
-
-        if wt_code != off_code {
-            score *= get_cfd_weight(position_idx, wt_code, off_code);
-        }
+    let mut score = 1.0f32;
+    let mut bits = m as u32;
+    while bits != 0 {
+        let i = bits.trailing_zeros() as usize;         // position 0..19
+        let t = ((tgt_low  >> (2*i)) & 0b11) as usize;  // 0..3
+        let c = ((cand_low >> (2*i)) & 0b11) as usize;  // 0..3
+        score *= cfd.weights[i][t][c];
+        bits &= bits - 1;
     }
     score
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// ---------- Optional helpers (for bounded evaluation / high-bit input) ----------
 
-    #[test]
-    fn test_cfd_lut_values() {
-        // Spot check Pos 0, WT=A(0), OFF=G(2) -> 0.857
-        assert_eq!(get_cfd_weight(0, 0, 2), 0.857);
+/// Mismatch bitmap for *high-bit* packing (positions occupy upper 40 bits).
+#[inline(always)]
+pub fn mismatch_bitmap_highbits(wt: u64, off: u64, lsr_len_nt: usize) -> u64 {
+    let mut x = wt ^ off;
+    x |= x >> 1;
+    let top_mask = (!0u64) << (64 - 2 * lsr_len_nt); // keep only the upper 2*len bits
+    x & MASK_2BIT_LSB & top_mask
+}
 
-        // Spot check Pos 13, WT=C(1), OFF=C(1) -> 0.0 in matrix, treat as 1.0
-        assert_eq!(get_cfd_weight(13, 1, 1), 1.0);
-
-        // Spot check Pos 19, WT=T(3), OFF=G(2) -> 0.091
-        assert_eq!(get_cfd_weight(19, 3, 2), 0.091);
+/// Precompute per-position *maximum* mismatch weight across all base pairs.
+/// Useful for bounded evaluation / early exit.
+#[inline]
+pub fn precompute_max_pos_weights_from_matrix(cfd: &CfdMatrix) -> [f32; LSR_LEN] {
+    let mut out = [1.0f32; LSR_LEN];
+    for pos in 0..LSR_LEN {
+        let mut m = 0.0f32;
+        for q in 0..4 {
+            for t in 0..4 {
+                if q == t { continue; }
+                let w = cfd.weights[pos][q][t];
+                if w > m { m = w; }
+            }
+        }
+        out[pos] = if m > 0.0 { m } else { 1.0 };
     }
+    out
+}
+
+/// Bounded CFD for *low-bit* packed sequences, using the loaded matrix.
+#[inline(always)]
+pub fn cfd_evaluate_lowbits_bounded(
+    cfd: &CfdMatrix,
+    tgt_low: u64,
+    cand_low: u64,
+    best_so_far: f32,
+    max_weight_per_pos: &[f32; LSR_LEN],
+) -> f32 {
+    let m = mismatch_bitmap_lowbits(tgt_low, cand_low, cfd.lsr_len);
+
+    // Upper bound of remaining multiplicative weights (lazy product over remaining positions).
+    let mut remaining_prod_bound: f32 = 1.0;
+    {
+        let mut tmp = m as u32;
+        while tmp != 0 {
+            let pos = tmp.trailing_zeros() as usize;
+            remaining_prod_bound *= max_weight_per_pos[pos];
+            tmp &= tmp - 1;
+        }
+    }
+
+    let mut score: f32 = 1.0;
+    let mut mism = m as u32;
+
+    while mism != 0 {
+        if score * remaining_prod_bound <= best_so_far {
+            break;
+        }
+        let pos = mism.trailing_zeros() as usize;
+
+        // consume this position from bound (avoid div by 0; max is >= 1.0 typically)
+        let this_max = max_weight_per_pos[pos];
+        if this_max != 0.0 {
+            remaining_prod_bound /= this_max;
+        }
+
+        let t = ((tgt_low  >> (2*pos)) & 0b11) as usize;
+        let c = ((cand_low >> (2*pos)) & 0b11) as usize;
+        score *= cfd.weights[pos][t][c];
+
+        mism &= mism - 1;
+    }
+
+    score
 }
